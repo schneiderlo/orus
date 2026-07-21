@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "04_spec_verifier",
+  "current_step": "03_spec_writer",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -14,8 +14,8 @@
       "last_result_path": ".factory/results/01_discovery/r1/result.json"
     },
     "03_spec_writer": {
-      "status": "done",
-      "attempts": 2,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "specs_ready",
         "summary": "Completed the self-contained Orus foundation specification pack for the M0 factory wave. The charter defines measurable M0 scope and the complete M0-M11 milestone roadmap; the glossary standardizes product and engineering terminology; the decision log maps every discovery answer and binding architectural tradeoff with alternatives and validation; the risk register provides concrete mitigations and milestone validation; and SPECS.md indexes all foundation files plus 28 dependency-ordered domain-spec placeholders with the required reusable template. Discovery is closed and no blocking ambiguity remains.",
@@ -32,8 +32,25 @@
       "last_result_path": ".factory/results/03_spec_writer/r2/result.json"
     },
     "04_spec_verifier": {
-      "status": "pending",
-      "attempts": 0
+      "status": "done",
+      "attempts": 1,
+      "last_result": {
+        "verdict": "needs_work",
+        "summary": "First-round foundation verification found 10 blocking findings: three Charter testability gaps, four Glossary completeness/consistency defects, two Risk traceability defects, and premature Ready declarations in SPECS.md. The ADR log is READY, all required foundation files exist, and no planned specs/10+ file was treated as missing.",
+        "report_path": "specs/_reviews/2026-07-21_foundation_review.md",
+        "open_questions": [
+          {
+            "kind": "clarification",
+            "domain": "licensing",
+            "text": "What exact copyright year and legal holder name should appear in the root MIT LICENSE and packaged copies?",
+            "why_it_matters": "The Charter requires the standard MIT text and packaged license validation, but the required notice value cannot be derived from discovery, the decisions, or the project seed.",
+            "unlocks": "Final root LICENSE content, packaged-license checks, and release evidence for G-03, SM-10, and DOD-06.",
+            "default": "Require an owner-supplied notice in the release domain specification and block public packaging; do not invent a holder or ship a placeholder.",
+            "blocking": false
+          }
+        ]
+      },
+      "last_result_path": ".factory/results/04_spec_verifier/r1/result.json"
     }
   },
   "history": [
@@ -90,6 +107,30 @@
       "step": "03_spec_writer",
       "event": "commit_scheduled",
       "detail": "20260721T214413Z_03_spec_writer_r2"
+    },
+    {
+      "ts": "2026-07-21T21:44:13Z",
+      "step": "04_spec_verifier",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-21T21:52:24Z",
+      "step": "04_spec_verifier",
+      "event": "attempt_finished",
+      "detail": "r1 in 8m11s (125987 tokens)"
+    },
+    {
+      "ts": "2026-07-21T21:52:24Z",
+      "step": "04_spec_verifier",
+      "event": "transition",
+      "detail": "-> 03_spec_writer"
+    },
+    {
+      "ts": "2026-07-21T21:52:24Z",
+      "step": "04_spec_verifier",
+      "event": "commit_scheduled",
+      "detail": "20260721T215224Z_04_spec_verifier_r1"
     }
   ],
   "metrics": [
@@ -100,6 +141,14 @@
       "ts": "2026-07-21T21:44:13Z",
       "duration_s": 877.1,
       "tokens": 193112
+    },
+    {
+      "step": "04_spec_verifier",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-21T21:52:24Z",
+      "duration_s": 490.6,
+      "tokens": 125987
     }
   ]
 }

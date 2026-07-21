@@ -1,0 +1,17 @@
+{
+  "id": "q-0001",
+  "step": "04_spec_verifier",
+  "steps": [
+    "04_spec_verifier"
+  ],
+  "attempt": 1,
+  "status": "open",
+  "asked_at": "2026-07-21T21:52:24Z",
+  "blocking": false,
+  "domain": "licensing",
+  "kind": "clarification",
+  "text": "What exact copyright year and legal holder name should appear in the root MIT LICENSE and packaged copies?",
+  "why_it_matters": "The Charter requires the standard MIT text and packaged license validation, but the required notice value cannot be derived from discovery, the decisions, or the project seed.",
+  "unlocks": "Final root LICENSE content, packaged-license checks, and release evidence for G-03, SM-10, and DOD-06.",
+  "default": "Require an owner-supplied notice in the release domain specification and block public packaging; do not invent a holder or ship a placeholder."
+}
