@@ -5,7 +5,7 @@
     "04_spec_verifier"
   ],
   "attempt": 1,
-  "status": "open",
+  "status": "answered",
   "asked_at": "2026-07-21T21:52:24Z",
   "blocking": false,
   "domain": "licensing",
@@ -13,5 +13,11 @@
   "text": "What exact copyright year and legal holder name should appear in the root MIT LICENSE and packaged copies?",
   "why_it_matters": "The Charter requires the standard MIT text and packaged license validation, but the required notice value cannot be derived from discovery, the decisions, or the project seed.",
   "unlocks": "Final root LICENSE content, packaged-license checks, and release evidence for G-03, SM-10, and DOD-06.",
-  "default": "Require an owner-supplied notice in the release domain specification and block public packaging; do not invent a holder or ship a placeholder."
+  "default": "Require an owner-supplied notice in the release domain specification and block public packaging; do not invent a holder or ship a placeholder.",
+  "answer": {
+    "text": "Use Copyright (c) 2026 Loic Schneider in the root MIT LICENSE and packaged copies.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-21T21:54:18Z"
+  }
 }

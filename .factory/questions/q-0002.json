@@ -1,0 +1,21 @@
+{
+  "id": "q-0002",
+  "step": "03_spec_writer",
+  "steps": [
+    "03_spec_writer"
+  ],
+  "attempt": 1,
+  "status": "open",
+  "asked_at": "2026-07-21T22:02:30Z",
+  "blocking": false,
+  "domain": "governance_release",
+  "kind": "clarification",
+  "text": "What exact copyright year and legal holder name must appear in the root MIT LICENSE and packaged copies?",
+  "why_it_matters": "The MIT license choice is accepted, but repository metadata is not authoritative legal identity data; public packages must contain a final owner-approved notice.",
+  "unlocks": "Completion of the public-packaging portion of the M0 governance and release gate.",
+  "options": [
+    "Supply the exact legal holder name and copyright year for all root and packaged MIT notices.",
+    "Have the release owner obtain counsel-approved notice wording before public packaging."
+  ],
+  "default": "Do not infer or ship placeholder values; require owner-supplied holder and year in specs/11-governance-release.md and block public packaging until both are supplied."
+}

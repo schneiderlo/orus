@@ -40,9 +40,46 @@ delivery commitments in the current wave.
 | G-03 | Create a commercially credible engineering baseline. | MIT license text, contribution policy, dependency-admission template, ADR template, SBOM generation, formatting, linting, CI, and agent guidance exist and their automated checks pass. Outside contributions are explicitly closed during M0. | Repository inspection plus CI execution; compare MIT text to the OSI-published MIT template; generate and validate a non-empty SBOM for the release artifact. |
 | G-04 | Make performance evidence part of correctness from the first implementation wave. | A benchmark harness, allocation counter, versioned result schema, controlled-runner contract, and regression comparator exist. The comparator detects a fixture regression greater than 3%; shared-runner results are labeled advisory. | Run benchmark unit/integration tests and comparator fixtures; schema-validate emitted results; inspect runner provenance and authority fields. |
 | G-05 | Prevent a single-process or single-thread architecture from becoming the baseline. | The M0 example corpus includes a parent and an exec'd child, with at least three parent pthreads and two child pthreads, synchronization, IPC, deterministic output, joins, waits, and clean exit. It runs successfully 100 consecutive times under the native test harness. | Run the Bazel integration target 100 times; assert topology, expected logical result, all joins/waits, zero timeout, and zero remaining child process after each run. |
-| G-06 | Provide truthful operator diagnostics. | `orus --version` reports product version, source revision, build configuration, compiler identity, and target platform; `orus doctor` reports the reference-environment and host facts it can actually inspect and returns a non-zero status for a failed mandatory M0 check. | CLI golden/structured-output tests in compatible and deliberately incompatible test environments. |
-| G-07 | Preserve the future deterministic core boundary. | M0 documentation and repository layout reserve process/task identity, deterministic scheduling, trace/versioning, isolated workers, and reference/fast-path concerns without shipping fake implementations or claims. | Architecture-policy review and a release-claim test that rejects text or metadata asserting record/replay support at M0. |
+| G-06 | Provide truthful operator diagnostics. | `orus --version` reports product version, source revision, build configuration, compiler identity, and target platform. `orus doctor` implements exactly the mandatory checks in the versioned `M0-DOCTOR-v1` inventory required by Section 2.1, reports each as pass/fail, exits 0 only when all pass, and exits non-zero when any fail. | Schema/golden tests validate all five version fields. A compatible fixture covers every inventory row and exits 0; one negative fixture per mandatory check proves that check's stable ID is reported as failed and the command exits non-zero. |
+| G-07 | Preserve the future deterministic core boundary. | Every row of the `M0-ARCH-v1` checklist in Section 2.2 has both an accepted foundation decision and a named future owning domain in `SPECS.md`; M0 contains no implementation or availability claim for those future capabilities. | Run the checklist inspection against the decision log and `SPECS.md`; run the approved-claims scan over source, CLI help, README, package contents, and release metadata and find zero M1+ availability claims or runtime targets. |
 | G-08 | Ultimately provide deterministic, evidence-backed debugging. | M1-M11 deliver the gated roadmap in Section 10; each milestone must meet its correctness, concurrency, security, compatibility, and performance gate before the next dependent milestone is Active. | Milestone-specific domain specifications and their test/benchmark reports; not an M0 completion criterion. |
+
+### 2.1 Normative M0 diagnostics inventory contract
+
+`specs/12-cli-diagnostics.md` is the authoritative owner of a versioned, finite
+table named `M0-DOCTOR-v1`. Before that domain spec can become Ready, the table
+must enumerate every M0 `orus doctor` check and, for each row, define:
+
+- a stable check ID and human-readable name;
+- the fact source and expected value or predicate;
+- whether the check is mandatory or informational;
+- the structured pass/fail representation and diagnostic fields; and
+- whether failure contributes to the process exit status.
+
+The Ready version of `M0-DOCTOR-v1` is the complete inventory: the executable
+must not add undocumented mandatory checks, omit an inventory row, or report an
+unknown result as a pass. The positive fixture must exercise every mandatory
+row. The negative suite must cover every mandatory row by producing the stated
+failure result and non-zero process exit. Exact pinned environment values are
+owned by `specs/10-build-environment.md` and referenced, not duplicated, by the
+inventory.
+
+### 2.2 Normative M0 architecture-preservation checklist
+
+M0 preserves future boundaries through explicit ownership and accepted
+decisions, not through empty directories or placeholder runtime code. Every row
+below must pass at the M0 gate.
+
+| Check ID | Boundary assertion | Required observable M0 artifacts | Binary pass rule |
+|---|---|---|---|
+| M0-ARCH-01 | Process and task identity is not modeled as one host PID or one implicit thread. | D-005 and D-012; planned owner `specs/21-task-identity-scheduler.md` in `SPECS.md`. | Both decisions are Accepted and the named roadmap row explicitly owns virtual process/thread identity. |
+| M0-ARCH-02 | Deterministic scheduling has one explicit future owner and a strict serialized initial policy. | D-012; planned owner `specs/21-task-identity-scheduler.md`. | D-012 is Accepted and the roadmap row explicitly owns scheduler state, logical progress, and unsupported scheduling cases. |
+| M0-ARCH-03 | Durable trace data uses versioned schemas and segmented storage rather than native layouts. | D-015; planned owner `specs/30-trace-format-store.md`. | D-015 is Accepted and the roadmap row explicitly owns trace schema/version, integrity, and storage compatibility. |
+| M0-ARCH-04 | Failure-prone debugger components are isolated behind typed process boundaries with one mutable-state owner. | D-013; planned owners `specs/60-replay-control-protocol.md` and `specs/61-debug-symbol-adapters.md`. | D-013 is Accepted and both roadmap rows explicitly own the worker protocol and symbol-worker isolation boundary. |
+| M0-ARCH-05 | The reference correctness path and commercial fast path share one logical model and require differential validation. | D-014; planned owners `specs/31-recorder-pipeline.md` and `specs/41-validation-divergence.md`. | D-014 is Accepted and both roadmap rows explicitly own the fast/reference overlap and equivalence evidence. |
+
+If any required decision is not Accepted, any named owner is absent, or an M0
+artifact claims the future capability is available, G-07 fails.
 
 ## 3. Non-goals
 
@@ -132,7 +169,7 @@ the current source revision.
 | SM-03 | 0 undeclared host headers, libraries, compilers, generators, or scripts in a sandboxed build. | Blocking | Build with an intentionally minimal host and Bazel sandbox debug/aquery inspection. |
 | SM-04 | 100% pass for Clang dev tests, GCC compatibility tests, release build, ASan tests, UBSan tests, format/lint, SBOM generation, and fuzz smoke in GitHub Actions. | Blocking | Required GitHub Actions job results for the current revision. |
 | SM-05 | Concurrent example completes 100/100 consecutive runs with the declared topology, one expected result per run, expected exit statuses, and zero leaked child processes. | Blocking | Repetition harness report and process cleanup assertions. |
-| SM-06 | `orus --version` contains five non-empty facts: version, revision, configuration, compiler, and target; `orus doctor` identifies every mandatory check as pass/fail and returns non-zero if one fails. | Blocking | CLI integration tests and output-schema validation. |
+| SM-06 | `orus --version` contains five non-empty facts: version, revision, configuration, compiler, and target. `orus doctor` covers 100% of `M0-DOCTOR-v1`: the all-compatible fixture reports every mandatory row as pass and exits 0; each mandatory-check negative fixture reports its row as fail and exits non-zero. | Blocking | Version output-schema tests; inventory-to-test reconciliation; positive and per-row negative CLI integration reports. |
 | SM-07 | Every emitted benchmark result contains workload/version, source revision, CPU, affinity, kernel, compiler, optimization configuration, storage facts when applicable, warmup/sample statistics, units, and runner authority. | Blocking | Result-schema validation with positive and missing-field fixtures. |
 | SM-08 | The regression comparator passes changes at or below 3.0%, flags a statistically significant change above 3.0%, rejects incomparable provenance, and never treats shared GitHub-runner data as authoritative. | Blocking for tool behavior; shared-runner measurements are Advisory | Comparator boundary fixtures at 3.0% and above 3.0%, provenance mismatch tests, and authority-label tests. Exact statistical sampling is specified by the M0 performance domain spec. |
 | SM-09 | Allocation counter reports zero steady-state allocations for the benchmark harness's designated no-allocation reference loop after startup and detects a positive-allocation fixture. | Blocking | Allocation-counter integration tests with zero and injected-allocation fixtures. |
@@ -200,13 +237,22 @@ M0 deliverable.
 | DOD-01 | All M0 domain specs in `SPECS.md` are Ready, their accepted requirements are implemented, and no M1+ runtime capability is represented as complete. | Spec status index, requirement-to-test traceability, and release-claim scan. |
 | DOD-02 | SM-01 through SM-11 pass on the current revision; SM-12 is emitted and correctly labeled. | Machine-readable CI/release evidence bundle. |
 | DOD-03 | Clean Nix+Bazel builds are reproducible through the canonical commands and produce an `orus` release artifact with real build metadata. | Clean-clone logs, artifact hash(es), and `orus --version` output. |
-| DOD-04 | Unit and integration tests, negative-path tests, relevant ASan/UBSan runs, fuzz smoke, formatting, lint/static checks, and the concurrent 100-run corpus pass with no unexplained warning. | CI jobs and test reports. |
+| DOD-04 | Every cell marked required in the versioned `M0-CI-APPLICABILITY-v1` target/check matrix owned by `specs/13-ci-quality.md` executes and passes, including unit, integration, negative-path, ASan, UBSan, fuzz-smoke, format, lint/static, and concurrent-corpus checks where the matrix applies them. All produced warnings are allowlisted under the rule below. | Matrix-to-CI reconciliation, machine-readable job/test reports, warning report, and the concurrent 100-run report. |
 | DOD-05 | Benchmark schema, raw samples, controlled-runner contract, comparator, allocation counter, and advisory CI benchmark path are documented and tested. | Schema/comparator tests and a sample performance report containing all SM-07 fields. |
 | DOD-06 | MIT license, outside-contribution closure, dependency admission records, third-party notices process, and release SBOM are complete. | Policy review and SBOM/license reconciliation. |
 | DOD-07 | Every significant M0 architectural choice has an accepted ADR or an explicit assumption with alternatives, consequences, validation, and rollback/migration plan. | Decision/ADR audit against `02-DECISIONS.md` and domain specs. |
 | DOD-08 | Resource bounds, failures, and externally visible behavior introduced in M0 have precise diagnostics and documentation. | Negative tests, CLI docs, and operator-facing failure catalog. |
 | DOD-09 | No test leaves child processes or temporary owned resources behind, including after forced failure or timeout. | Teardown/fault-injection integration tests and post-test process/resource checks. |
 | DOD-10 | A reviewer can reproduce the gate from zero repository context using only committed documentation. | Independent clean-clone gate execution. |
+
+`M0-CI-APPLICABILITY-v1` must be a finite matrix of every M0 Bazel test target
+or target group against every required CI check/configuration. Each cell is
+`required` or `not_applicable`; a `not_applicable` cell must carry a scoped
+rationale and the requirement or tool limitation that justifies it. Silent
+skip, empty execution, and host-toolchain fallback fail DOD-04. A warning passes
+only when a versioned allowlist entry matches its stable tool/rule ID and exact
+target/configuration scope and records an owner, written rationale, and review
+milestone. Zero non-allowlisted warnings are permitted.
 
 ## 10. CRITICAL Milestones
 

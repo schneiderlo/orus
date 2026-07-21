@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "03_spec_writer",
+  "current_step": "04_spec_verifier",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -14,26 +14,39 @@
       "last_result_path": ".factory/results/01_discovery/r1/result.json"
     },
     "03_spec_writer": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "last_result": {
         "verdict": "specs_ready",
-        "summary": "Completed the self-contained Orus foundation specification pack for the M0 factory wave. The charter defines measurable M0 scope and the complete M0-M11 milestone roadmap; the glossary standardizes product and engineering terminology; the decision log maps every discovery answer and binding architectural tradeoff with alternatives and validation; the risk register provides concrete mitigations and milestone validation; and SPECS.md indexes all foundation files plus 28 dependency-ordered domain-spec placeholders with the required reusable template. Discovery is closed and no blocking ambiguity remains.",
-        "open_questions": [],
+        "summary": "Foundation spec pack is complete and implementation-ready for domain specification work. Discovery precedence and all ten confirmed answers are mapped to decisions; the latest review's testability, glossary, trace-sequencing, risk-traceability, and readiness findings are resolved; SPECS.md contains the complete Foundation and M0-M11 roadmap plus the full domain template. One legal-notice value remains a non-blocking clarification and is governed by safe Assumption D-016, which blocks public packaging rather than inventing a holder or year.",
+        "open_questions": [
+          {
+            "kind": "clarification",
+            "domain": "governance_release",
+            "text": "What exact copyright year and legal holder name must appear in the root MIT LICENSE and packaged copies?",
+            "why_it_matters": "The MIT license choice is accepted, but repository metadata is not authoritative legal identity data; public packages must contain a final owner-approved notice.",
+            "unlocks": "Completion of the public-packaging portion of the M0 governance and release gate.",
+            "options": [
+              "Supply the exact legal holder name and copyright year for all root and packaged MIT notices.",
+              "Have the release owner obtain counsel-approved notice wording before public packaging."
+            ],
+            "default": "Do not infer or ship placeholder values; require owner-supplied holder and year in specs/11-governance-release.md and block public packaging until both are supplied.",
+            "blocking": false
+          }
+        ],
         "files_written": [
           "specs/00-CHARTER.md",
           "specs/01-GLOSSARY.md",
           "specs/02-DECISIONS.md",
           "specs/03-RISKS.md",
-          "SPECS.md",
-          ".factory/results/03_spec_writer/r2/result.json"
+          "SPECS.md"
         ]
       },
-      "last_result_path": ".factory/results/03_spec_writer/r2/result.json"
+      "last_result_path": ".factory/results/03_spec_writer/r1/result.json"
     },
     "04_spec_verifier": {
-      "status": "done",
-      "attempts": 1,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "needs_work",
         "summary": "First-round foundation verification found 10 blocking findings: three Charter testability gaps, four Glossary completeness/consistency defects, two Risk traceability defects, and premature Ready declarations in SPECS.md. The ADR log is READY, all required foundation files exist, and no planned specs/10+ file was treated as missing.",
@@ -131,6 +144,30 @@
       "step": "04_spec_verifier",
       "event": "commit_scheduled",
       "detail": "20260721T215224Z_04_spec_verifier_r1"
+    },
+    {
+      "ts": "2026-07-21T21:52:24Z",
+      "step": "03_spec_writer",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-21T22:02:30Z",
+      "step": "03_spec_writer",
+      "event": "attempt_finished",
+      "detail": "r1 in 10m06s (140239 tokens)"
+    },
+    {
+      "ts": "2026-07-21T22:02:30Z",
+      "step": "03_spec_writer",
+      "event": "transition",
+      "detail": "-> 04_spec_verifier"
+    },
+    {
+      "ts": "2026-07-21T22:02:30Z",
+      "step": "03_spec_writer",
+      "event": "commit_scheduled",
+      "detail": "20260721T220230Z_03_spec_writer_r1"
     }
   ],
   "metrics": [
@@ -149,6 +186,14 @@
       "ts": "2026-07-21T21:52:24Z",
       "duration_s": 490.6,
       "tokens": 125987
+    },
+    {
+      "step": "03_spec_writer",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-21T22:02:30Z",
+      "duration_s": 605.8,
+      "tokens": 140239
     }
   ]
 }

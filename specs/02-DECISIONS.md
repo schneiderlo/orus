@@ -8,8 +8,9 @@
 This log applies the discovery precedence rule: **User Answer > confirmed
 Assumption > project-seed Default**. `Accepted` means the choice is binding.
 `Assumption` would mean a safe, reversible default was required because no
-authoritative answer existed. Discovery left no such unresolved foundation
-choice, so all decisions below are Accepted.
+authoritative answer existed. Discovery left no unresolved foundation product
+choice. The post-discovery review did identify one missing release-notice value;
+D-016 records the safe non-blocking Assumption without reopening discovery.
 
 Every discovery answer is mapped exactly once in the first ten decisions:
 
@@ -738,6 +739,59 @@ dependency decisions within this layout.
 Schema round-trip/golden tests, cross-version rejection/migration tests,
 truncation/corruption tests, parser fuzzing, crash-commit recovery, resource
 limit tests, and throughput/trace-size benchmarks.
+
+---
+
+## D-016 — Require owner-supplied MIT notice identity before public packaging
+
+**Status:** Assumption
+**Source:** Non-blocking clarification in `specs/_reviews/2026-07-21_foundation_review.md`
+**Decision owner:** Product owner / release owner
+**Decision scope:** Copyright notice in root and packaged MIT license copies
+
+### Context
+
+D-002 selects the MIT License, but discovery does not state the exact legal
+holder name or copyright year to put in the notice. Repository usernames,
+organization names, and the current calendar year are not authoritative legal
+identity data.
+
+### Decision
+
+Until the product owner supplies the exact holder name and year, do not infer
+them and do not ship a placeholder or incomplete notice. The M0 governance and
+release spec must make those two values owner-supplied release inputs and must
+block public packaging while either value is unresolved. This assumption does
+not block the foundation specification gate; it does block the public-package
+portion of the M0 release gate.
+
+### Alternatives considered
+
+| Alternative | Pros | Cons |
+|---|---|---|
+| **Require owner-supplied values and block public packaging (chosen assumption)** | Avoids inventing a legal identity; preserves exact standard MIT text; easy to resolve without architecture change. | Public packaging cannot pass until the owner supplies two values. |
+| Infer holder/year from repository metadata and current date | Allows an immediate license file and package. | Repository metadata may not name the legal rights holder; the inferred year may be wrong; violates the no-invented-requirement rule. |
+| Omit or ship placeholder notice fields | Makes the unresolved state visible. | Produces an incomplete release artifact and can be mistaken for final legal text. |
+
+**Recommendation and reasoning:** Use the owner-supplied/blocking-release
+default. It is the only safe reversible option consistent with D-002 and the
+review finding.
+
+### Consequences
+
+- `specs/11-governance-release.md` must define the holder and year as required
+  release inputs and a failing validation when either is absent or placeholder.
+- No foundation file asserts a holder or year.
+- Once the owner answers, update this entry to Accepted with the supplied
+  values or add a superseding release ADR; no code or schema migration is
+  required.
+
+### Validation
+
+Before public packaging, compare root and packaged `LICENSE` copies to the
+standard MIT text and verify that the exact owner-supplied holder and year are
+present with zero placeholder tokens. A missing value must fail the release
+gate before artifact publication.
 
 ## 2. Superseding a decision
 
