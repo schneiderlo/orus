@@ -5,7 +5,7 @@
     "03_spec_writer"
   ],
   "attempt": 1,
-  "status": "open",
+  "status": "answered",
   "asked_at": "2026-07-21T22:02:30Z",
   "blocking": false,
   "domain": "governance_release",
@@ -17,5 +17,11 @@
     "Supply the exact legal holder name and copyright year for all root and packaged MIT notices.",
     "Have the release owner obtain counsel-approved notice wording before public packaging."
   ],
-  "default": "Do not infer or ship placeholder values; require owner-supplied holder and year in specs/11-governance-release.md and block public packaging until both are supplied."
+  "default": "Do not infer or ship placeholder values; require owner-supplied holder and year in specs/11-governance-release.md and block public packaging until both are supplied.",
+  "answer": {
+    "text": "Use Copyright (c) 2026 Loic Schneider in the root MIT LICENSE and packaged copies.",
+    "by": "human via q-0001",
+    "rationale": "q-0002 duplicates the holder/year clarification already answered authoritatively by the human owner in q-0001; no new answer was requested.",
+    "at": "2026-07-21T22:15:35Z"
+  }
 }

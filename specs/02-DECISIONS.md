@@ -757,6 +757,10 @@ exact holder name and year because repository metadata is not authoritative
 legal identity data. The human owner answered: “Use Copyright (c) 2026 Loic
 Schneider in the root MIT LICENSE and packaged copies.”
 
+Factory question `q-0002` later repeated the same holder/year clarification.
+It is not an independent requirement or a second source of authority; it is
+resolved by the existing human answer in `q-0001`.
+
 ### Decision
 
 The root MIT `LICENSE` and every packaged copy of that license must contain this
@@ -789,7 +793,8 @@ is directly verifiable in every distributed license copy.
 - Changing the holder name or year requires explicit owner approval and an
   accepted decision that supersedes D-016; implementation or repository
   metadata alone cannot change it.
-- No MIT-notice clarification remains open.
+- Duplicate factory question `q-0002` is reconciled to the authoritative human
+  answer in `q-0001`; it cannot supply a divergent notice value.
 
 ### Validation
 
@@ -803,6 +808,7 @@ release gate before artifact publication.
 
 A superseding ADR must identify the decision ID, new evidence, affected
 requirements/milestones, compatibility and migration effects, security and
-performance effects, validation, and rollback. Decisions sourced from an
-explicit user answer (D-001 through D-010) require product-owner approval; an
-implementation team may not supersede them by code or documentation alone.
+performance effects, validation, and rollback. Every decision sourced from an
+explicit human or owner answer requires product-owner approval, including
+D-001 through D-010 and D-016; an implementation team may not supersede such a
+decision by code or documentation alone.
