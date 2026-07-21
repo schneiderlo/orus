@@ -8,9 +8,9 @@
 This log applies the discovery precedence rule: **User Answer > confirmed
 Assumption > project-seed Default**. `Accepted` means the choice is binding.
 `Assumption` would mean a safe, reversible default was required because no
-authoritative answer existed. Discovery left no unresolved foundation product
-choice. The post-discovery review did identify one missing release-notice value;
-D-016 records the safe non-blocking Assumption without reopening discovery.
+authoritative answer existed. Discovery and the answered post-discovery
+clarification leave no unresolved foundation choice. D-016 records the exact
+owner-approved MIT notice supplied in that clarification.
 
 Every discovery answer is mapped exactly once in the first ten decisions:
 
@@ -110,8 +110,9 @@ compatible with the desired commercial/open publication posture.
 
 ### Consequences
 
-- M0 must add a root `LICENSE` with the standard MIT text and copyright holder
-  field resolved through the repository's release process.
+- M0 must add a root `LICENSE` with the standard MIT text and the exact
+  owner-approved notice `Copyright (c) 2026 Loic Schneider`, as specified by
+  D-016.
 - Release SBOM and third-party notices remain required; MIT does not erase
   dependency obligations.
 - Contribution governance is separate and governed by D-009.
@@ -742,56 +743,61 @@ limit tests, and throughput/trace-size benchmarks.
 
 ---
 
-## D-016 — Require owner-supplied MIT notice identity before public packaging
+## D-016 — Use the owner-approved MIT copyright notice
 
-**Status:** Assumption
-**Source:** Non-blocking clarification in `specs/_reviews/2026-07-21_foundation_review.md`
+**Status:** Accepted
+**Source:** Human answer to factory clarification `q-0001`, 2026-07-21
 **Decision owner:** Product owner / release owner
 **Decision scope:** Copyright notice in root and packaged MIT license copies
 
 ### Context
 
-D-002 selects the MIT License, but discovery does not state the exact legal
-holder name or copyright year to put in the notice. Repository usernames,
-organization names, and the current calendar year are not authoritative legal
-identity data.
+D-002 selects the MIT License. A post-discovery clarification requested the
+exact holder name and year because repository metadata is not authoritative
+legal identity data. The human owner answered: “Use Copyright (c) 2026 Loic
+Schneider in the root MIT LICENSE and packaged copies.”
 
 ### Decision
 
-Until the product owner supplies the exact holder name and year, do not infer
-them and do not ship a placeholder or incomplete notice. The M0 governance and
-release spec must make those two values owner-supplied release inputs and must
-block public packaging while either value is unresolved. This assumption does
-not block the foundation specification gate; it does block the public-package
-portion of the M0 release gate.
+The root MIT `LICENSE` and every packaged copy of that license must contain this
+exact notice line:
+
+`Copyright (c) 2026 Loic Schneider`
+
+`specs/11-governance-release.md` must treat that literal line as a binding
+release input. Root and packaged-license validation must fail before
+publication if the notice is missing, contains placeholder text, or differs in
+holder name or year.
 
 ### Alternatives considered
 
 | Alternative | Pros | Cons |
 |---|---|---|
-| **Require owner-supplied values and block public packaging (chosen assumption)** | Avoids inventing a legal identity; preserves exact standard MIT text; easy to resolve without architecture change. | Public packaging cannot pass until the owner supplies two values. |
-| Infer holder/year from repository metadata and current date | Allows an immediate license file and package. | Repository metadata may not name the legal rights holder; the inferred year may be wrong; violates the no-invented-requirement rule. |
-| Omit or ship placeholder notice fields | Makes the unresolved state visible. | Produces an incomplete release artifact and can be mistaken for final legal text. |
+| **Use the exact human-approved notice (chosen)** | Preserves authoritative owner intent; gives root and package checks one deterministic expected value; unblocks packaging. | A future holder or year change requires explicit owner approval and a superseding decision. |
+| Continue to require owner input at packaging time | Avoids inferring identity and can accommodate a late legal change. | The owner has already answered; keeping the value open contradicts a higher-priority human decision and needlessly blocks packaging. |
+| Infer holder/year from repository metadata and current date | Can be automated without a stored policy value. | Repository metadata may not name the legal rights holder; the inferred year may be wrong; violates the no-invented-requirement rule. |
 
-**Recommendation and reasoning:** Use the owner-supplied/blocking-release
-default. It is the only safe reversible option consistent with D-002 and the
-review finding.
+**Recommendation and reasoning:** Use the exact human-approved notice. It has
+the highest source priority, removes interpretation from release tooling, and
+is directly verifiable in every distributed license copy.
 
 ### Consequences
 
-- `specs/11-governance-release.md` must define the holder and year as required
-  release inputs and a failing validation when either is absent or placeholder.
-- No foundation file asserts a holder or year.
-- Once the owner answers, update this entry to Accepted with the supplied
-  values or add a superseding release ADR; no code or schema migration is
-  required.
+- `specs/11-governance-release.md` must state the exact approved notice and
+  define a failing validation for missing, placeholder, or different values.
+- Root and packaged MIT license copies use one identical notice value.
+- Changing the holder name or year requires explicit owner approval and an
+  accepted decision that supersedes D-016; implementation or repository
+  metadata alone cannot change it.
+- No MIT-notice clarification remains open.
 
 ### Validation
 
-Before public packaging, compare root and packaged `LICENSE` copies to the
-standard MIT text and verify that the exact owner-supplied holder and year are
-present with zero placeholder tokens. A missing value must fail the release
-gate before artifact publication.
+Before public packaging, compare the root and every packaged `LICENSE` copy to
+the standard MIT text and assert that each contains exactly one
+`Copyright (c) 2026 Loic Schneider` notice line. Fixtures with a missing line,
+placeholder token, different year, or different holder must each fail the
+release gate before artifact publication.
 
 ## 2. Superseding a decision
 
