@@ -1,0 +1,40 @@
+{
+  "id": "q-0006",
+  "step": "05_domain_spec_writer",
+  "steps": [
+    "05_domain_spec_writer"
+  ],
+  "attempt": 1,
+  "status": "answered",
+  "asked_at": "2026-07-21T22:49:13Z",
+  "blocking": true,
+  "domain": "performance_foundation",
+  "kind": "design_choice",
+  "text": "Which exact statistical and noise method governs the strict greater-than-3% comparator?",
+  "why_it_matters": "D-006 requires a statistically valid comparison but delegates the precise method; it controls false regression and false pass decisions.",
+  "unlocks": "PERF-FR-002, PERF-FR-004, PERF-FR-007, PERF-FR-010, controlled-runner conformance, and comparator goldens.",
+  "options": [
+    {
+      "label": "Paired bootstrap median",
+      "pros": "Interleaving reduces drift and the one-sided confidence bound expresses the 3% magnitude rule directly.",
+      "cons": "Requires more runner time and a versioned bootstrap/quantile implementation."
+    },
+    {
+      "label": "Mann-Whitney plus ratio",
+      "pros": "Uses an established nonparametric rank test.",
+      "cons": "Significance and magnitude are separate, and the method loses pairing."
+    },
+    {
+      "label": "Aggregate mean threshold",
+      "pros": "Simple and fast.",
+      "cons": "Too sensitive to noise and outliers for the accepted performance decision."
+    }
+  ],
+  "default": "Use 5 warmups, at least 30 alternating valid pairs, 10,000 deterministic paired-bootstrap resamples of median degradation, a one-sided 99% lower bound strictly greater than 3.0%, no sample trimming, zero migration/throttle events, and less than 1.0% benchmark-core background utilization; record the method in a domain ADR before Ready.",
+  "answer": {
+    "text": "Option 1: use the paired-bootstrap median method: 5 warmups, at least 30 alternating valid pairs, 10,000 deterministic paired-bootstrap resamples, a one-sided 99% lower bound strictly greater than 3.0%, no sample trimming, zero migration or throttle events, and under 1.0% benchmark-core background utilization.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-21T22:55:08Z"
+  }
+}

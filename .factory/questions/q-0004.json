@@ -1,0 +1,40 @@
+{
+  "id": "q-0004",
+  "step": "05_domain_spec_writer",
+  "steps": [
+    "05_domain_spec_writer"
+  ],
+  "attempt": 1,
+  "status": "answered",
+  "asked_at": "2026-07-21T22:49:13Z",
+  "blocking": true,
+  "domain": "governance_release",
+  "kind": "design_choice",
+  "text": "Which machine-readable SBOM serialization is canonical for M0?",
+  "why_it_matters": "The Charter requires a non-empty machine-readable SBOM but does not select a standard; the answer fixes schema validation, reconciliation, packaging, and redistributor expectations.",
+  "unlocks": "GOV-FR-006, M0-SBOM-CONTRACT-v1, SBOM golden fixtures, and release-package validation.",
+  "options": [
+    {
+      "label": "SPDX 2.3 JSON",
+      "pros": "Mature license vocabulary and common release tooling.",
+      "cons": "Verbose representation."
+    },
+    {
+      "label": "CycloneDX JSON",
+      "pros": "Strong security-component ecosystem.",
+      "cons": "Different license and relationship mapping requires separate policy choices."
+    },
+    {
+      "label": "Emit both",
+      "pros": "Broad consumer interoperability.",
+      "cons": "Duplicate reconciliation surfaces and drift risk."
+    }
+  ],
+  "default": "Use SPDX 2.3 JSON and record the selected generator, version, and deterministic normalization in a domain ADR before Ready.",
+  "answer": {
+    "text": "Option 1: use SPDX 2.3 JSON as the canonical M0 SBOM serialization; pin the generator and record deterministic normalization in the governance/release ADR.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-21T22:54:14Z"
+  }
+}

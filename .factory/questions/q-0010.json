@@ -1,0 +1,40 @@
+{
+  "id": "q-0010",
+  "step": "05_domain_spec_writer",
+  "steps": [
+    "05_domain_spec_writer"
+  ],
+  "attempt": 1,
+  "status": "answered",
+  "asked_at": "2026-07-21T22:49:13Z",
+  "blocking": true,
+  "domain": "security_foundations",
+  "kind": "design_choice",
+  "text": "Which locally reproducible secret scanner supplies the primary M0 scan?",
+  "why_it_matters": "The Charter requires secret exclusion but does not select tooling; the answer fixes local/CI parity, rules, dependency admission, and evidence format.",
+  "unlocks": "SEC-FR-002, SEC-NFR-001, the secret fixture corpus, and release security evidence.",
+  "options": [
+    {
+      "label": "Pinned maintained scanner",
+      "pros": "Broad ecosystem patterns and reproducible local/CI execution.",
+      "cons": "Adds an admitted tool dependency."
+    },
+    {
+      "label": "Repository-native scanner",
+      "pros": "Full project control and no external scanner dependency.",
+      "cons": "High maintenance burden and weaker corpus coverage."
+    },
+    {
+      "label": "GitHub-only scanning",
+      "pros": "Managed service operation.",
+      "cons": "Not reproducible locally or offline."
+    }
+  ],
+  "default": "Select a maintained scanner during implementation, pin and admit it through Nix/Bazel, version its rules, and retain narrow repository-specific supplemental rules.",
+  "answer": {
+    "text": "Option 1: use Gitleaks v8.30.1 as the primary M0 scanner, pinned by version and artifact digest through Nix/Bazel; version its offline rules and retain narrow repository-specific supplemental rules. Revisit the scanner through dependency admission if upstream security maintenance ends.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-21T22:57:13Z"
+  }
+}

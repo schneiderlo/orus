@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "05_domain_spec_writer",
+  "current_step": "06_domain_spec_verifier",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -44,6 +44,28 @@
       "last_result_path": ".factory/results/04_spec_verifier/r1/result.json"
     },
     "05_domain_spec_writer": {
+      "status": "done",
+      "attempts": 2,
+      "last_result": {
+        "verdict": "phase_specs_ready",
+        "summary": "Phase M0 domain specifications are fully drafted, indexed, and updated with all authoritative resolved choices. The seven specs define the current-stable immutable reference-environment selection process, canonical SPDX 2.3 JSON SBOM, JSON-only M0 CLI documents, exact paired-bootstrap median comparator and canonical JSON performance evidence, bounded SOCK_SEQPACKET FD-3 corpus IPC with a 10-second absolute deadline, Gitleaks v8.30.1, and lowercase hexadecimal SHA-256 content identity. Every file follows the Domain Spec Template, retains Draft status, contains measurable requirements and copy/pasteable verification commands, maps every FR/NFR to retained evidence, and cross-references accepted foundation decisions and risks. No unresolved open question or M1+ implementation claim remains.",
+        "phase": "M0",
+        "files_written": [
+          "SPECS.md",
+          "specs/10-build-environment.md",
+          "specs/11-governance-release.md",
+          "specs/12-cli-diagnostics.md",
+          "specs/13-ci-quality.md",
+          "specs/14-performance-foundation.md",
+          "specs/15-concurrent-corpus.md",
+          "specs/16-security-foundations.md",
+          ".factory/results/05_domain_spec_writer/r2/result.json"
+        ],
+        "open_questions": []
+      },
+      "last_result_path": ".factory/results/05_domain_spec_writer/r2/result.json"
+    },
+    "06_domain_spec_verifier": {
       "status": "pending",
       "attempts": 0
     }
@@ -270,6 +292,102 @@
       "step": "04_spec_verifier",
       "event": "commit_scheduled",
       "detail": "20260721T222002Z_04_spec_verifier_r1"
+    },
+    {
+      "ts": "2026-07-21T22:20:02Z",
+      "step": "05_domain_spec_writer",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-21T22:49:13Z",
+      "step": "05_domain_spec_writer",
+      "event": "attempt_finished",
+      "detail": "r1 in 29m11s"
+    },
+    {
+      "ts": "2026-07-21T22:49:13Z",
+      "step": "05_domain_spec_writer",
+      "event": "parked",
+      "detail": "9 open blocking question(s)"
+    },
+    {
+      "ts": "2026-07-21T22:53:38Z",
+      "step": "05_domain_spec_writer",
+      "event": "question_answered",
+      "detail": "q-0003 by human"
+    },
+    {
+      "ts": "2026-07-21T22:54:14Z",
+      "step": "05_domain_spec_writer",
+      "event": "question_answered",
+      "detail": "q-0004 by human"
+    },
+    {
+      "ts": "2026-07-21T22:54:38Z",
+      "step": "05_domain_spec_writer",
+      "event": "question_answered",
+      "detail": "q-0005 by human"
+    },
+    {
+      "ts": "2026-07-21T22:55:08Z",
+      "step": "05_domain_spec_writer",
+      "event": "question_answered",
+      "detail": "q-0006 by human"
+    },
+    {
+      "ts": "2026-07-21T22:55:49Z",
+      "step": "05_domain_spec_writer",
+      "event": "question_answered",
+      "detail": "q-0007 by human"
+    },
+    {
+      "ts": "2026-07-21T22:57:12Z",
+      "step": "05_domain_spec_writer",
+      "event": "question_answered",
+      "detail": "q-0008 by human"
+    },
+    {
+      "ts": "2026-07-21T22:57:12Z",
+      "step": "05_domain_spec_writer",
+      "event": "question_answered",
+      "detail": "q-0009 by human"
+    },
+    {
+      "ts": "2026-07-21T22:57:13Z",
+      "step": "05_domain_spec_writer",
+      "event": "question_answered",
+      "detail": "q-0010 by human"
+    },
+    {
+      "ts": "2026-07-21T22:57:13Z",
+      "step": "05_domain_spec_writer",
+      "event": "question_answered",
+      "detail": "q-0011 by human"
+    },
+    {
+      "ts": "2026-07-21T22:57:16Z",
+      "step": "05_domain_spec_writer",
+      "event": "attempt_started",
+      "detail": "r2 via codex"
+    },
+    {
+      "ts": "2026-07-21T23:11:55Z",
+      "step": "05_domain_spec_writer",
+      "event": "attempt_finished",
+      "detail": "r2 in 14m39s"
+    },
+    {
+      "ts": "2026-07-21T23:11:55Z",
+      "step": "05_domain_spec_writer",
+      "event": "transition",
+      "detail": "-> 06_domain_spec_verifier"
+    },
+    {
+      "ts": "2026-07-21T23:11:55Z",
+      "step": "05_domain_spec_writer",
+      "event": "commit_scheduled",
+      "detail": "20260721T231155Z_05_domain_spec_writer_r2"
     }
   ],
   "metrics": [
@@ -335,6 +453,27 @@
       "ts": "2026-07-21T22:20:02Z",
       "duration_s": 158.2,
       "tokens": 77778
+    },
+    {
+      "step": "05_domain_spec_writer",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-21T22:49:13Z",
+      "duration_s": 1751.3
+    },
+    {
+      "step": "05_domain_spec_writer",
+      "attempt": 2,
+      "executor": "codex",
+      "ts": "2026-07-21T23:11:55Z",
+      "duration_s": 879.2
     }
-  ]
+  ],
+  "step_context": {
+    "06_domain_spec_verifier": {
+      "source_step": "05_domain_spec_writer",
+      "created_at": "2026-07-21T23:11:55Z",
+      "instruction": "Verify ONLY `M0`, the phase named by the immediately previous domain-spec writer result. Do not verify earlier Draft phases just because they still appear first in `SPECS.md`."
+    }
+  }
 }

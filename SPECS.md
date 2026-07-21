@@ -5,9 +5,9 @@
 **Last updated:** 2026-07-21
 
 This file is the authoritative index for Orus specifications. The foundation
-files exist now. Domain-spec paths are planned placeholders: the files do not
-exist until the Domain Spec Writer creates their full content. A placeholder's
-Draft status is therefore expected and does not authorize implementation.
+files and all M0 domain specs exist now. M1-M11 domain-spec paths remain
+planned placeholders until the Domain Spec Writer creates their full content.
+A domain spec's Draft status does not authorize implementation.
 
 ## Status Legend
 
@@ -75,13 +75,13 @@ no deterministic execution claim is made.
 
 | Planned domain specification | Status | Purpose and boundary | Direct dependencies |
 |---|---|---|---|
-| `specs/10-build-environment.md` | Draft | Nix flake, Bazel/Bzlmod graph, hermetic Clang/LLD toolchain, GCC compatibility, configurations, locks, supported reference environment, clean-build and packaging contracts. Does not define target tracing. | Foundation D-003/D-004/D-011. |
-| `specs/11-governance-release.md` | Draft | MIT license packaging with the exact approved notice `Copyright (c) 2026 Loic Schneider` and negative validation for missing, placeholder, or different values; outside-contribution closure; ADR/dependency admission; third-party notices; SBOM; release provenance; repository/agent policy; and rollback/compatibility claim rules. | `10`; Foundation D-002/D-009/D-016. |
-| `specs/12-cli-diagnostics.md` | Draft | Minimal `orus --version` and `orus doctor` commands, build/host fact schema, exit codes, diagnostics, and false-claim prevention. No record/replay commands. | `10`, `11`; Foundation D-001/D-003. |
-| `specs/13-ci-quality.md` | Draft | GitHub Actions topology for Clang/GCC, dev/release, tests, ASan/UBSan, TSan applicability, fuzz smoke, formatting/lint/static checks, SBOM, cache/secret policy, and advisory benchmarks. | `10`, `11`, `12`; Foundation D-010. |
-| `specs/14-performance-foundation.md` | Draft | Benchmark workloads/harness, allocation counter, versioned result/provenance schema, raw-sample/statistical method, controlled-runner contract, comparison tool, 3% boundary, advisory/authoritative rules, noise and profile policy. | `10`, `13`; Foundation D-006/D-010. |
-| `specs/15-concurrent-corpus.md` | Draft | Native parent/exec-child workload with ≥3 parent and ≥2 child pthreads, bounded synchronization/IPC, time/random observations for later capture, deterministic result, joins/wait, fault injection, 100-run reliability, and cleanup. No record/replay behavior. | `10`, `13`, `14`; Foundation D-005. |
-| `specs/16-security-foundations.md` | Draft | M0 secret handling, dependency/build threat boundary, CI least privilege, artifact/SBOM integrity, future untrusted target/trace/symbol/model trust boundaries, capability vocabulary, resource-limit and fuzzing policy. No unimplemented sandbox claim. | `10`, `11`, `13`; Foundation D-007/D-008/D-013/D-015. |
+| [10-build-environment](specs/10-build-environment.md) | Draft | Nix flake, Bazel/Bzlmod graph, current-stable mutually compatible Clang/LLVM/LLD and GCC set selected into immutable locks, configurations, one supported reference environment plus validation ADR, clean-build and packaging contracts. Does not define target tracing. | Foundation (Ready): D-003/D-004/D-011. |
+| [11-governance-release](specs/11-governance-release.md) | Draft | MIT license packaging with the exact approved notice `Copyright (c) 2026 Loic Schneider` and negative validation for missing, placeholder, or different values; outside-contribution closure; ADR/dependency admission; third-party notices; canonical SPDX 2.3 JSON SBOM; release provenance; repository/agent policy; and rollback/compatibility claim rules. | `10` (Draft; Ready prerequisite); Foundation (Ready): D-002/D-009/D-016. |
+| [12-cli-diagnostics](specs/12-cli-diagnostics.md) | Draft | Minimal `orus --version` and `orus doctor` commands emitting one bounded JSON document per invocation, build/host fact schemas, exit codes, diagnostics, and false-claim prevention. No format flag, parallel prose contract, or record/replay commands. | `10`, `11` (Draft; Ready prerequisites); Foundation (Ready): D-001/D-003. |
+| [13-ci-quality](specs/13-ci-quality.md) | Draft | GitHub Actions topology for Clang/GCC, dev/release, tests, ASan/UBSan, TSan applicability, fuzz smoke, formatting/lint/static checks, SBOM, cache/secret policy, and advisory benchmarks. | `10`, `11`, `12` (Draft; Ready prerequisites); Foundation (Ready): D-010. |
+| [14-performance-foundation](specs/14-performance-foundation.md) | Draft | Benchmark workloads/harness, allocation counter, canonical JSON raw/result contracts, the selected 5-warmup/30-pair deterministic paired-bootstrap median method, controlled-runner contract, strict 3% boundary, advisory/authoritative rules, noise and profile policy. | `10`, `13` (Draft; Ready prerequisites); Foundation (Ready): D-006/D-010. |
+| [15-concurrent-corpus](specs/15-concurrent-corpus.md) | Draft | Native parent/exec-child workload with ≥3 parent and ≥2 child pthreads, one bounded `AF_UNIX SOCK_SEQPACKET` FD-3 channel, a 10-second absolute deadline, time/random observations for later capture, deterministic result, joins/wait, fault injection, 100-run reliability, and cleanup. No record/replay behavior. | `10`, `13`, `14` (Draft; Ready prerequisites); Foundation (Ready): D-005. |
+| [16-security-foundations](specs/16-security-foundations.md) | Draft | M0 Gitleaks v8.30.1 secret scanning, lowercase hexadecimal SHA-256 artifact/evidence identity, dependency/build threat boundary, CI least privilege, artifact/SBOM integrity, future untrusted target/trace/symbol/model trust boundaries, capability vocabulary, resource-limit and fuzzing policy. No unimplemented sandbox claim. | `10`, `11`, `13`, `14`, `15` (Draft; Ready prerequisites); Foundation (Ready): D-007/D-008/D-013/D-015. |
 
 ## Phase M1 — Linux process-tree and thread-control core
 

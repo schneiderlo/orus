@@ -1,0 +1,40 @@
+{
+  "id": "q-0003",
+  "step": "05_domain_spec_writer",
+  "steps": [
+    "05_domain_spec_writer"
+  ],
+  "attempt": 1,
+  "status": "answered",
+  "asked_at": "2026-07-21T22:49:13Z",
+  "blocking": true,
+  "domain": "build_environment",
+  "kind": "design_choice",
+  "text": "Which exact mutually compatible Nixpkgs, Bazel, Clang/LLVM/LLD, and GCC coordinates define M0-REFENV-v1?",
+  "why_it_matters": "D-003 delegates exact reference-environment values to this domain; the choice fixes lock inputs, toolchain identities, reference predicates, and reproducibility evidence.",
+  "unlocks": "BUILD-FR-001, BUILD-FR-004, BUILD-FR-005, BUILD-FR-010, and the reference-environment validation matrix.",
+  "options": [
+    {
+      "label": "Current stable compatible set",
+      "pros": "Current, reversible, and validated in the implementation change that commits immutable locks.",
+      "cons": "Requires the build owner to prove mutual compatibility before Ready."
+    },
+    {
+      "label": "Owner enterprise-pinned set",
+      "pros": "Can align with an existing operational standard.",
+      "cons": "No such standard or coordinates are named in the authoritative inputs."
+    },
+    {
+      "label": "Oldest packaged set",
+      "pros": "Exercises older tooling.",
+      "cons": "Adds compatibility risk and has no product requirement behind it."
+    }
+  ],
+  "default": "Select a current stable mutually compatible set in the first implementation change, commit all immutable locks, and record its validation in a domain ADR before the spec becomes Ready.",
+  "answer": {
+    "text": "Option 1: use a current stable mutually compatible Nixpkgs, Bazel, Clang/LLVM/LLD, and GCC set; commit immutable locks and record validation in the M0 reference-environment ADR.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-21T22:53:38Z"
+  }
+}

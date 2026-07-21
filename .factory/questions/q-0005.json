@@ -1,0 +1,40 @@
+{
+  "id": "q-0005",
+  "step": "05_domain_spec_writer",
+  "steps": [
+    "05_domain_spec_writer"
+  ],
+  "attempt": 1,
+  "status": "answered",
+  "asked_at": "2026-07-21T22:49:13Z",
+  "blocking": true,
+  "domain": "cli_diagnostics",
+  "kind": "design_choice",
+  "text": "What single output representation should orus --version and orus doctor use in M0?",
+  "why_it_matters": "Discovery requires structured, golden-testable output but does not choose rendering; the answer fixes the smallest public CLI contract without adding future commands.",
+  "unlocks": "CLI-FR-001, CLI-FR-004, M0-VERSION-RESULT-v1, M0-DOCTOR-RESULT-v1, and all CLI goldens.",
+  "options": [
+    {
+      "label": "JSON by default",
+      "pros": "One exact typed surface with robust nested doctor results.",
+      "cons": "Less conventional for a human-only version invocation."
+    },
+    {
+      "label": "Key-value lines",
+      "pros": "Familiar and easy to inspect or parse for version facts.",
+      "cons": "Awkward typing, escaping, and nesting for doctor results."
+    },
+    {
+      "label": "Human text plus format flag",
+      "pros": "Optimizes both interactive and machine consumers.",
+      "cons": "Adds an unrequested M0 option and doubles the golden-test surface."
+    }
+  ],
+  "default": "Emit one bounded JSON document per invocation with no additional format flag and record that choice in a domain ADR before Ready.",
+  "answer": {
+    "text": "Option 1: emit one bounded JSON document per invocation for both orus --version and orus doctor, with no additional M0 format flag or parallel human-text contract.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-21T22:54:38Z"
+  }
+}

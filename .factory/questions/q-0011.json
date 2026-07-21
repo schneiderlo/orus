@@ -1,0 +1,40 @@
+{
+  "id": "q-0011",
+  "step": "05_domain_spec_writer",
+  "steps": [
+    "05_domain_spec_writer"
+  ],
+  "attempt": 1,
+  "status": "answered",
+  "asked_at": "2026-07-21T22:49:13Z",
+  "blocking": true,
+  "domain": "security_foundations",
+  "kind": "design_choice",
+  "text": "Which cryptographic digest is canonical for M0 artifact and evidence identity?",
+  "why_it_matters": "D-015 establishes explicit schema and integrity principles but does not bind an M0 digest; the answer fixes artifact, SBOM, report, and release-evidence identities.",
+  "unlocks": "SEC-FR-005, content identities across M0 schemas, tamper tests, and release-evidence reconciliation.",
+  "options": [
+    {
+      "label": "SHA-256",
+      "pros": "Ubiquitous Nix, SBOM, and release-tool support with no new algorithm dependency.",
+      "cons": "Slower than newer hashes, though M0 use is cold-path."
+    },
+    {
+      "label": "BLAKE3",
+      "pros": "Fast and parallel.",
+      "cons": "Adds or admits a dependency and is only a candidate in the foundation context."
+    },
+    {
+      "label": "Both",
+      "pros": "Provides migration flexibility.",
+      "cons": "Creates duplicate identity fields and disagreement handling."
+    }
+  ],
+  "default": "Use lowercase hexadecimal SHA-256 for M0 content identities, describe it as a digest rather than a signature, and require an ADR for migration.",
+  "answer": {
+    "text": "Option 1: use lowercase hexadecimal SHA-256 as the canonical M0 artifact and evidence content identity; describe it as a digest, not a signature, and require an ADR for future migration or hot-path use of BLAKE3.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-21T22:57:13Z"
+  }
+}

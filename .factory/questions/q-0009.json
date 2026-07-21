@@ -1,0 +1,40 @@
+{
+  "id": "q-0009",
+  "step": "05_domain_spec_writer",
+  "steps": [
+    "05_domain_spec_writer"
+  ],
+  "attempt": 1,
+  "status": "answered",
+  "asked_at": "2026-07-21T22:49:13Z",
+  "blocking": true,
+  "domain": "concurrent_corpus",
+  "kind": "design_choice",
+  "text": "What absolute per-run timeout should gate the native concurrent corpus?",
+  "why_it_matters": "The Charter requires a domain timeout but supplies no number; it controls hang detection, CI duration, and teardown escalation.",
+  "unlocks": "CORP-FR-004, CORP-FR-009, CORP-NFR-001, CORP-NFR-005, and the 100-run reliability command.",
+  "options": [
+    {
+      "label": "10 seconds",
+      "pros": "Generous for shared CI while still bounding hangs.",
+      "cons": "A pathological 100-run failure can still consume substantial time."
+    },
+    {
+      "label": "5 seconds",
+      "pros": "Faster failure detection.",
+      "cons": "Higher shared-runner flake risk."
+    },
+    {
+      "label": "30 seconds",
+      "pros": "Most tolerant of slow hosts.",
+      "cons": "Excessive worst-case CI duration."
+    }
+  ],
+  "default": "Use a 10-second absolute deadline from parent launch through cleanup, with graceful teardown using at most 2 seconds of the remaining deadline before forced kill.",
+  "answer": {
+    "text": "Option 1: use a 10-second absolute deadline from parent launch through cleanup, with graceful teardown consuming at most 2 seconds of the remaining deadline before forced kill.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-21T22:57:12Z"
+  }
+}

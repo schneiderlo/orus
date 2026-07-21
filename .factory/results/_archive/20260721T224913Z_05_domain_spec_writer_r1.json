@@ -1,0 +1,252 @@
+{
+  "verdict": "phase_specs_ready",
+  "summary": "Phase M0 domain specifications are fully drafted and indexed. Seven self-contained specs now define the build environment, governance/release gate, minimal CLI diagnostics, CI quality topology, performance evidence foundation, native concurrent corpus, and security foundations. Each follows the Domain Spec Template, applies the accepted foundation decisions, maps measurable requirements to retained verification evidence and copy/pasteable commands, and cross-references the risk register in failure modes. SPECS.md links every M0 file, marks it Draft, and records its Ready prerequisites. Nine unresolved implementation selections are explicitly recorded as non-blocking safe assumptions for routing before the affected specs become Ready; no M1+ runtime feature or implementation code was added.",
+  "phase": "M0",
+  "files_written": [
+    "SPECS.md",
+    "specs/10-build-environment.md",
+    "specs/11-governance-release.md",
+    "specs/12-cli-diagnostics.md",
+    "specs/13-ci-quality.md",
+    "specs/14-performance-foundation.md",
+    "specs/15-concurrent-corpus.md",
+    "specs/16-security-foundations.md",
+    ".factory/results/05_domain_spec_writer/r1/result.json"
+  ],
+  "open_questions": [
+    {
+      "kind": "design_choice",
+      "domain": "build_environment",
+      "text": "Which exact mutually compatible Nixpkgs, Bazel, Clang/LLVM/LLD, and GCC coordinates define M0-REFENV-v1?",
+      "why_it_matters": "D-003 delegates exact reference-environment values to this domain; the choice fixes lock inputs, toolchain identities, reference predicates, and reproducibility evidence.",
+      "unlocks": "BUILD-FR-001, BUILD-FR-004, BUILD-FR-005, BUILD-FR-010, and the reference-environment validation matrix.",
+      "options": [
+        {
+          "label": "Current stable compatible set",
+          "pros": "Current, reversible, and validated in the implementation change that commits immutable locks.",
+          "cons": "Requires the build owner to prove mutual compatibility before Ready."
+        },
+        {
+          "label": "Owner enterprise-pinned set",
+          "pros": "Can align with an existing operational standard.",
+          "cons": "No such standard or coordinates are named in the authoritative inputs."
+        },
+        {
+          "label": "Oldest packaged set",
+          "pros": "Exercises older tooling.",
+          "cons": "Adds compatibility risk and has no product requirement behind it."
+        }
+      ],
+      "default": "Select a current stable mutually compatible set in the first implementation change, commit all immutable locks, and record its validation in a domain ADR before the spec becomes Ready.",
+      "blocking": false
+    },
+    {
+      "kind": "design_choice",
+      "domain": "governance_release",
+      "text": "Which machine-readable SBOM serialization is canonical for M0?",
+      "why_it_matters": "The Charter requires a non-empty machine-readable SBOM but does not select a standard; the answer fixes schema validation, reconciliation, packaging, and redistributor expectations.",
+      "unlocks": "GOV-FR-006, M0-SBOM-CONTRACT-v1, SBOM golden fixtures, and release-package validation.",
+      "options": [
+        {
+          "label": "SPDX 2.3 JSON",
+          "pros": "Mature license vocabulary and common release tooling.",
+          "cons": "Verbose representation."
+        },
+        {
+          "label": "CycloneDX JSON",
+          "pros": "Strong security-component ecosystem.",
+          "cons": "Different license and relationship mapping requires separate policy choices."
+        },
+        {
+          "label": "Emit both",
+          "pros": "Broad consumer interoperability.",
+          "cons": "Duplicate reconciliation surfaces and drift risk."
+        }
+      ],
+      "default": "Use SPDX 2.3 JSON and record the selected generator, version, and deterministic normalization in a domain ADR before Ready.",
+      "blocking": false
+    },
+    {
+      "kind": "design_choice",
+      "domain": "cli_diagnostics",
+      "text": "What single output representation should orus --version and orus doctor use in M0?",
+      "why_it_matters": "Discovery requires structured, golden-testable output but does not choose rendering; the answer fixes the smallest public CLI contract without adding future commands.",
+      "unlocks": "CLI-FR-001, CLI-FR-004, M0-VERSION-RESULT-v1, M0-DOCTOR-RESULT-v1, and all CLI goldens.",
+      "options": [
+        {
+          "label": "JSON by default",
+          "pros": "One exact typed surface with robust nested doctor results.",
+          "cons": "Less conventional for a human-only version invocation."
+        },
+        {
+          "label": "Key-value lines",
+          "pros": "Familiar and easy to inspect or parse for version facts.",
+          "cons": "Awkward typing, escaping, and nesting for doctor results."
+        },
+        {
+          "label": "Human text plus format flag",
+          "pros": "Optimizes both interactive and machine consumers.",
+          "cons": "Adds an unrequested M0 option and doubles the golden-test surface."
+        }
+      ],
+      "default": "Emit one bounded JSON document per invocation with no additional format flag and record that choice in a domain ADR before Ready.",
+      "blocking": false
+    },
+    {
+      "kind": "design_choice",
+      "domain": "performance_foundation",
+      "text": "Which exact statistical and noise method governs the strict greater-than-3% comparator?",
+      "why_it_matters": "D-006 requires a statistically valid comparison but delegates the precise method; it controls false regression and false pass decisions.",
+      "unlocks": "PERF-FR-002, PERF-FR-004, PERF-FR-007, PERF-FR-010, controlled-runner conformance, and comparator goldens.",
+      "options": [
+        {
+          "label": "Paired bootstrap median",
+          "pros": "Interleaving reduces drift and the one-sided confidence bound expresses the 3% magnitude rule directly.",
+          "cons": "Requires more runner time and a versioned bootstrap/quantile implementation."
+        },
+        {
+          "label": "Mann-Whitney plus ratio",
+          "pros": "Uses an established nonparametric rank test.",
+          "cons": "Significance and magnitude are separate, and the method loses pairing."
+        },
+        {
+          "label": "Aggregate mean threshold",
+          "pros": "Simple and fast.",
+          "cons": "Too sensitive to noise and outliers for the accepted performance decision."
+        }
+      ],
+      "default": "Use 5 warmups, at least 30 alternating valid pairs, 10,000 deterministic paired-bootstrap resamples of median degradation, a one-sided 99% lower bound strictly greater than 3.0%, no sample trimming, zero migration/throttle events, and less than 1.0% benchmark-core background utilization; record the method in a domain ADR before Ready.",
+      "blocking": false
+    },
+    {
+      "kind": "design_choice",
+      "domain": "performance_foundation",
+      "text": "Which canonical serialization carries low-volume benchmark, raw-sample, and comparison contracts?",
+      "why_it_matters": "The Charter requires versioned machine-readable performance results but does not choose an encoding; the answer fixes schemas, hashes, goldens, and consumer interoperability.",
+      "unlocks": "M0-PERF-RAW-SAMPLE-v1, M0-PERF-RESULT-v1, comparison output, parser limits, and fuzz fixtures.",
+      "options": [
+        {
+          "label": "Canonical JSON",
+          "pros": "Inspectable, easy to schema-validate, and suitable for M0 cold-path tooling.",
+          "cons": "Larger than binary encodings."
+        },
+        {
+          "label": "FlatBuffers",
+          "pros": "Typed and efficient.",
+          "cons": "Adds unnecessary cold-path complexity in M0."
+        },
+        {
+          "label": "CSV plus sidecar",
+          "pros": "Simple raw sample representation.",
+          "cons": "Weak nesting and integrity with a two-file drift surface."
+        }
+      ],
+      "default": "Use normalized JSON with integer base units; permit separate hash-referenced JSON raw-sample documents; never serialize a native layout.",
+      "blocking": false
+    },
+    {
+      "kind": "design_choice",
+      "domain": "concurrent_corpus",
+      "text": "Which bounded IPC primitive should cross the parent-to-exec-child boundary?",
+      "why_it_matters": "The Charter requires IPC but does not choose a primitive; the answer fixes framing, inherited-descriptor cleanup, malformed-input handling, and later corpus reuse.",
+      "unlocks": "CORP-FR-005, M0-CORPUS-IPC-v1, protocol negative tests, and exec-child cleanup evidence.",
+      "options": [
+        {
+          "label": "Unix seqpacket socketpair",
+          "pros": "Bidirectional and message-bounded with straightforward malformed-frame tests.",
+          "cons": "Linux-specific and requires careful close-on-exec handling."
+        },
+        {
+          "label": "Two pipes",
+          "pros": "Uses minimal familiar primitives.",
+          "cons": "Requires stream framing and twice the descriptor cleanup."
+        },
+        {
+          "label": "Shared memory plus eventfd",
+          "pros": "Representative of high-throughput IPC.",
+          "cons": "Adds mapping and lifetime complexity outside the M0 fixture need."
+        }
+      ],
+      "default": "Use one AF_UNIX SOCK_SEQPACKET socketpair, intentionally duplicate only the child endpoint to descriptor 3 across exec, and use the versioned frames bounded to 256 bytes.",
+      "blocking": false
+    },
+    {
+      "kind": "design_choice",
+      "domain": "concurrent_corpus",
+      "text": "What absolute per-run timeout should gate the native concurrent corpus?",
+      "why_it_matters": "The Charter requires a domain timeout but supplies no number; it controls hang detection, CI duration, and teardown escalation.",
+      "unlocks": "CORP-FR-004, CORP-FR-009, CORP-NFR-001, CORP-NFR-005, and the 100-run reliability command.",
+      "options": [
+        {
+          "label": "10 seconds",
+          "pros": "Generous for shared CI while still bounding hangs.",
+          "cons": "A pathological 100-run failure can still consume substantial time."
+        },
+        {
+          "label": "5 seconds",
+          "pros": "Faster failure detection.",
+          "cons": "Higher shared-runner flake risk."
+        },
+        {
+          "label": "30 seconds",
+          "pros": "Most tolerant of slow hosts.",
+          "cons": "Excessive worst-case CI duration."
+        }
+      ],
+      "default": "Use a 10-second absolute deadline from parent launch through cleanup, with graceful teardown using at most 2 seconds of the remaining deadline before forced kill.",
+      "blocking": false
+    },
+    {
+      "kind": "design_choice",
+      "domain": "security_foundations",
+      "text": "Which locally reproducible secret scanner supplies the primary M0 scan?",
+      "why_it_matters": "The Charter requires secret exclusion but does not select tooling; the answer fixes local/CI parity, rules, dependency admission, and evidence format.",
+      "unlocks": "SEC-FR-002, SEC-NFR-001, the secret fixture corpus, and release security evidence.",
+      "options": [
+        {
+          "label": "Pinned maintained scanner",
+          "pros": "Broad ecosystem patterns and reproducible local/CI execution.",
+          "cons": "Adds an admitted tool dependency."
+        },
+        {
+          "label": "Repository-native scanner",
+          "pros": "Full project control and no external scanner dependency.",
+          "cons": "High maintenance burden and weaker corpus coverage."
+        },
+        {
+          "label": "GitHub-only scanning",
+          "pros": "Managed service operation.",
+          "cons": "Not reproducible locally or offline."
+        }
+      ],
+      "default": "Select a maintained scanner during implementation, pin and admit it through Nix/Bazel, version its rules, and retain narrow repository-specific supplemental rules.",
+      "blocking": false
+    },
+    {
+      "kind": "design_choice",
+      "domain": "security_foundations",
+      "text": "Which cryptographic digest is canonical for M0 artifact and evidence identity?",
+      "why_it_matters": "D-015 establishes explicit schema and integrity principles but does not bind an M0 digest; the answer fixes artifact, SBOM, report, and release-evidence identities.",
+      "unlocks": "SEC-FR-005, content identities across M0 schemas, tamper tests, and release-evidence reconciliation.",
+      "options": [
+        {
+          "label": "SHA-256",
+          "pros": "Ubiquitous Nix, SBOM, and release-tool support with no new algorithm dependency.",
+          "cons": "Slower than newer hashes, though M0 use is cold-path."
+        },
+        {
+          "label": "BLAKE3",
+          "pros": "Fast and parallel.",
+          "cons": "Adds or admits a dependency and is only a candidate in the foundation context."
+        },
+        {
+          "label": "Both",
+          "pros": "Provides migration flexibility.",
+          "cons": "Creates duplicate identity fields and disagreement handling."
+        }
+      ],
+      "default": "Use lowercase hexadecimal SHA-256 for M0 content identities, describe it as a digest rather than a signature, and require an ADR for migration.",
+      "blocking": false
+    }
+  ]
+}

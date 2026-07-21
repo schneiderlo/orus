@@ -1,0 +1,40 @@
+{
+  "id": "q-0008",
+  "step": "05_domain_spec_writer",
+  "steps": [
+    "05_domain_spec_writer"
+  ],
+  "attempt": 1,
+  "status": "answered",
+  "asked_at": "2026-07-21T22:49:13Z",
+  "blocking": true,
+  "domain": "concurrent_corpus",
+  "kind": "design_choice",
+  "text": "Which bounded IPC primitive should cross the parent-to-exec-child boundary?",
+  "why_it_matters": "The Charter requires IPC but does not choose a primitive; the answer fixes framing, inherited-descriptor cleanup, malformed-input handling, and later corpus reuse.",
+  "unlocks": "CORP-FR-005, M0-CORPUS-IPC-v1, protocol negative tests, and exec-child cleanup evidence.",
+  "options": [
+    {
+      "label": "Unix seqpacket socketpair",
+      "pros": "Bidirectional and message-bounded with straightforward malformed-frame tests.",
+      "cons": "Linux-specific and requires careful close-on-exec handling."
+    },
+    {
+      "label": "Two pipes",
+      "pros": "Uses minimal familiar primitives.",
+      "cons": "Requires stream framing and twice the descriptor cleanup."
+    },
+    {
+      "label": "Shared memory plus eventfd",
+      "pros": "Representative of high-throughput IPC.",
+      "cons": "Adds mapping and lifetime complexity outside the M0 fixture need."
+    }
+  ],
+  "default": "Use one AF_UNIX SOCK_SEQPACKET socketpair, intentionally duplicate only the child endpoint to descriptor 3 across exec, and use the versioned frames bounded to 256 bytes.",
+  "answer": {
+    "text": "Option 1: use one AF_UNIX SOCK_SEQPACKET socketpair; intentionally duplicate only the child endpoint to descriptor 3 across exec, use versioned frames bounded to 256 bytes, and fail closed on malformed framing or descriptor state.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-21T22:57:12Z"
+  }
+}

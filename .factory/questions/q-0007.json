@@ -1,0 +1,40 @@
+{
+  "id": "q-0007",
+  "step": "05_domain_spec_writer",
+  "steps": [
+    "05_domain_spec_writer"
+  ],
+  "attempt": 1,
+  "status": "answered",
+  "asked_at": "2026-07-21T22:49:13Z",
+  "blocking": true,
+  "domain": "performance_foundation",
+  "kind": "design_choice",
+  "text": "Which canonical serialization carries low-volume benchmark, raw-sample, and comparison contracts?",
+  "why_it_matters": "The Charter requires versioned machine-readable performance results but does not choose an encoding; the answer fixes schemas, hashes, goldens, and consumer interoperability.",
+  "unlocks": "M0-PERF-RAW-SAMPLE-v1, M0-PERF-RESULT-v1, comparison output, parser limits, and fuzz fixtures.",
+  "options": [
+    {
+      "label": "Canonical JSON",
+      "pros": "Inspectable, easy to schema-validate, and suitable for M0 cold-path tooling.",
+      "cons": "Larger than binary encodings."
+    },
+    {
+      "label": "FlatBuffers",
+      "pros": "Typed and efficient.",
+      "cons": "Adds unnecessary cold-path complexity in M0."
+    },
+    {
+      "label": "CSV plus sidecar",
+      "pros": "Simple raw sample representation.",
+      "cons": "Weak nesting and integrity with a two-file drift surface."
+    }
+  ],
+  "default": "Use normalized JSON with integer base units; permit separate hash-referenced JSON raw-sample documents; never serialize a native layout.",
+  "answer": {
+    "text": "Option 1: use canonical normalized JSON with integer base units for benchmark and comparison contracts; permit separate hash-referenced canonical JSON raw-sample documents and never serialize native layouts.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-21T22:55:49Z"
+  }
+}
