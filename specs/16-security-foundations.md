@@ -61,12 +61,12 @@ control is presented as available.
 | ID | Requirement | Acceptance criteria | Verification method | Traceability |
 |---|---|---|---|---|
 | SEC-FR-001 | The repository shall maintain `M0-SECURITY-BOUNDARIES-v1` covering every M0 and named future trust boundary in Section 6.1. | Each row identifies trusted/untrusted side, assets, entry format/capability, threat classes, M0 control/state, future owner, validation, residual risk, and claim wording; no row is omitted from roadmap-owner reconciliation. | SEC-TEST-001 schema and roadmap boundary audit. | C-09, D-013, R-201 through R-205, R-302/303. |
-| SEC-FR-002 | Source, flake, locks, build definitions, logs, fixtures, packages, and release evidence shall contain no secret or credential. | Gitleaks v8.30.1 is the primary scanner, pinned by exact version and artifact digest through Nix/Bazel; it runs offline with committed versioned rules plus narrow repository-specific supplemental rules and reports zero unallowlisted finding; injected token/key/password/private-key fixtures are detected; any allowlist entry identifies exact content digest/path/rule, non-secret proof, owner, and review gate. | SEC-TEST-002 Gitleaks identity/offline repository/package/history-scope scan and fixture matrix. | C-11; resolved `q-0010`. |
-| SEC-FR-003 | M0 CI and build actions shall operate with least privilege and no protected secret on untrusted changes. | Pull-request workflow has read-only contents, no write/id-token/package capability, no protected secret, no privileged cache write, and no action-network access during build; canary simulation finds zero exposure. | SEC-TEST-003 workflow capability/canary test. | C-11, D-010, R-001. |
+| SEC-FR-002 | Every byte source in the finite pull-request and release populations of Section 6.5 shall contain zero unallowlisted secret/credential. | Gitleaks v8.30.1 is pinned by exact version/artifact digest and runs offline with committed rules plus bounded supplemental byte rules. `M0-SECRET-SCAN-MANIFEST-v1` reconciles 100% of the named history/tree/generated/package-closure/log/artifact/cache/evidence sets; injected token/key/password/private-key fixtures are detected. Unavailable, unsupported, truncated, unmanifested, or over-limit input fails the gate rather than shrinking the population. Allowlisting requires exact digest/path/rule, non-secret proof, owner, and review gate. | SEC-TEST-002 both profile manifests, scanner identity, population reconciliation, incompleteness/bound, and fixture matrix. | C-11, R-005, R-202; resolved `q-0010`. |
+| SEC-FR-003 | M0 CI/build shall use the exact least-privilege acquisition/build split and no protected secret on untrusted changes. | Pull-request and protected build/test/package jobs have read-only contents, no write/OIDC/package/publish/credential/privileged-cache/network capability. Only `m0_input_acquisition` has `network.client`; it fetches admitted hash-pinned inputs as data, executes no repository action, and has no credential. Canary and network-boundary simulations report zero exposure/escape. | SEC-TEST-003 workflow capability/canary/acquisition-boundary test. | C-11, D-010, R-001, R-005. |
 | SEC-FR-004 | Every acquired build/dependency input shall be immutable, hash-verified, admitted, and represented in release evidence. | Nix/Bzlmod locks include immutable identity/hash; 100% resolved dependencies reconcile to admission/SBOM; hash mismatch, mutable reference, network fetch during action, or unadmitted dependency fails before artifact approval. | SEC-TEST-004 supply-chain reconciliation/fault matrix. | G-02, SM-10, R-001, R-005. |
-| SEC-FR-005 | Release artifacts and evidence shall use lowercase hexadecimal SHA-256 as the canonical M0 content digest and verify it before trust or publication. | Artifact, SBOM, license/notices, and each evidence reference carry `algorithm=sha256` and exactly 64 lowercase hexadecimal digits; one-byte mutation, substitution, missing/mixed-case/malformed digest, unknown/alternate algorithm, or artifact/evidence cross-link mismatch fails; the digest is identity/integrity evidence and is never described as a signature. | SEC-TEST-005 SHA-256 encoding/tamper/substitution matrix. | DOD-03, R-005, R-008; resolved `q-0011`. |
-| SEC-FR-006 | Security-sensitive operations and future interfaces shall use the `M0-CAPABILITY-VOCABULARY-v1` identifiers and default deny. | Every M0 component/job and every future owner row declares granted/denied capabilities; absence means denied; unknown capability fails validation; no component is granted target/replay/network/repository-write/model/publish capability in M0. | SEC-TEST-006 capability inventory and overgrant fixtures. | C-09, D-008, D-013, R-303. |
-| SEC-FR-007 | Every domain accepting structured or resource-bearing input shall register an enforced `M0-RESOURCE-LIMIT-v1` row before becoming Ready. | Row names parser/operation, input size/count/depth, memory, process/thread/FD, CPU/time, storage/queue limits as applicable, detection point before unsafe allocation/side effect, typed error, cleanup, owner, and tests; `not_applicable` requires scoped rationale. | SEC-TEST-007 domain/resource inventory reconciliation. | C-09, D-007, R-201. |
+| SEC-FR-005 | Release objects shall use the subject-named lowercase SHA-256 identities and exact bytes from spec `10` Section 6.4. | Digest records use `algorithm=sha256`, `subject=orus_executable|package_tree|sbom|evidence_object`, and 64 lowercase hex digits. Raw executable, canonical package manifest (including/excluding exact metadata), completed external SBOM, and exact canonical evidence bytes are never interchangeable. Byte/metadata mutation, subject substitution, missing/mixed/malformed/alternate algorithm, self-reference, or cross-link mismatch fails; digest is never called a signature. | SEC-TEST-005 encoding, metadata, tamper, self-reference, and subject-substitution matrix. | DOD-03, R-005, R-008; resolved `q-0011`. |
+| SEC-FR-006 | Security-sensitive operations and future interfaces shall use `M0-CAPABILITY-VOCABULARY-v1` and default deny. | Every M0 profile and future owner row declares grants/denials; absence/unknown fails. The only M0 `network.client` grant is `m0_input_acquisition` under Sections 6.2 and 6.5; all build/test/untrusted-code profiles deny network. No M0 profile has target-control, trace/replay, repository-write, credential, model, privileged-cache, or publish capability; test-owned subprocess launch is narrowly separate. | SEC-TEST-006 exact profile reconciliation and overgrant/network-escape fixtures. | C-09, D-008, D-013, R-001, R-303. |
+| SEC-FR-007 | Every M0 structured/resource-bearing input shall match exactly one finite `M0-RESOURCE-LIMIT-v1` row in Section 6.3 before Ready. | Rows SEC-LIM-10-01 through SEC-LIM-16-04 cover every applicable build/reference/acquisition/package, governance/release, CLI, CI, performance, corpus, and security input/operation with numeric limits, pre-side-effect detection, error, cleanup, owner requirement, and test; explicit not-applicable rationales are finite. Missing/unbounded/duplicate/late-enforcement rows block readiness. | SEC-TEST-007 cross-domain owner-requirement/operation reconciliation matrix and mutations. | C-09, D-007, DOD-08, R-201. |
 | SEC-FR-008 | Every untrusted structured parser shall register negative, boundary, resource, sanitizer, and fuzz verification before becoming Active. | `M0-STRUCTURED-INPUT-v1` maps format/schema, trust source, parser target, limits, seed corpus, dictionary when applicable, fuzz target, sanitizer configs, minimum smoke execution >0, continuous owner, crash retention, and promotion rule; missing mapping blocks applicability gate. | SEC-TEST-008 parser/fuzz inventory and zero-execution fixture. | C-09, D-015, R-201. |
 | SEC-FR-009 | M0 native structured inputs shall receive the exact verification assigned in Section 6.4. | Performance result parser and corpus IPC frame parser have fuzz-smoke under ASan/UBSan-compatible fuzz config, positive execution count, malformed/resource corpus, and zero crash/sanitizer finding; governance/CI schemas implemented through memory-safe validators have exhaustive schema negatives and must add fuzzing if native parsing is introduced. | SEC-TEST-009 M0 parser applicability reconciliation and fuzz reports. | DOD-04, R-007, R-201. |
 | SEC-FR-010 | Future target/trace/symbol/browser/model content shall remain untrusted data and shall not redefine policy or become factual authority. | Boundary inventory states content provenance, read/execute/parse capability, isolation owner, limit/fuzz owner, evidence authority, and prompt-injection rule; raw content cannot grant capabilities; model-visible content is data and factual claims require evidence under D-008. | SEC-TEST-010 future-boundary policy inspection and adversarial policy fixture. | D-008, R-202, R-302. |
@@ -79,10 +79,10 @@ control is presented as available.
 
 | ID | Quality attribute and target | Conditions / workload | Acceptance criteria | Verification method and evidence |
 |---|---|---|---|---|
-| SEC-NFR-001 | Secret exposure: 0 unallowlisted secrets in tracked source, relevant history/diff, build/package outputs, logs, caches, or release evidence. | Gitleaks v8.30.1 offline rules plus supplemental-rule set; release revision, untrusted-PR canary simulation, and injected fixture corpus. | Scanner version/digest/rules identity is exact; real finding count zero; 100% injected fixtures detected; canary appears nowhere unauthorized. | SEC-TEST-002/003 `secret-scan-report.json`. |
+| SEC-NFR-001 | Secret exposure: 0 unallowlisted secrets across 100% of both Section 6.5 scan profiles. | Gitleaks v8.30.1 offline rules plus supplemental bytes rules; exact PR range/tree/run outputs and release reachable-history/tree/generated/package-closure/log/artifact/cache/evidence manifests. | Scanner/rules identities exact; every manifest entry scanned once; zero unavailable/truncated/unmanifested/over-limit set; real count zero; 100% fixtures detected/redacted. | SEC-TEST-002/003 `secret-scan-report.json`, manifests. |
 | SEC-NFR-002 | Supply-chain completeness: 100% resolved build/runtime components are hash-pinned, admitted, and SBOM-reconciled. | Release configuration dependency graph. | Zero mutable, unverified, unadmitted, or unreconciled component. | SEC-TEST-004 supply-chain report. |
-| SEC-NFR-003 | Artifact integrity: 100% release-evidence references verify with lowercase hexadecimal SHA-256 and 100% one-byte mutation classes are detected. | Orus binary/package, SBOM, licenses/notices, CI/corpus/performance/security reports. | Zero missing/malformed/mismatch; every mutation/substitution/alternate-algorithm fixture blocks. | SEC-TEST-005 tamper matrix. |
-| SEC-NFR-004 | Capability least privilege: 0 M0 grants for target control, trace/replay, network client, repository write, model invocation, or publication. | Complete M0 component/job capability inventory. | Forbidden-grant count zero; every injected overgrant/unknown capability fails. | SEC-TEST-006 capability report. |
+| SEC-NFR-003 | Artifact integrity: 100% subject-named release references verify and 100% byte/included-metadata/substitution mutations are detected. | Executable, package tree, SBOM, license/notices, CI/corpus/performance/security evidence. | Zero missing/malformed/mismatch/generic subject; every mutation/substitution/alternate-algorithm/self-reference fixture blocks. | SEC-TEST-005 tamper matrix. |
+| SEC-NFR-004 | Capability least privilege: exactly 1 scoped M0 `network.client` profile and 0 forbidden grants elsewhere. | Complete Section 6.2 component/job profile inventory. | `m0_input_acquisition` is the sole network grant and cannot execute repository code/read credential; target control, trace/replay, repository write, model, privileged cache, credential, and publication grant counts are zero; every mutation fails. | SEC-TEST-006 capability report. |
 | SEC-NFR-005 | Structured-parser coverage: 100% registered untrusted M0 native parsers have limits, negative/resource tests, ASan/UBSan-compatible fuzz smoke with >0 executions and 0 crash/sanitizer finding. | `M0-STRUCTURED-INPUT-v1` versus Bazel/parser/fuzz target query. | No unmapped native parser; all required fuzzers execute and pass. | SEC-TEST-008/009 parser coverage report. |
 | SEC-NFR-006 | Security-claim truthfulness: 0 implemented-isolation/encryption/redaction claim for M1+ behavior. | CLI/help/docs/package/release surfaces. | Zero non-allowlisted claim; all prohibited fixtures detected. | SEC-TEST-011 claim report. |
 | SEC-NFR-007 | Diagnostic bound: <=4 KiB per security diagnostic, <=1,000 detailed findings/report before `truncated=true`, and 0 raw secret value. | Maximum and over-limit scan/control fixtures. | Summary/count/first bounded findings retained; limits enforced; secret canary redacted. | SEC-TEST-012 resource/redaction report. |
@@ -123,6 +123,7 @@ vocabulary:
 | `repository.read`, `repository.write` | Read or mutate the scoped source workspace. |
 | `build.input.read`, `build.action.execute`, `artifact.write` | Consume declared inputs, execute declared local build actions, create scoped artifacts. |
 | `network.client`, `credential.read`, `cache.privileged_write` | External network, protected credential, or privileged shared-cache authority. |
+| `test.process.launch` | Launch only an owned benchmark/corpus test subprocess under its declared process/deadline limits; never an Orus-controlled target. |
 | `target.launch`, `target.control`, `target.memory.read`, `target.memory.write` | Future native target operations. |
 | `trace.read`, `trace.create`, `trace.mutate` | Future trace operations; published traces are immutable, so mutate is normally denied. |
 | `replay.session.read`, `replay.session.mutate` | Future replay-state access/mutation. |
@@ -130,19 +131,66 @@ vocabulary:
 | `external.publish` | Release/PR/deploy or other externally visible publication. |
 
 A grant record contains component/profile, capability, scope, resource limits,
-owner, reason, evidence, and milestone. Unknown/absent is denied. M0 untrusted
-CI may receive repository.read, build.input.read, build.action.execute, and
-scoped artifact.write only. This vocabulary is a policy contract, not proof of
-future enforcement.
+owner, reason, evidence, and milestone. Unknown/absent is denied. The complete
+M0 profiles are:
+
+| Profile | Granted | Explicitly denied / invariant |
+|---|---|---|
+| `m0_input_acquisition` | `repository.read` for lock/admission manifests, `build.input.read`, scoped `artifact.write`, `network.client` | No `build.action.execute`, `test.process.launch`, credential/cache privilege, repository write, target/trace/replay/model/publish. Only admitted immutable coordinates and hash-verified store promotion. |
+| `m0_untrusted_pr_build`, `m0_protected_build` | `repository.read`, `build.input.read`, `build.action.execute`, scoped `artifact.write`; `test.process.launch` only for registered perf/corpus jobs | No network/credential/cache privilege/repository write/target/trace/replay/model/publish. Read-only acquired store. |
+| `m0_release_validator` | `repository.read`, `build.input.read`, scoped `artifact.write` | No network, build execution, credential, repository write, package/sign/publish, or future capability. Creates only a local approval marker. |
+| `m0_cli` | `build.input.read` limited to embedded/packaged contracts | All mutation, process-launch, network, credential, target/trace/replay/model/publish denied. |
+
+The acquisition profile is trusted tooling, not untrusted repository code; an
+untrusted lock change without an admitted record cannot select its network
+destination. This vocabulary is a policy contract, not proof of future
+enforcement.
 
 ### 6.3 Resource and exception contracts
 
 `M0-RESOURCE-LIMIT-v1` fields: schema, domain/operation/parser, input trust,
-units, maximum input bytes/count/depth, maximum derived allocation/memory,
-process/thread/FD, CPU/time, storage/queue/I/O as applicable, enforcement
-point, typed error, cleanup, tests, owner, and introducing requirement.
-Unbounded is invalid unless the operation is proven not to consume that
-resource and cites a rationale.
+status `applicable|not_applicable`, units, maximum input bytes/count/depth,
+maximum derived allocation/memory, process/thread/FD, CPU/time,
+storage/queue/I/O as applicable, enforcement point, typed error, cleanup,
+tests, owner, and introducing requirement. Unbounded is invalid unless the row
+is `not_applicable` and proves that the operation cannot consume that resource.
+
+The following table is the complete M0 inventory. `MiB`/`GiB` are powers of
+1024. Limits are checked before proportional allocation, process creation,
+store promotion, upload, or approval. A cited owner section is normative; the
+security row may not weaken it.
+
+| Limit ID | Domain operation / input | Exact limits (N/A rationale where scoped) | Detection, typed outcome, cleanup | Owner requirement / reconciliation test |
+|---|---|---|---|---|
+| `SEC-LIM-10-01` | Nix/Bzlmod input acquisition | <=128 coordinates, <=4 GiB/fetched blob, <=16 GiB total, <=1,200 s; one acquisition process; repository build execution N/A because forbidden in profile | Validate manifest/admission/hash/size before store promotion; `BUILD_ACQUISITION_DENIED`; delete quarantine | Spec `10` 6.1/BUILD-FR-008; BUILD-TEST-008, SEC-TEST-004/007 |
+| `SEC-LIM-10-02` | Reference/observed environment JSON | contract <=64 KiB/depth 8/128 inputs; observed <=32 KiB; strings <=256 bytes; validator <=64 MiB RSS/10 s; process/thread/FD N/A: in-process cold parser opens only declared input | Byte/count/depth before parse; `BUILD_REFENV_*`; release buffers | Spec `10` 6.3; BUILD-TEST-010, CLI-TEST-003/010 |
+| `SEC-LIM-10-03` | Package-tree identity walk | <=100,000 entries, path/target <=4 KiB, regular bytes <=16 GiB, RSS <=256 MiB, one streaming process, <=1,200 s | Check type/path/count/size before hash; `BUILD_PACKAGE_IDENTITY_INVALID`; close handles/delete temporary manifest | Spec `10` 6.4/BUILD-FR-011; BUILD-TEST-011 |
+| `SEC-LIM-11-01` | License/notice validation | each file <=64 KiB, <=100,000 notice/package entries, index <=16 MiB/depth 16, diagnostic <=4 KiB | Size/count before read/index; `GOV_FIELD_BOUND`; no approval marker | Spec `11` GOV-FR-001/-007; GOV-TEST-001/-007 |
+| `SEC-LIM-11-02` | Dependency-admission record | <=1 MiB/depth 16, <=256 transitives/record, strings <=4 KiB, validator <=64 MiB RSS/30 s | Canonical bytes/schema before graph insertion; Section 6.1.5 error; discard candidate record | Spec `11` 6.1.1; GOV-TEST-004 |
+| `SEC-LIM-11-03` | SPDX SBOM/descriptor | descriptor <=64 KiB; SBOM <=16 MiB/depth 32, <=100,000 components/files, <=200,000 relationships, validator <=256 MiB/120 s | Bounds before graph allocation; `GOV_FIELD_BOUND`; no descriptor/approval | Spec `11` 6.1.2; GOV-TEST-006 |
+| `SEC-LIM-11-04` | Release evidence | <=16 MiB/depth 16, <=10,000 refs, <=128 validators, <=32 approvals, <=4 KiB diagnostic, validator <=256 MiB/120 s | Bounds/identity before marker; Section 6.1.5 error; remove temporary index | Spec `11` 6.1.3; GOV-TEST-008/-010 |
+| `SEC-LIM-11-05` | Approved claims | <=1 MiB/depth 16, <=4,096 rules, <=64 paths/rule, pattern <=1 KiB, scanner report <=1,000 findings | Validate schema/RE2 before scan; Section 6.1.5 error; candidate blocked | Spec `11` 6.1.4; GOV-TEST-009 |
+| `SEC-LIM-12-01` | Embedded build/reference/observed CLI inputs | build strings <=4 KiB, reference limits from `SEC-LIM-10-02`, inventory <=64 rows, input depth <=16, allocation <=16 MiB, one process/no child/FD growth, <=10 s | Validate before observation/allocation; `CLI_CONTRACT_INVALID`; process-local memory released | Spec `12` CLI-FR-006/-010 and 6.3; CLI-TEST-006/-010 |
+| `SEC-LIM-12-02` | CLI result/error output | <=4 KiB/string, argument token <=256 bytes, seven doctor rows (absolute schema cap 64), document <=256 KiB, exactly one LF, one process <=10 s | Bound before atomic stream commit; `CLI_RENDER_ERROR`/exit 4; no partial output | Spec `12` 6.1/6.3; CLI-TEST-004/-009/-010 |
+| `SEC-LIM-13-01` | CI applicability/warning manifests | each <=4 MiB/depth 16, <=100,000 expanded target cells, <=100,000 warning entries, strings <=4 KiB, parser <=256 MiB/120 s | Validate before matrix/job generation; `CI_APPLICABILITY_INVALID`/`CI_WARNING_BLOCKED`; no jobs generated | Spec `13` 6.1/6.2; CI-TEST-003/-007 |
+| `SEC-LIM-13-02` | CI typed report/diagnostic/findings | report <=8 MiB, diagnostic <=4 KiB, details <=1,000, limit doc <=64 KiB | Producer limit before upload; `CI_EVIDENCE_LIMIT`; blocking job fails | Spec `13` 6.3; CI-TEST-011 |
+| `SEC-LIM-13-03` | CI retained log/evidence bundle | log <=32 MiB retained as 16-MiB head+tail, bundle <=64 MiB uncompressed; one job process group and provider timeout <=120 min | Bound before upload; truncate/reject exactly per 6.3; `CI_EVIDENCE_LIMIT`; terminate group/remove staged upload | Spec `13` 6.3; CI-TEST-010/-011 |
+| `SEC-LIM-14-01` | Any performance JSON/document bundle | <=16 MiB/document/depth 16, <=100,000 samples/result, <=1,024 workloads/bundle, <=256 mismatches, string <=4 KiB | Byte/depth/count before proportional allocation; `M0-PERF-ERROR-v1`; no result/comparison | Spec `14` PERF-FR-003/-012, 6.2/6.3; PERF-TEST-003/-012 |
+| `SEC-LIM-14-02` | Performance comparator | exactly 10,000 resamples, <=100,000 pairs, <=256 MiB RSS, <=120 s, one owned worker process group, no network/FD growth | Checked arithmetic/work counter/deadline before commit; `PERF_INTEGER_OVERFLOW|PERF_RESOURCE_LIMIT`; terminate/release buffers | Spec `14` PERF-FR-007/-012; PERF-TEST-007/-012 |
+| `SEC-LIM-15-01` | Corpus IPC | datagram <=256 bytes; fixed success 56/56/40/32, CANCEL 24; <=5 frames; parser fixed stack buffer <=256 bytes | Header length before payload; exact `CORP_IPC_*`; close endpoint/teardown | Spec `15` 6.2/CORP-FR-005; CORP-TEST-005 |
+| `SEC-LIM-15-02` | Corpus topology/lifecycle | exactly 2 processes/7 threads, <=4 owned live FDs, one socketpair, deadline 10 s with <=2 s remaining grace, no storage queue | Check before create/dup/wait; `CORP_THREAD_LIFECYCLE_FAILED|CORP_TIMEOUT|CORP_CLEANUP_FAILED`; kill/reap/close | Spec `15` CORP-FR-001/-003/-009 and CORP-NFR-005; CORP-TEST-001/-003/-009 |
+| `SEC-LIM-15-03` | Corpus run/reliability reports | run <=1 MiB/depth 16; aggregate <=16 MiB; <=100 refs; <=32 diagnostics/run at <=4 KiB | Bounds before parse/aggregate; `CORP_REPORT_FIELD_BOUND`; retain valid reports/no aggregate pass | Spec `15` 6.4/CORP-FR-013; CORP-TEST-013 |
+| `SEC-LIM-16-01` | Security boundary/capability/resource/structured-input/exception inventories | each <=4 MiB/depth 16, <=4,096 rows, strings <=4 KiB, parser <=256 MiB/120 s | Validate before grant/readiness; `SEC_RESOURCE_LIMIT|SEC_CAPABILITY_DENIED|SEC_EXCEPTION_INVALID`; no grant/gate pass | This spec SEC-FR-001/-006/-008/-013; SEC-TEST-001/-006/-008/-013 |
+| `SEC-LIM-16-02` | Secret scan population | <=100,000 commits, <=100,000 manifested files, <=64 MiB/file, <=16 GiB total expanded bytes, archive depth <=8, scanner <=1 GiB RSS/1,800 s | Manifest/size/support before/while scan; `SEC_SECRET_SCAN_INCOMPLETE|SEC_SECRET_SCAN_LIMIT`; no approval, delete expansion temp | This spec 6.5/SEC-FR-002; SEC-TEST-002 |
+| `SEC-LIM-16-03` | Security report/diagnostic | report <=8 MiB, <=1,000 details, <=4 KiB/diagnostic, zero raw secret; process/FD N/A: cold in-process renderer | Bound/redact before write; `SEC_DIAGNOSTIC_LIMIT`; blocking summary retained | SEC-NFR-007/SEC-FR-012; SEC-TEST-012 |
+| `SEC-LIM-16-04` | Gitleaks/supplemental fixture corpus | <=10,000 fixtures, each <=1 MiB, total <=1 GiB, fuzz/smoke job <=256 MiB/300 s; network/secret capability N/A and denied | Validate corpus manifest before scan; `SEC_PARSER_VERIFICATION_FAILED`; retain minimized non-secret fixture only | SEC-FR-002/-009; SEC-TEST-002/-009 |
+
+SEC-TEST-007 constructs the finite cross-domain reconciliation matrix with one
+row for every owner operation above and columns `limit_id`, requirement,
+parser/operation, byte/count/depth, memory, process/thread/FD, time,
+storage/queue, enforcement point, error, cleanup, and tests. It fails on a
+missing owner reference, numeric disagreement, duplicate operation, late
+enforcement, or an `N/A` without the exact rationale shown here.
 
 `M0-SECURITY-EXCEPTION-v1` has the fields in SEC-FR-013. Exceptions never
 allow a secret, unknown-as-pass, unsupported deterministic success,
@@ -163,7 +211,86 @@ sanitizer report, and stable issue identity. A crash corpus entry becomes a
 permanent regression seed. Fuzzing never operates with network, secret,
 publication, or out-of-scope filesystem capability.
 
-### 6.5 Design choice: policy enforcement shape
+### 6.5 Exact secret-scan populations
+
+`M0-SECRET-SCAN-MANIFEST-v1` is canonical JSON with exactly `schema`,
+`profile:pull_request|release`, `revision` (40/64 lower hex), `base_revision`
+(same or `null`), `rules_sha256:hex64`, `scanner_artifact_sha256:hex64`,
+`entries`, and `summary`. An entry has exactly unique `set` from the finite
+sets below, `logical_path` (<=4 KiB), `source_identity` (<=512 bytes),
+`byte_length` (non-negative int64), `sha256:hex64`,
+`engine:gitleaks|supplemental_bytes`, and `status:scanned|unsupported|unavailable|truncated`.
+`summary` contains total entries/bytes and counts per set/status. Archives and
+package containers are expanded recursively to depth 8; symlinks are recorded
+and resolved only when their target stays inside the owning tree/closure.
+Special files, escaping links, encrypted/opaque archives, unsupported bytes,
+or a non-`scanned` status fail. Gitleaks processes every supported text/binary
+stream with redaction; the committed supplemental scanner covers byte streams
+Gitleaks cannot interpret. The two engines' manifests are disjoint and their
+union must equal the population.
+
+#### Pull-request profile
+
+Let `B` be the Git merge base of the fetched protected target ref and PR head
+`H`; both full revisions are recorded. The exact sets are:
+
+1. `pr_history`: every commit patch reachable from `H` but not `B`, including
+   added, modified, renamed, and deleted bytes and merge diffs;
+2. `pr_tree`: every tracked blob/symlink at `H`; a gitlink additionally expands
+   its pinned checked-out submodule tree or makes the gate incomplete;
+3. `pr_generated`: every file in each required M0 job's declared Bazel/Nix
+   output manifest, including generated source/config, binaries, test reports,
+   fuzz/crash output, SBOM, corpus, performance, security, and candidate
+   evidence produced by that attempt;
+4. `pr_package_closure`: every regular file/symlink in the Orus package and
+   every path returned by the package's Nix runtime-closure manifest when the
+   release-package cell runs;
+5. `pr_logs_artifacts`: every normalized job log and every uploaded evidence
+   artifact named by `M0-CI-GATE-v1` for the same run/attempt;
+6. `pr_cache`: every file in a restored cache before consumption and every file
+   in a cache payload before upload. A cache not locally enumerable is denied.
+
+An untrusted lock/admission change may be scanned as repository bytes but does
+not enter acquisition. All six sets must appear; a legitimately empty set has
+count zero plus the producing job/check identity, not omission.
+
+#### Release profile
+
+For clean release revision `R`, the exact sets are:
+
+1. `release_history`: patches for every commit reachable from `R`, including
+   merge/deleted bytes, up to the 100,000-commit hard limit;
+2. `release_tree`: every tracked blob/symlink at `R` and each pinned submodule
+   tree as above;
+3. `release_generated`: every file in every blocking M0 job's declared
+   Bazel/Nix output manifest for the accepted CI attempt;
+4. `release_package_closure`: every Orus package and transitive Nix closure
+   regular file/symlink enumerated by the retained closure manifest;
+5. `release_logs_artifacts`: every normalized log and uploaded artifact for all
+   required blocking/advisory job IDs referenced by the release evidence;
+6. `release_cache`: every restored/created cache payload used by the accepted
+   run, scanned before use/upload;
+7. `release_evidence`: every file reachable from `M0-RELEASE-EVIDENCE-v1`, the
+   manifest itself, final external approval marker, license/notices, SBOM
+   descriptor/document, claim report, and security report.
+
+The only raw-path exclusion is `.git/` object/storage bytes because its logical
+history is scanned by `*_history`; compiler scratch that is neither an input,
+declared output, cache, log, package/closure member, artifact, nor evidence is
+not retained and therefore is outside the release population. Secret fixtures
+are not excluded: their exact path/content digest/rule findings are scanned and
+then matched to narrow non-secret allowlist records. There is no wildcard,
+generated-directory, binary, dependency-closure, or old-history exclusion.
+
+Both profiles enforce `SEC-LIM-16-02`: <=100,000 commits, <=100,000 manifest
+entries, <=64 MiB per expanded entry, <=16 GiB total, depth 8, <=1 GiB scanner
+RSS, and <=1,800 seconds. Hitting a bound yields `SEC_SECRET_SCAN_LIMIT`;
+missing provider log/artifact/cache/closure/history bytes, provider-side
+truncation, digest drift, scan-engine skip, or status other than `scanned`
+yields `SEC_SECRET_SCAN_INCOMPLETE`. Either code blocks the gate with zero
+approval; it is never converted to zero findings.
+
+### 6.6 Design choice: policy enforcement shape
 
 | Alternative | Pros | Cons |
 |---|---|---|
@@ -174,7 +301,7 @@ publication, or out-of-scope filesystem capability.
 **Recommendation:** Keep versioned repository contracts authoritative and use
 CI/provider settings as additional enforcement evidence.
 
-### 6.6 Design choice: primary M0 secret scanner
+### 6.7 Design choice: primary M0 secret scanner
 
 | Alternative | Pros | Cons |
 |---|---|---|
@@ -188,7 +315,7 @@ retain only narrow repository-specific supplemental rules, and revisit it
 through dependency admission if upstream security maintenance ends. This
 implements `q-0010`.
 
-### 6.7 Design choice: canonical M0 content digest
+### 6.8 Design choice: canonical M0 content digest
 
 | Alternative | Pros | Cons |
 |---|---|---|
@@ -196,9 +323,10 @@ implements `q-0010`.
 | BLAKE3 | Fast and parallel, attractive for a future measured hot path. | Adds/adopts a dependency and needs compatibility/migration policy. |
 | Store SHA-256 and BLAKE3 as co-equal identities | Eases experimentation and migration. | Creates conflicting canonical identities and disagreement handling. |
 
-**Recommendation:** Use exactly one canonical M0 identity: `sha256` plus 64
-lowercase hexadecimal digits. Call it a digest, never a signature. Any future
-migration or hot-path use of BLAKE3 requires an accepted ADR. This implements
+**Recommendation:** Use one algorithm, `sha256` plus 64 lowercase hexadecimal
+digits, with the four non-interchangeable subject names and byte contracts in
+spec `10` Section 6.4. Call each a digest, never a signature. Any future
+migration or hot-path BLAKE3 use requires an accepted ADR. This implements
 `q-0011`.
 
 ## 7. Data Model
@@ -208,13 +336,14 @@ migration or hot-path use of BLAKE3 requires an accepted ADR. This implements
 | Asset | Stable ID, owner, sensitivity/integrity/availability class. | Every boundary references at least one protected asset. |
 | Trust boundary | Stable boundary ID, sides, inputs, assets, controls, owner. | `policy_only -> implemented -> validated`; M1+ rows remain policy_only in M0. |
 | Capability | Stable vocabulary ID and semantics. | Default denied; scoped grant only; no unknown implicit capability. |
-| Grant profile | Component/profile plus capability scopes and limits. | Immutable per evidence run; least privilege; M0 forbidden capabilities absent. |
-| Resource limit | Domain operation/input and numeric bounds. | Validated before Ready and enforced before unsafe allocation/side effect. |
+| Grant profile | Component/profile plus capability scopes and limits. | Immutable per evidence run; only acquisition has network; M0 forbidden capabilities absent. |
+| Resource limit | Stable SEC-LIM ID, domain operation/input, owner requirement, numeric/N/A bounds. | Exactly one mapping per applicable M0 operation; validated before Ready and enforced before unsafe allocation/side effect. |
 | Structured input | Format/schema/trust/parser/owner. | Maps to limits and verification; native untrusted parser maps to fuzzer. |
 | Security exception | Stable ID and exact scope/expiry review milestone. | `proposed -> approved -> expired|closed`; expired never matches. |
 | Security finding | Stable control/rule, bounded context SHA-256 digest, severity, affected identity. | Secret values redacted; blocks according to owning requirement; retained as evidence. |
+| Secret scan manifest | Profile/revision/base, scanner/rules identities, finite set/entry bytes and statuses. | Population union is complete; any unavailable/truncated/unsupported/over-limit state blocks. |
 
-Recorded lowercase hexadecimal SHA-256 digests and validator reports are
+Recorded subject-named lowercase hexadecimal SHA-256 digests and validator reports are
 authoritative for mechanical integrity checks; they are not signatures, legal judgments, or execution
 evidence. Future model text and target content remain untrusted regardless of
 provenance label.
@@ -222,8 +351,9 @@ provenance label.
 ## 8. Key Flows
 
 1. **M0 secure build/release (SEC-FR-002 through SEC-FR-006, SEC-FR-012).**
-   An untrusted change enters read-only/no-secret CI; locked inputs resolve;
-   sandboxed actions run; secret, dependency, capability, and parser checks
+   An untrusted change enters read-only/no-secret CI; the isolated acquisition
+   profile verifies admitted locked inputs; network-denied sandboxed actions
+   run; exact PR/release scan manifests, dependency, capability, and parser checks
    pass; artifacts/SBOM/evidence are digested and reconciled; claim scan passes;
    security report joins the non-publishing release candidate.
 2. **Structured input admission (SEC-FR-007 through SEC-FR-009).** Domain
@@ -247,11 +377,11 @@ provenance label.
 
 | ID | Trigger | Required detection point | Typed outcome / diagnostic fields | Side effects and cleanup | Retry / recovery | Verifying requirements/tests |
 |---|---|---|---|---|---|---|
-| SEC-FAIL-001 | Gitleaks or a supplemental rule finds a secret/canary in source, input, log, cache, package, or evidence. [R-202] | Offline scan/redaction boundary before upload or release approval. | `SEC_SECRET_DETECTED`; scanner/rule identity, content SHA-256 digest, scoped location, redacted preview; never raw value. | Gate fails; artifact/evidence not approved; exposed real secret requires owner incident response/rotation outside automation. | Remove/rotate and rerun the complete pinned scan. | SEC-FR-002, -012 / SEC-TEST-002, -012. |
-| SEC-FAIL-002 | Mutable/unverified/unadmitted dependency or action network access. [R-001, R-005] | Input resolution/action sandbox/reconciliation. | `SEC_SUPPLY_CHAIN_INVALID`; component/action, source, hash/admission state. | Build/release stops; no trusted artifact. | Pin/admit/remove dependency and rerun. | SEC-FR-004 / SEC-TEST-004. |
-| SEC-FAIL-003 | Artifact/evidence SHA-256 digest is missing, malformed, mixed-case, alternate-algorithm, mismatched, or substituted. [R-005, R-201] | Before artifact/evidence consumption. | `SEC_INTEGRITY_FAILED`; identity, algorithm, expected/observed digest. | Input not trusted/approved; committed valid evidence unchanged. | Regenerate/retrieve correct artifact; never ignore mismatch. | SEC-FR-005 / SEC-TEST-005. |
+| SEC-FAIL-001 | Scanner finds a secret/canary, or a Section 6.5 population entry is missing/unsupported/truncated/over-limit. [R-202] | Manifest reconciliation and offline scan before cache use/upload/release approval. | `SEC_SECRET_DETECTED`, `SEC_SECRET_SCAN_INCOMPLETE`, or `SEC_SECRET_SCAN_LIMIT`; profile/set, scanner/rule, content digest, redacted path/preview, status/count/limit; never raw secret. | Gate fails; cache/artifact/evidence not consumed/approved; expansion temp deleted; real secret requires owner incident response/rotation. | Restore complete bounded population, remove/rotate, and rerun entire profile; never scan a subset. | SEC-FR-002, -012 / SEC-TEST-002, -012. |
+| SEC-FAIL-002 | Mutable/unverified/unadmitted dependency, acquisition code execution/credential use, or network outside acquisition. [R-001, R-005] | Acquisition profile, store promotion, action sandbox, capability reconciliation. | `SEC_SUPPLY_CHAIN_INVALID` or `SEC_CAPABILITY_DENIED`; profile/component/action, source, hash/admission/network state. | Quarantine deleted; build/release stops; no trusted artifact. | Pin/admit/remove and rerun; no build-network exception. | SEC-FR-003, -004, -006 / SEC-TEST-003, -004, -006. |
+| SEC-FAIL-003 | Subject digest is missing/malformed/mixed/alternate/mismatched/self-referential or substituted across executable/package/SBOM/evidence. [R-005, R-201] | Before object consumption/approval. | `SEC_INTEGRITY_FAILED`; subject, exact byte contract, algorithm, expected/observed digest. | Input not trusted/approved; committed valid evidence unchanged. | Regenerate/retrieve correct subject; never relabel or ignore mismatch. | SEC-FR-005 / SEC-TEST-005. |
 | SEC-FAIL-010 | Primary scanner maintenance ends or a digest/scanner change is attempted without admission/ADR evidence. [R-005] | Dependency admission and governance validation before lock/schema change. | `SEC_SECURITY_PRIMITIVE_CHANGE_BLOCKED`; component/algorithm, current/proposed identity, missing evidence/approval. | Existing validated identities remain authoritative; candidate change and release gate fail. | Complete dependency admission or accepted migration ADR, then rerun full evidence. | SEC-FR-014 / SEC-TEST-014. |
-| SEC-FAIL-004 | Unknown/implicit/overbroad capability or forbidden M0 grant. [R-303] | Grant/profile validation before operation/job. | `SEC_CAPABILITY_DENIED`; component/profile, capability, scope, rule. | Operation/job not started; no external side effect. | Narrow approved profile; future capability requires owning implementation/evidence. | SEC-FR-006 / SEC-TEST-006. |
+| SEC-FAIL-004 | Unknown/implicit/overbroad grant, second M0 network profile, or forbidden capability. [R-303] | Grant/profile validation before operation/job. | `SEC_CAPABILITY_DENIED`; component/profile, capability, scope, expected sole-network profile. | Operation/job not started; no external side effect. | Narrow to exact Section 6.2 profile; future capability requires owning implementation/evidence. | SEC-FR-006 / SEC-TEST-006. |
 | SEC-FAIL-005 | Resource limit missing or exceeded. [R-201] | Domain readiness audit or runtime pre-allocation/side-effect boundary. | `SEC_RESOURCE_LIMIT`; domain/operation, resource, limit, observed/requested. | Reject input/operation; domain-defined bounded cleanup; no success claim. | Use bounded input or approved contract change with evidence. | SEC-FR-007 / SEC-TEST-007. |
 | SEC-FAIL-006 | Unregistered parser, missing fuzzer, zero fuzz executions, crash/sanitizer finding. [R-201, R-007] | Inventory reconciliation/fuzz job. | `SEC_PARSER_VERIFICATION_FAILED`; input/parser/target/config, execution/finding. | CI gate fails; crashing input minimized/retained; no release approval. | Fix/map/run and retain regression seed. | SEC-FR-008, -009 / SEC-TEST-008, -009. |
 | SEC-FAIL-007 | Target/model/browser content attempts to grant authority or fabricate fact. [R-302] | Future typed tool/policy boundary; M0 policy fixture validation. | `SEC_UNTRUSTED_CONTENT_POLICY_ATTEMPT`; provenance, requested capability/claim, evidence state. | Content retained only as data; no grant/factual promotion. | None automatically; authorized owner may separately act. | SEC-FR-010 / SEC-TEST-010. |
@@ -265,12 +395,12 @@ provenance label.
 | SEC-OBS-001 | `security_control_result` | Event/report; control/rule, boundary, status, finding count | Each M0 validator / security owner | At most 1,000 detailed findings then truncated; one summary/control. | CI/release gate. | SEC-TEST-012. |
 | SEC-OBS-002 | `capability_inventory` | Report; component/profile/capability/scope/status | Capability reconciliation / security owner | Bounded by finite component/vocabulary inventory; no raw credential. | Least-privilege gate. | SEC-TEST-006. |
 | SEC-OBS-003 | `structured_parser_coverage` | Gauge/report; registered/mapped/limited/fuzzed/executed/crashed counts | CI reconciliation / security owner | One row/input ID and aggregate; finite schema inventory. | DOD-04 and domain readiness. | SEC-TEST-008/009. |
-| SEC-OBS-004 | `artifact_integrity_result` | Event; artifact/evidence ID, algorithm, digest status | Bundle validation / release/security owner | One/reference; no content logged. | Release evidence gate. | SEC-TEST-005. |
+| SEC-OBS-004 | `artifact_integrity_result` | Event; subject, object ID, algorithm, digest status | Bundle validation / release/security owner | One/reference; no content logged. | Release evidence gate. | SEC-TEST-005. |
 | SEC-OBS-005 | `security_boundary_state` | Gauge/report; boundary, owner milestone, policy/implemented/validated state | Spec readiness audit / security owner | Fixed roadmap boundary inventory. | Prevent false claim/owner omission. | SEC-TEST-001/011. |
 
 Signals correlate by source revision, build/reference-environment ID, CI
-run/attempt, artifact/evidence SHA-256 digest, boundary, control, component, and
-capability profile. Future trace/branch/execution/VPID/VTID fields are added by
+run/attempt, digest subject plus subject-named SHA-256, boundary, control,
+component, and capability profile. Future trace/branch/execution/VPID/VTID fields are added by
 their owners; M0 does not synthesize them. Reports retain digests and redacted
 context, never raw secrets or sensitive future trace content.
 
@@ -280,7 +410,8 @@ Copy/paste from the repository root after implementation:
 
 ```bash
 nix develop --command bazel test --config=dev //tests/security/...
-nix develop --command bazel run //tools/security:secret_scan -- --require-scanner=gitleaks@8.30.1 --offline
+nix develop --command bazel run //tools/security:secret_scan -- --profile=pull_request --base-ref=origin/main --head=HEAD --require-scanner=gitleaks@8.30.1 --offline
+nix develop --command bazel run //tools/security:secret_scan -- --profile=release --revision=HEAD --require-scanner=gitleaks@8.30.1 --offline
 nix develop --command bazel run //tools/security:capability_audit
 nix develop --command bazel run //tools/security:boundary_reconcile
 nix develop --command bazel run //tools/security:resource_limit_reconcile
@@ -294,12 +425,12 @@ nix develop --command bazel run //tools/governance:release_gate -- --candidate-d
 | Requirement ID | Test/benchmark/review ID | Level | Fixture/workload and environment | Pass criterion | Evidence artifact |
 |---|---|---|---|---|---|
 | SEC-FR-001 | SEC-TEST-001 | Schema/inspection | Boundary inventory against M0-M11 roadmap and one missing-owner/control fixture. | All rows complete/mapped; fixture fails. | `security-boundary-audit.json`. |
-| SEC-FR-002, SEC-NFR-001 | SEC-TEST-002 | Security/static | Source/diff/package/log/cache/evidence scan plus token/key/password/private-key fixtures. | Zero real finding; 100% fixtures detected/redacted. | `secret-scan-report.json`. |
-| SEC-FR-003, SEC-NFR-001 | SEC-TEST-003 | Security/integration | Untrusted PR with canary and permission/cache assertions. | Zero canary exposure and no forbidden capability. | `ci-least-privilege.json`. |
+| SEC-FR-002, SEC-NFR-001 | SEC-TEST-002 | Security/static/resource | Exact PR/release profile sets, valid manifests, empty-set rows, token/key/password/private-key fixtures, and missing/truncated/unsupported/digest/100001-file/64-MiB+1/16-GiB+1/depth-9/history-limit mutations. | 100% sets/entries scanned once and zero real finding; all fixtures detected/redacted; every incomplete/over-limit mutation blocks with exact code, never zero. | `secret-scan-pr-manifest.json`, `secret-scan-release-manifest.json`, reports. |
+| SEC-FR-003, SEC-NFR-001 | SEC-TEST-003 | Security/integration | Untrusted PR/protected builds with canary; sole acquisition network; unadmitted lock, acquisition code-exec/credential, and build-network mutations. | Zero canary/forbidden permission; only admitted acquisition fetches; every escape/extra grant fails. | `ci-least-privilege.json`, `acquisition-capability.json`. |
 | SEC-FR-004, SEC-NFR-002 | SEC-TEST-004 | Integration/security | Resolved graph plus mutable/hash-mismatch/unadmitted/network fixtures. | 100% valid reconciliation; all faults block before trusted artifact. | `supply-chain-report.json`. |
-| SEC-FR-005, SEC-NFR-003 | SEC-TEST-005 | Security/integration | Complete bundle plus one-byte mutation/substitution/missing/unknown-algorithm fixtures. | 100% valid references; every fault detected. | `artifact-integrity-matrix.json`. |
-| SEC-FR-006, SEC-NFR-004 | SEC-TEST-006 | Schema/security | Complete component profiles plus unknown/implicit/forbidden/overbroad grants. | Zero forbidden M0 grant; every fixture denied. | `capability-audit.json`. |
-| SEC-FR-007 | SEC-TEST-007 | Schema/inspection/resource | All domain operations against limit inventory plus missing/unbounded/late-enforcement fixtures. | 100% applicable mapping; invalid fixtures fail. | `resource-limit-reconciliation.json`. |
+| SEC-FR-005, SEC-NFR-003 | SEC-TEST-005 | Security/integration | Complete subject-named bundle; raw-byte and package mtime/mode/path/symlink/content changes; self-digest, cross-subject substitution, missing/mixed/alternate algorithm. | Exact included/excluded metadata behavior; 100% valid subjects; every invalid mutation/substitution detected. | `artifact-integrity-matrix.json`. |
+| SEC-FR-006, SEC-NFR-004 | SEC-TEST-006 | Schema/security | Exact Section 6.2 profiles plus unknown/implicit/forbidden/overbroad grants, zero/two network profile, acquisition repository-code/credential fixtures. | Exactly one scoped network profile; zero forbidden grants; every fixture denied. | `capability-audit.json`. |
+| SEC-FR-007 | SEC-TEST-007 | Schema/inspection/resource | Finite SEC-LIM table against every owner requirement/operation plus missing/duplicate/numeric-drift/unbounded/late-enforcement and N/A-rationale mutations. | Every applicable operation maps exactly once with identical number/error/cleanup/test; every mutation blocks Ready. | `resource-limit-reconciliation.json`, cross-domain matrix. |
 | SEC-FR-008, SEC-NFR-005 | SEC-TEST-008 | Schema/analysis | Parser query against input/fuzz/limit inventory plus unmapped/zero-execution fixture. | Exact mapping and positive smoke count; fixtures block. | `structured-input-coverage.json`. |
 | SEC-FR-009, SEC-NFR-005 | SEC-TEST-009 | Fuzz/sanitizer/resource | Performance document and corpus frame seed/malformed corpora under fuzz config. | >0 executions/target; 0 crash, timeout, OOM, ASan/UBSan finding. | Fuzz reports and minimized regression corpus index. |
 | SEC-FR-010 | SEC-TEST-010 | Policy/security | Future boundary records and adversarial content that requests capability/fabricates evidence. | Content remains data; zero grant/factual promotion; owner mappings complete. | `untrusted-content-policy.json`. |
