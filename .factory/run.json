@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "04_spec_verifier",
+  "current_step": "03_spec_writer",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -14,8 +14,8 @@
       "last_result_path": ".factory/results/01_discovery/r1/result.json"
     },
     "03_spec_writer": {
-      "status": "done",
-      "attempts": 1,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "specs_ready",
         "summary": "Foundation spec pack is complete and implementation-ready for domain specification work. Discovery precedence and all ten confirmed answers are mapped to decisions; the latest review's testability, glossary, trace-sequencing, risk-traceability, and readiness findings are resolved; SPECS.md contains the complete Foundation and M0-M11 roadmap plus the full domain template. One legal-notice value remains a non-blocking clarification and is governed by safe Assumption D-016, which blocks public packaging rather than inventing a holder or year.",
@@ -45,23 +45,13 @@
       "last_result_path": ".factory/results/03_spec_writer/r1/result.json"
     },
     "04_spec_verifier": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "last_result": {
         "verdict": "needs_work",
-        "summary": "First-round foundation verification found 10 blocking findings: three Charter testability gaps, four Glossary completeness/consistency defects, two Risk traceability defects, and premature Ready declarations in SPECS.md. The ADR log is READY, all required foundation files exist, and no planned specs/10+ file was treated as missing.",
+        "summary": "Re-review resolved FND-001 through FND-009, but foundation remains blocked: new D-016 incorrectly treats the MIT notice identity as an unresolved Assumption despite the existing human answer 'Copyright (c) 2026 Loic Schneider', and SPECS.md consequently declares Ready prematurely.",
         "report_path": "specs/_reviews/2026-07-21_foundation_review.md",
-        "open_questions": [
-          {
-            "kind": "clarification",
-            "domain": "licensing",
-            "text": "What exact copyright year and legal holder name should appear in the root MIT LICENSE and packaged copies?",
-            "why_it_matters": "The Charter requires the standard MIT text and packaged license validation, but the required notice value cannot be derived from discovery, the decisions, or the project seed.",
-            "unlocks": "Final root LICENSE content, packaged-license checks, and release evidence for G-03, SM-10, and DOD-06.",
-            "default": "Require an owner-supplied notice in the release domain specification and block public packaging; do not invent a holder or ship a placeholder.",
-            "blocking": false
-          }
-        ]
+        "open_questions": []
       },
       "last_result_path": ".factory/results/04_spec_verifier/r1/result.json"
     }
@@ -168,6 +158,30 @@
       "step": "03_spec_writer",
       "event": "commit_scheduled",
       "detail": "20260721T220230Z_03_spec_writer_r1"
+    },
+    {
+      "ts": "2026-07-21T22:02:30Z",
+      "step": "04_spec_verifier",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-21T22:08:04Z",
+      "step": "04_spec_verifier",
+      "event": "attempt_finished",
+      "detail": "r1 in 5m34s (133330 tokens)"
+    },
+    {
+      "ts": "2026-07-21T22:08:04Z",
+      "step": "04_spec_verifier",
+      "event": "transition",
+      "detail": "-> 03_spec_writer"
+    },
+    {
+      "ts": "2026-07-21T22:08:04Z",
+      "step": "04_spec_verifier",
+      "event": "commit_scheduled",
+      "detail": "20260721T220804Z_04_spec_verifier_r1"
     }
   ],
   "metrics": [
@@ -194,6 +208,14 @@
       "ts": "2026-07-21T22:02:30Z",
       "duration_s": 605.8,
       "tokens": 140239
+    },
+    {
+      "step": "04_spec_verifier",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-21T22:08:04Z",
+      "duration_s": 334.4,
+      "tokens": 133330
     }
   ]
 }
