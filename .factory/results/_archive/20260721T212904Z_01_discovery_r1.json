@@ -1,0 +1,4 @@
+{
+  "verdict": "ready_for_spec",
+  "summary": "Discovery completed for the M0 factory wave. User decisions: MIT license; one pinned Linux x86-64 reference environment with no broader M0 compatibility claim; outside contributions closed during M0; GitHub Actions for functional, sanitizer, and advisory benchmark checks, with authoritative performance gates restricted to controlled-runner measurements. All foundational seed assumptions A-D04 through A-D08 are confirmed. No critical unknowns or deferred questions remain."
+}

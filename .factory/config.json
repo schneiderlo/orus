@@ -1,0 +1,84 @@
+{
+  "workflow": "pdca",
+  "policy": "expert",
+  "executor": "claude",
+  "max_attempts": 3,
+  "executors": {
+    "claude": {
+      "cmd": [
+        "claude",
+        "-p",
+        "--output-format",
+        "json"
+      ],
+      "permission_flag": true,
+      "timeout": 3600,
+      "idle_timeout": 1800,
+      "result_exit_grace": 30
+    },
+    "codex": {
+      "cmd": [
+        "codex",
+        "exec",
+        "--add-dir",
+        ".agents"
+      ],
+      "sandbox": "danger-full-access",
+      "timeout": 3600,
+      "idle_timeout": 1800,
+      "result_exit_grace": 30
+    },
+    "opencode": {
+      "cmd": [
+        "opencode",
+        "run"
+      ],
+      "skip_permissions": true,
+      "timeout": 3600,
+      "idle_timeout": 1800,
+      "result_exit_grace": 30
+    },
+    "grok": {
+      "cmd": [
+        "grok",
+        "--output-format",
+        "json"
+      ],
+      "always_approve": true,
+      "timeout": 3600,
+      "idle_timeout": 1800,
+      "result_exit_grace": 30
+    },
+    "stub": {
+      "scenario": null
+    }
+  },
+  "oracle": {
+    "executor": "claude",
+    "context": [
+      "SPECS.md",
+      "IMPLEMENTATION_PLAN.md",
+      "specs"
+    ]
+  },
+  "auto_commit": {
+    "enabled": true,
+    "message_cmd": [
+      "codex",
+      "exec",
+      "--sandbox",
+      "read-only",
+      "--ephemeral",
+      "-c",
+      "model_reasoning_effort=\"low\""
+    ],
+    "message_timeout": 600,
+    "wait_timeout": 1800,
+    "max_diff_chars": 60000,
+    "exclude_paths": [
+      ".factory/commits",
+      ".factory/logs"
+    ]
+  },
+  "argus_cmd": null
+}
