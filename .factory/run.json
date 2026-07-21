@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "04_spec_verifier",
+  "current_step": "05_domain_spec_writer",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -33,15 +33,19 @@
       "last_result_path": ".factory/results/03_spec_writer/r1/result.json"
     },
     "04_spec_verifier": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "last_result": {
-        "verdict": "needs_work",
-        "summary": "Re-review confirms the exact MIT notice fix and roadmap alignment, but foundation remains blocked: D-016 is omitted from the general human-answer supersession policy, its claim that no MIT clarification remains open conflicts with open duplicate q-0002, and SPECS.md therefore declares Ready prematurely.",
+        "verdict": "pass",
+        "summary": "Re-review confirms that FND-012 and FND-013 are resolved, all earlier findings remain resolved, and the latest decision/question reconciliation introduces no new defect. All five reviewed files are READY; the foundation roadmap covers the full Charter scope with explicit phases, dependencies, status legend, and domain spec template.",
         "report_path": "specs/_reviews/2026-07-21_foundation_review.md",
         "open_questions": []
       },
       "last_result_path": ".factory/results/04_spec_verifier/r1/result.json"
+    },
+    "05_domain_spec_writer": {
+      "status": "pending",
+      "attempts": 0
     }
   },
   "history": [
@@ -242,6 +246,30 @@
       "step": "03_spec_writer",
       "event": "commit_scheduled",
       "detail": "20260721T221723Z_03_spec_writer_r1"
+    },
+    {
+      "ts": "2026-07-21T22:17:23Z",
+      "step": "04_spec_verifier",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-21T22:20:02Z",
+      "step": "04_spec_verifier",
+      "event": "attempt_finished",
+      "detail": "r1 in 2m38s (77778 tokens)"
+    },
+    {
+      "ts": "2026-07-21T22:20:02Z",
+      "step": "04_spec_verifier",
+      "event": "transition",
+      "detail": "-> 05_domain_spec_writer"
+    },
+    {
+      "ts": "2026-07-21T22:20:02Z",
+      "step": "04_spec_verifier",
+      "event": "commit_scheduled",
+      "detail": "20260721T222002Z_04_spec_verifier_r1"
     }
   ],
   "metrics": [
@@ -299,6 +327,14 @@
       "ts": "2026-07-21T22:17:23Z",
       "duration_s": 189.2,
       "tokens": 74372
+    },
+    {
+      "step": "04_spec_verifier",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-21T22:20:02Z",
+      "duration_s": 158.2,
+      "tokens": 77778
     }
   ]
 }
