@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "04_spec_verifier",
+  "current_step": "03_spec_writer",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -14,8 +14,8 @@
       "last_result_path": ".factory/results/01_discovery/r1/result.json"
     },
     "03_spec_writer": {
-      "status": "done",
-      "attempts": 1,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "specs_ready",
         "summary": "The self-contained Orus foundation specification pack is complete and implementation-ready for domain specification work. All discovery answers remain mapped by source priority; verifier findings FND-010 and FND-011 are resolved by recording the human-approved MIT notice as Accepted decision D-016 and aligning the M0 governance/release roadmap. All four foundation files are Ready, and SPECS.md contains the complete Foundation and M0-M11 phase roadmap plus the required domain specification template. No blocking or unresolved foundation question remains.",
@@ -31,11 +31,11 @@
       "last_result_path": ".factory/results/03_spec_writer/r1/result.json"
     },
     "04_spec_verifier": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "last_result": {
         "verdict": "needs_work",
-        "summary": "Re-review resolved FND-001 through FND-009, but foundation remains blocked: new D-016 incorrectly treats the MIT notice identity as an unresolved Assumption despite the existing human answer 'Copyright (c) 2026 Loic Schneider', and SPECS.md consequently declares Ready prematurely.",
+        "summary": "Re-review confirms the exact MIT notice fix and roadmap alignment, but foundation remains blocked: D-016 is omitted from the general human-answer supersession policy, its claim that no MIT clarification remains open conflicts with open duplicate q-0002, and SPECS.md therefore declares Ready prematurely.",
         "report_path": "specs/_reviews/2026-07-21_foundation_review.md",
         "open_questions": []
       },
@@ -192,6 +192,30 @@
       "step": "03_spec_writer",
       "event": "commit_scheduled",
       "detail": "20260721T221045Z_03_spec_writer_r1"
+    },
+    {
+      "ts": "2026-07-21T22:10:45Z",
+      "step": "04_spec_verifier",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-21T22:14:14Z",
+      "step": "04_spec_verifier",
+      "event": "attempt_finished",
+      "detail": "r1 in 3m29s"
+    },
+    {
+      "ts": "2026-07-21T22:14:14Z",
+      "step": "04_spec_verifier",
+      "event": "transition",
+      "detail": "-> 03_spec_writer"
+    },
+    {
+      "ts": "2026-07-21T22:14:14Z",
+      "step": "04_spec_verifier",
+      "event": "commit_scheduled",
+      "detail": "20260721T221414Z_04_spec_verifier_r1"
     }
   ],
   "metrics": [
@@ -234,6 +258,13 @@
       "ts": "2026-07-21T22:10:45Z",
       "duration_s": 160.2,
       "tokens": 68746
+    },
+    {
+      "step": "04_spec_verifier",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-21T22:14:14Z",
+      "duration_s": 209.3
     }
   ]
 }
