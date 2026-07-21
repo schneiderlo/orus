@@ -1,0 +1,8 @@
+{
+  "verdict": "needs_work",
+  "summary": "First full review of all seven M0 domain specs found 12 blocking contract, testability, and cross-spec consistency defects. No user clarification is required; the report gives specific edits for the reference-environment and artifact identities, governance/CLI/CI schemas, comparator, corpus protocol, and security inventories/policies.",
+  "phase": "M0",
+  "more_phases": false,
+  "report_path": "specs/_reviews/2026-07-21_phaseM0_review.md",
+  "open_questions": []
+}

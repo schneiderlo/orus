@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "06_domain_spec_verifier",
+  "current_step": "05_domain_spec_writer",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -44,8 +44,8 @@
       "last_result_path": ".factory/results/04_spec_verifier/r1/result.json"
     },
     "05_domain_spec_writer": {
-      "status": "done",
-      "attempts": 2,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "phase_specs_ready",
         "summary": "Phase M0 domain specifications are fully drafted, indexed, and updated with all authoritative resolved choices. The seven specs define the current-stable immutable reference-environment selection process, canonical SPDX 2.3 JSON SBOM, JSON-only M0 CLI documents, exact paired-bootstrap median comparator and canonical JSON performance evidence, bounded SOCK_SEQPACKET FD-3 corpus IPC with a 10-second absolute deadline, Gitleaks v8.30.1, and lowercase hexadecimal SHA-256 content identity. Every file follows the Domain Spec Template, retains Draft status, contains measurable requirements and copy/pasteable verification commands, maps every FR/NFR to retained evidence, and cross-references accepted foundation decisions and risks. No unresolved open question or M1+ implementation claim remains.",
@@ -66,8 +66,17 @@
       "last_result_path": ".factory/results/05_domain_spec_writer/r2/result.json"
     },
     "06_domain_spec_verifier": {
-      "status": "pending",
-      "attempts": 0
+      "status": "done",
+      "attempts": 1,
+      "last_result": {
+        "verdict": "needs_work",
+        "summary": "First full review of all seven M0 domain specs found 12 blocking contract, testability, and cross-spec consistency defects. No user clarification is required; the report gives specific edits for the reference-environment and artifact identities, governance/CLI/CI schemas, comparator, corpus protocol, and security inventories/policies.",
+        "phase": "M0",
+        "more_phases": false,
+        "report_path": "specs/_reviews/2026-07-21_phaseM0_review.md",
+        "open_questions": []
+      },
+      "last_result_path": ".factory/results/06_domain_spec_verifier/r1/result.json"
     }
   },
   "history": [
@@ -388,6 +397,30 @@
       "step": "05_domain_spec_writer",
       "event": "commit_scheduled",
       "detail": "20260721T231155Z_05_domain_spec_writer_r2"
+    },
+    {
+      "ts": "2026-07-21T23:12:43Z",
+      "step": "06_domain_spec_verifier",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-21T23:20:47Z",
+      "step": "06_domain_spec_verifier",
+      "event": "attempt_finished",
+      "detail": "r1 in 8m04s (190968 tokens)"
+    },
+    {
+      "ts": "2026-07-21T23:20:47Z",
+      "step": "06_domain_spec_verifier",
+      "event": "transition",
+      "detail": "-> 05_domain_spec_writer"
+    },
+    {
+      "ts": "2026-07-21T23:20:47Z",
+      "step": "06_domain_spec_verifier",
+      "event": "commit_scheduled",
+      "detail": "20260721T232047Z_06_domain_spec_verifier_r1"
     }
   ],
   "metrics": [
@@ -467,13 +500,21 @@
       "executor": "codex",
       "ts": "2026-07-21T23:11:55Z",
       "duration_s": 879.2
+    },
+    {
+      "step": "06_domain_spec_verifier",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-21T23:20:47Z",
+      "duration_s": 483.7,
+      "tokens": 190968
     }
   ],
   "step_context": {
-    "06_domain_spec_verifier": {
-      "source_step": "05_domain_spec_writer",
-      "created_at": "2026-07-21T23:11:55Z",
-      "instruction": "Verify ONLY `M0`, the phase named by the immediately previous domain-spec writer result. Do not verify earlier Draft phases just because they still appear first in `SPECS.md`."
+    "05_domain_spec_writer": {
+      "source_step": "06_domain_spec_verifier",
+      "created_at": "2026-07-21T23:20:47Z",
+      "instruction": "Fix ONLY `M0`, the phase named by the verifier result. Use `specs/_reviews/2026-07-21_phaseM0_review.md` as the authoritative review report. Do not select or write a different phase until this verifier feedback passes."
     }
   }
 }
