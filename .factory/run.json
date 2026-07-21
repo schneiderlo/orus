@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "03_spec_writer",
+  "current_step": "04_spec_verifier",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -14,6 +14,24 @@
       "last_result_path": ".factory/results/01_discovery/r1/result.json"
     },
     "03_spec_writer": {
+      "status": "done",
+      "attempts": 2,
+      "last_result": {
+        "verdict": "specs_ready",
+        "summary": "Completed the self-contained Orus foundation specification pack for the M0 factory wave. The charter defines measurable M0 scope and the complete M0-M11 milestone roadmap; the glossary standardizes product and engineering terminology; the decision log maps every discovery answer and binding architectural tradeoff with alternatives and validation; the risk register provides concrete mitigations and milestone validation; and SPECS.md indexes all foundation files plus 28 dependency-ordered domain-spec placeholders with the required reusable template. Discovery is closed and no blocking ambiguity remains.",
+        "open_questions": [],
+        "files_written": [
+          "specs/00-CHARTER.md",
+          "specs/01-GLOSSARY.md",
+          "specs/02-DECISIONS.md",
+          "specs/03-RISKS.md",
+          "SPECS.md",
+          ".factory/results/03_spec_writer/r2/result.json"
+        ]
+      },
+      "last_result_path": ".factory/results/03_spec_writer/r2/result.json"
+    },
+    "04_spec_verifier": {
       "status": "pending",
       "attempts": 0
     }
@@ -36,6 +54,52 @@
       "step": "01_discovery",
       "event": "commit_scheduled",
       "detail": "20260721T212904Z_01_discovery_r1"
+    },
+    {
+      "ts": "2026-07-21T21:29:15Z",
+      "step": "03_spec_writer",
+      "event": "attempt_started",
+      "detail": "r1 via claude"
+    },
+    {
+      "ts": "2026-07-21T21:29:19Z",
+      "step": "03_spec_writer",
+      "event": "attempt_failed",
+      "detail": "executor 'claude' exited 1 on 03_spec_writer (see /home/lschneid/workspace/schneiderlo/orus/.factory/logs/03_spec_writer-r1.stderr.log)"
+    },
+    {
+      "ts": "2026-07-21T21:29:36Z",
+      "step": "03_spec_writer",
+      "event": "attempt_started",
+      "detail": "r2 via codex"
+    },
+    {
+      "ts": "2026-07-21T21:44:13Z",
+      "step": "03_spec_writer",
+      "event": "attempt_finished",
+      "detail": "r2 in 14m37s (193112 tokens)"
+    },
+    {
+      "ts": "2026-07-21T21:44:13Z",
+      "step": "03_spec_writer",
+      "event": "transition",
+      "detail": "-> 04_spec_verifier"
+    },
+    {
+      "ts": "2026-07-21T21:44:13Z",
+      "step": "03_spec_writer",
+      "event": "commit_scheduled",
+      "detail": "20260721T214413Z_03_spec_writer_r2"
+    }
+  ],
+  "metrics": [
+    {
+      "step": "03_spec_writer",
+      "attempt": 2,
+      "executor": "codex",
+      "ts": "2026-07-21T21:44:13Z",
+      "duration_s": 877.1,
+      "tokens": 193112
     }
   ]
 }

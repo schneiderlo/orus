@@ -1,7 +1,7 @@
 {
   "workflow": "pdca",
   "policy": "expert",
-  "executor": "claude",
+  "executor": "codex",
   "max_attempts": 3,
   "executors": {
     "claude": {
@@ -54,7 +54,7 @@
     }
   },
   "oracle": {
-    "executor": "claude",
+    "executor": "codex",
     "context": [
       "SPECS.md",
       "IMPLEMENTATION_PLAN.md",
