@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "11_rework",
+  "current_step": "10_verifier",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -172,8 +172,8 @@
       "last_result_path": ".factory/results/09_implementer/r2/result.json"
     },
     "10_verifier": {
-      "status": "done",
-      "attempts": 1,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "fail",
         "summary": "M0-001 is BLOCKED despite green run run-20260722T115238Z: c-12 and c-13 pass and the rework closes inventory and coverage omissions, but c-09 still does not enforce admitted-only, whole-profile time/aggregate-byte limits before real Nix-store promotion; its first-over and unadmitted evidence remains a pure decision simulation.",
@@ -184,38 +184,33 @@
       "last_result_path": ".factory/results/10_verifier/r1/result.json"
     },
     "11_rework": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "last_result": {
         "verdict": "reworked",
-        "summary": "Reworked only M0-001. F-01 is closed by one-to-one admission of the complete selected Bzlmod/distdir population plus bounded, hash-verified, read-only Nix materialization and live graph reconciliation. F-02 is closed by a finite source/exclusion coverage manifest, source-complete LCOV enforcement, independent 70% package gates, and omission/exclusion negative tests. Full Factory run run-20260722T114834Z passed c-01 through c-11; handoff-r1.md records the blocker mapping and evidence. M0-001 is IMPLEMENTED for independent re-verification.",
+        "summary": "Reworked only M0-001 and closed verifier finding F-01. BCR acquisition is now one admitted-manifest-driven fixed-output transaction that preflights the complete 39-coordinate Nix/Bzlmod population, keeps all 26 fetched BCR inputs quarantined under one 4-GiB-per-blob/16-GiB-total/1,200-second budget, verifies raw digests, and promotes one read-only store output only after the full profile succeeds. c-09 now exercises unadmitted, mutable, hash-mismatch, exact, and first-over coordinate/blob/aggregate/time cases through the same promotion state machine and retains non-promotion evidence. Full Factory run run-20260722T134530Z passed c-01 through c-11; M0-001 is IMPLEMENTED for independent re-verification.",
         "task_ref": "M0-001",
         "artifacts": [
           ".bazelrc",
-          ".agents/M0-001/handoff-r1.md",
-          ".factory/checks/M0-001/runs/run-20260722T114834Z.json",
-          ".factory/logs/checks/M0-001/run-20260722T114834Z/",
+          ".agents/M0-001/handoff-r2.md",
+          ".factory/checks/M0-001/runs/run-20260722T134530Z.json",
+          ".factory/logs/checks/M0-001/run-20260722T134530Z/",
           ".factory/results/11_rework/r1/result.json",
           ".factory/run.json",
           ".factory/tasks/M0-001.json",
           "IMPLEMENTATION_PLAN.md",
-          "config/BUILD.bazel",
           "config/bcr-distdir.json",
           "config/dependency-inventory.json",
           "config/input-acquisition.json",
           "flake.nix",
           "tests/build/BUILD.bazel",
           "tests/build/contract_test.py",
-          "third_party/bootstrap-admissions.json",
-          "tools/BUILD.bazel",
           "tools/build/BUILD.bazel",
-          "tools/build/build_contract.py",
+          "tools/build/acquisition_profile.py",
           "tools/build/hermeticity_audit.py",
-          "tools/coverage/BUILD.bazel",
-          "tools/coverage/package_gate.py",
-          "tools/coverage/packages.json",
-          "tools/format.py"
-        ]
+          "tools/coverage/packages.json"
+        ],
+        "open_questions": []
       },
       "last_result_path": ".factory/results/11_rework/r1/result.json"
     }
@@ -1018,6 +1013,30 @@
       "step": "10_verifier",
       "event": "commit_scheduled",
       "detail": "20260722T120054Z_10_verifier_r1"
+    },
+    {
+      "ts": "2026-07-22T12:00:54Z",
+      "step": "11_rework",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T13:50:21Z",
+      "step": "11_rework",
+      "event": "attempt_finished",
+      "detail": "r1 in 27m27s (224203 tokens)"
+    },
+    {
+      "ts": "2026-07-22T13:50:21Z",
+      "step": "11_rework",
+      "event": "transition",
+      "detail": "-> 10_verifier"
+    },
+    {
+      "ts": "2026-07-22T13:50:21Z",
+      "step": "11_rework",
+      "event": "commit_scheduled",
+      "detail": "20260722T135021Z_11_rework_r1"
     }
   ],
   "metrics": [
@@ -1236,15 +1255,14 @@
       "ts": "2026-07-22T12:00:54Z",
       "duration_s": 369.5,
       "tokens": 170532
+    },
+    {
+      "step": "11_rework",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-22T13:50:20Z",
+      "duration_s": 1647.3,
+      "tokens": 224203
     }
-  ],
-  "step_context": {
-    "11_rework": {
-      "source_step": "10_verifier",
-      "created_at": "2026-07-22T12:00:54Z",
-      "task_ref": "M0-001",
-      "report_path": ".agents/M0-001/verification-report-r1.md",
-      "instruction": "The verifier failed task `M0-001`. Rework ONLY `M0-001`. Use `.agents/M0-001/verification-report-r1.md` as the authoritative verification report. Fix only the verifier-reported blockers for this routed task; do not select a different blocked task from table order while this context is present."
-    }
-  }
+  ]
 }

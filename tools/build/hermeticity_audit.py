@@ -9,9 +9,9 @@ from hashlib import sha256
 from pathlib import Path
 from urllib.parse import urlparse
 
+from tools.build.acquisition_profile import run_boundary_fixtures
 from tools.build.build_contract import (
     ContractError,
-    acquisition_outcome,
     command_version,
     parse_module_graph,
     validate_acquisition_manifest,
@@ -117,10 +117,25 @@ def audit_bcr_materialization(root: Path, selected_modules: set[str]) -> dict[st
     limits = manifest["limits"]
     distdir = Path(os.environ.get("ORUS_BCR_DISTDIR", ""))
     registry = Path(os.environ.get("ORUS_BCR_REGISTRY", ""))
-    if not str(distdir).startswith("/nix/store/") or not str(registry).startswith("/nix/store/"):
+    profile = Path(os.environ.get("ORUS_ACQUISITION_PROFILE", ""))
+    if not all(str(path).startswith("/nix/store/") for path in (distdir, registry, profile)):
         raise ContractError("BUILD_UNDECLARED_INPUT", "BCR inputs are not materialized through Nix")
-    if not distdir.is_dir() or not registry.is_dir():
+    if distdir != profile / "distdir" or registry != profile / "registry":
+        raise ContractError("BUILD_ACQUISITION_DENIED", "BCR inputs do not share one acquisition profile")
+    if not distdir.is_dir() or not registry.is_dir() or not (profile / "profile-report.json").is_file():
         raise ContractError("BUILD_ACQUISITION_DENIED", "BCR Nix materialization is absent")
+
+    profile_report = json.loads((profile / "profile-report.json").read_text(encoding="utf-8"))
+    expected_coordinates = {row["coordinate"] for row in [*population["archives"], population["registry"]]}
+    if (
+        profile_report.get("schema") != "M0-ACQUISITION-TRANSACTION-v1"
+        or profile_report.get("state") != "promoted_read_only"
+        or profile_report.get("deadline_enforced") is not True
+        or set(profile_report.get("coordinates", [])) != expected_coordinates
+        or profile_report.get("total_bytes", limits["total_bytes"] + 1) > limits["total_bytes"]
+        or profile_report.get("wall_limit_seconds") != limits["wall_seconds"]
+    ):
+        raise ContractError("BUILD_ACQUISITION_DENIED", "acquisition transaction report is invalid")
 
     inventory_by_name = {entry["name"]: entry for entry in population["inventory"]["dependencies"]}
     archive_bytes = 0
@@ -152,12 +167,16 @@ def audit_bcr_materialization(root: Path, selected_modules: set[str]) -> dict[st
             raise ContractError("BUILD_LOCK_INVALID", f"materialized BCR metadata differs: {relative}")
         _require_read_only(path)
     _require_read_only(registry)
+    _require_read_only(profile)
 
     return {
         "archive_bytes": archive_bytes,
         "archive_count": len(population["archives"]),
         "coordinate_count": len(manifest["admitted_inputs"]),
+        "fetched_coordinate_count": len(expected_coordinates),
         "module_count": len(selected_modules),
+        "profile_deadline_enforced": profile_report["deadline_enforced"],
+        "profile_total_bytes": profile_report["total_bytes"],
         "registry_file_count": len(locked_registry_files),
         "store_mode": "read_only",
         "wall_limit_seconds": limits["wall_seconds"],
@@ -205,73 +224,8 @@ def main() -> int:
         materialization_audit = audit_bcr_materialization(root, selected_modules)
         population = validate_resolved_input_population(root, selected_modules=selected_modules)
         nix_materialization_audit = audit_nix_materialization(population)
-        manifest = validate_acquisition_manifest(root / "config/input-acquisition.json")
-        first = manifest["admitted_inputs"][0]
-        digest = first["sha256"]
-        limits = manifest["limits"]
-        boundary_matrix = {
-            "exact_blob": acquisition_outcome(
-                manifest,
-                coordinate=first["coordinate"],
-                blob_bytes=limits["per_blob_bytes"],
-                total_bytes=limits["total_bytes"],
-                elapsed_seconds=limits["wall_seconds"],
-                observed_sha256=digest,
-            ),
-            "blob_first_over": acquisition_outcome(
-                manifest,
-                coordinate=first["coordinate"],
-                blob_bytes=limits["per_blob_bytes"] + 1,
-                total_bytes=1,
-                elapsed_seconds=1,
-                observed_sha256=digest,
-            ),
-            "total_first_over": acquisition_outcome(
-                manifest,
-                coordinate=first["coordinate"],
-                blob_bytes=1,
-                total_bytes=limits["total_bytes"] + 1,
-                elapsed_seconds=1,
-                observed_sha256=digest,
-            ),
-            "time_first_over": acquisition_outcome(
-                manifest,
-                coordinate=first["coordinate"],
-                blob_bytes=1,
-                total_bytes=1,
-                elapsed_seconds=limits["wall_seconds"] + 1,
-                observed_sha256=digest,
-            ),
-            "hash_mismatch": acquisition_outcome(
-                manifest,
-                coordinate=first["coordinate"],
-                blob_bytes=1,
-                total_bytes=1,
-                elapsed_seconds=1,
-                observed_sha256="0" * 64,
-            ),
-            "mutable": acquisition_outcome(
-                manifest,
-                coordinate=first["coordinate"],
-                blob_bytes=1,
-                total_bytes=1,
-                elapsed_seconds=1,
-                observed_sha256=digest,
-                mutable=True,
-            ),
-            "unadmitted": acquisition_outcome(
-                manifest,
-                coordinate="https://invalid.example/unadmitted",
-                blob_bytes=1,
-                total_bytes=1,
-                elapsed_seconds=1,
-                observed_sha256=digest,
-            ),
-        }
-        if boundary_matrix["exact_blob"] != "promoted_read_only":
-            raise ContractError("BUILD_ACQUISITION_DENIED", "exact acquisition boundary did not pass")
-        if any(value != "BUILD_ACQUISITION_DENIED" for key, value in boundary_matrix.items() if key != "exact_blob"):
-            raise ContractError("BUILD_ACQUISITION_DENIED", "a negative acquisition fixture passed")
+        validate_acquisition_manifest(root / "config/input-acquisition.json")
+        boundary_matrix = run_boundary_fixtures()
 
         versions = {
             "bazel": command_version([os.environ["ORUS_BAZEL"], "--version"]),

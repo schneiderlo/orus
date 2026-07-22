@@ -28,6 +28,7 @@ py_test(
     ],
     deps = [
         "//tools:format_lib",
+        "//tools/build:acquisition_profile",
         "//tools/build:build_contract",
         "//tools/build:hermeticity_audit_lib",
         "//tools/build:prohibited_path_scan_lib",

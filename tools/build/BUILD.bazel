@@ -12,16 +12,28 @@ py_library(
     srcs = ["build_contract.py"],
 )
 
+py_library(
+    name = "acquisition_profile",
+    srcs = ["acquisition_profile.py"],
+    deps = [":build_contract"],
+)
+
 py_binary(
     name = "hermeticity_audit",
     srcs = ["hermeticity_audit.py"],
-    deps = [":build_contract"],
+    deps = [
+        ":acquisition_profile",
+        ":build_contract",
+    ],
 )
 
 py_library(
     name = "hermeticity_audit_lib",
     srcs = ["hermeticity_audit.py"],
-    deps = [":build_contract"],
+    deps = [
+        ":acquisition_profile",
+        ":build_contract",
+    ],
 )
 
 py_binary(

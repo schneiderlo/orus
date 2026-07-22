@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from tools.build.acquisition_profile import requests_for_root, run_boundary_fixtures
 from tools.build.build_contract import (
     ContractError,
     acquisition_outcome,
@@ -128,6 +129,19 @@ class AcquisitionTest(unittest.TestCase):
             "BUILD_ACQUISITION_DENIED",
         )
 
+    def test_transactional_boundary_matrix_promotes_only_exact_cases(self) -> None:
+        matrix = run_boundary_fixtures()
+        positives = {"coordinates_exact", "blob_exact", "total_exact", "time_exact"}
+        self.assertEqual({name for name, result in matrix.items() if result["promoted"]}, positives)
+        self.assertEqual(matrix["unadmitted"]["transport_calls"], 0)
+        self.assertEqual(matrix["coordinates_first_over"]["transport_calls"], 0)
+
+    def test_transaction_requests_cover_every_bcr_materialization(self) -> None:
+        manifest, requests = requests_for_root(workspace_root())
+        admitted = {row["coordinate"] for row in manifest["admitted_inputs"]}
+        self.assertEqual(len(requests), 26)
+        self.assertTrue({request.coordinate for request in requests}.issubset(admitted))
+
     def test_selected_module_population_is_complete(self) -> None:
         population = validate_resolved_input_population(workspace_root())
         self.assertIn("bcr:protobuf@29.0", population["module_coordinates"])
@@ -226,6 +240,7 @@ class HermeticityAuditTest(unittest.TestCase):
         population = validate_resolved_input_population(workspace_root())
         report = audit_bcr_materialization(workspace_root(), population["module_coordinates"])
         self.assertEqual(report["archive_count"], 25)
+        self.assertEqual(report["fetched_coordinate_count"], 26)
         self.assertGreater(report["registry_file_count"], 0)
 
     def test_nix_materialization_requires_every_inventoried_store_path(self) -> None:
