@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "10_verifier",
+  "current_step": "08_bundle_author",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -84,8 +84,8 @@
       "last_result_path": ".factory/results/07_plan_generator/r2/result.json"
     },
     "08_bundle_author": {
-      "status": "done",
-      "attempts": 1,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "bundle_ready",
         "summary": "Planned M0-002 with an auditable A3, complete acceptance-to-check traceability, five ordered machine checks, two manual audits, exact negative/resource/fuzz expectations, and the accepted 70% package-scoped coverage ratchet.",
@@ -170,14 +170,14 @@
       "last_result_path": ".factory/results/09_implementer/r2/result.json"
     },
     "10_verifier": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "last_result": {
-        "verdict": "fail",
-        "summary": "M0-002 is BLOCKED: authoritative run run-20260722T183843Z is GREEN and c-07 passes, but required manual check c-06 fails because the frozen release-evidence approval-time validator accepts impossible calendar dates as UTC RFC3339 seconds and lacks the required negative coverage.",
+        "verdict": "pass",
+        "summary": "M0-002 is DONE: registered run run-20260722T195725Z is complete and GREEN, manual c-06 and c-07 pass, every acceptance criterion and N1-N12 pass, coverage is source-bound and above 70% per package, and no healing or substrate claim blocks acceptance.",
         "task_ref": "M0-002",
-        "report_path": ".agents/M0-002/verification-report-r2.md",
-        "check_run": "run-20260722T183843Z"
+        "report_path": ".agents/M0-002/verification-report-r3.md",
+        "check_run": "run-20260722T195725Z"
       },
       "last_result_path": ".factory/results/10_verifier/r1/result.json"
     },
@@ -1300,6 +1300,36 @@
       "step": "11_rework",
       "event": "commit_scheduled",
       "detail": "20260722T195724Z_11_rework_r1"
+    },
+    {
+      "ts": "2026-07-22T19:57:24Z",
+      "step": "10_verifier",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T20:08:13Z",
+      "step": "10_verifier",
+      "event": "check_run",
+      "detail": "M0-002 run-20260722T195725Z green"
+    },
+    {
+      "ts": "2026-07-22T20:14:56Z",
+      "step": "10_verifier",
+      "event": "attempt_finished",
+      "detail": "r1 in 6m44s (236173 tokens)"
+    },
+    {
+      "ts": "2026-07-22T20:14:56Z",
+      "step": "10_verifier",
+      "event": "transition",
+      "detail": "-> 08_bundle_author"
+    },
+    {
+      "ts": "2026-07-22T20:14:56Z",
+      "step": "10_verifier",
+      "event": "commit_scheduled",
+      "detail": "20260722T201456Z_10_verifier_r1"
     }
   ],
   "metrics": [
@@ -1598,6 +1628,14 @@
       "ts": "2026-07-22T19:57:24Z",
       "duration_s": 1271.1,
       "tokens": 242731
+    },
+    {
+      "step": "10_verifier",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-22T20:14:56Z",
+      "duration_s": 403.5,
+      "tokens": 236173
     }
   ]
 }
