@@ -1,0 +1,19 @@
+{
+  "id": "c-10",
+  "task": "M0-001",
+  "kind": "audit",
+  "cmd": "nix develop --command bazel run //tools/build:prohibited_path_scan",
+  "desc": "",
+  "timeout": 1800,
+  "required": true,
+  "created_at": "2026-07-22T02:29:25Z",
+  "updated_at": "2026-07-22T02:29:25Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:29:25Z",
+      "event": "added",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

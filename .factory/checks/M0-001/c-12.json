@@ -1,0 +1,19 @@
+{
+  "id": "c-12",
+  "task": "M0-001",
+  "kind": "manual",
+  "cmd": "",
+  "desc": "Review exact toolchain/dependency pins and digests, bootstrap admissions, compatibility evidence, pinned-tool actions, and the single narrow M0-REFENV-v1 document/ADR; confirm Glaze v7.5.0 is Nix/Bzlmod-only and M0-002 ownership is preserved.",
+  "timeout": 1800,
+  "required": true,
+  "created_at": "2026-07-22T02:29:25Z",
+  "updated_at": "2026-07-22T02:29:25Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:29:25Z",
+      "event": "added",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

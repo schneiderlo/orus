@@ -1,0 +1,27 @@
+{
+  "id": "c-05",
+  "task": "M0-001",
+  "kind": "test",
+  "cmd": "nix develop --command bazel test --config=gcc //tests/build/...",
+  "desc": "",
+  "timeout": 3600,
+  "required": true,
+  "created_at": "2026-07-22T02:29:24Z",
+  "updated_at": "2026-07-22T02:29:59Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:29:24Z",
+      "event": "added",
+      "by": "agent",
+      "note": ""
+    },
+    {
+      "ts": "2026-07-22T02:29:59Z",
+      "edited": [
+        "cmd"
+      ],
+      "by": "agent",
+      "note": "Match the generated task-ledger verification command exactly."
+    }
+  ]
+}

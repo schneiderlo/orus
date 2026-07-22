@@ -1,0 +1,10 @@
+{
+  "verdict": "bundle_ready",
+  "summary": "Selected the first ready task, M0-001, produced its auditable A3 and verification bundle, registered all 11 runnable and 2 manual checks in execution order, and advanced the task through PLANNING to PLANNED.",
+  "task_ref": "M0-001",
+  "artifacts": [
+    ".agents/M0-001/a3.md",
+    ".agents/M0-001/verification.md"
+  ],
+  "open_questions": []
+}

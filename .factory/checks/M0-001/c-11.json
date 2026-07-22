@@ -1,0 +1,19 @@
+{
+  "id": "c-11",
+  "task": "M0-001",
+  "kind": "coverage",
+  "cmd": "nix develop --command bazel coverage --config=dev --combined_report=lcov //tests/build/... && nix develop --command bazel run //tools/coverage:package_gate -- --threshold=70",
+  "desc": "",
+  "timeout": 3600,
+  "required": true,
+  "created_at": "2026-07-22T02:29:25Z",
+  "updated_at": "2026-07-22T02:29:25Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:29:25Z",
+      "event": "added",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

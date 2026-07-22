@@ -1,0 +1,19 @@
+{
+  "id": "c-03",
+  "task": "M0-001",
+  "kind": "build",
+  "cmd": "nix develop --command bazel build --config=release //...",
+  "desc": "",
+  "timeout": 3600,
+  "required": true,
+  "created_at": "2026-07-22T02:29:24Z",
+  "updated_at": "2026-07-22T02:29:24Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:29:24Z",
+      "event": "added",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

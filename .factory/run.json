@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "08_bundle_author",
+  "current_step": "09_implementer",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -84,6 +84,21 @@
       "last_result_path": ".factory/results/07_plan_generator/r2/result.json"
     },
     "08_bundle_author": {
+      "status": "done",
+      "attempts": 1,
+      "last_result": {
+        "verdict": "bundle_ready",
+        "summary": "Selected the first ready task, M0-001, produced its auditable A3 and verification bundle, registered all 11 runnable and 2 manual checks in execution order, and advanced the task through PLANNING to PLANNED.",
+        "task_ref": "M0-001",
+        "artifacts": [
+          ".agents/M0-001/a3.md",
+          ".agents/M0-001/verification.md"
+        ],
+        "open_questions": []
+      },
+      "last_result_path": ".factory/results/08_bundle_author/r1/result.json"
+    },
+    "09_implementer": {
       "status": "pending",
       "attempts": 0
     }
@@ -742,6 +757,30 @@
       "step": "07_plan_generator",
       "event": "commit_scheduled",
       "detail": "20260722T022031Z_07_plan_generator_r2"
+    },
+    {
+      "ts": "2026-07-22T02:20:31Z",
+      "step": "08_bundle_author",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T02:30:52Z",
+      "step": "08_bundle_author",
+      "event": "attempt_finished",
+      "detail": "r1 in 10m21s (245837 tokens)"
+    },
+    {
+      "ts": "2026-07-22T02:30:52Z",
+      "step": "08_bundle_author",
+      "event": "transition",
+      "detail": "-> 09_implementer"
+    },
+    {
+      "ts": "2026-07-22T02:30:52Z",
+      "step": "08_bundle_author",
+      "event": "commit_scheduled",
+      "detail": "20260722T023052Z_08_bundle_author_r1"
     }
   ],
   "metrics": [
@@ -920,6 +959,14 @@
       "ts": "2026-07-22T02:20:31Z",
       "duration_s": 841.1,
       "tokens": 204820
+    },
+    {
+      "step": "08_bundle_author",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-22T02:30:52Z",
+      "duration_s": 620.9,
+      "tokens": 245837
     }
   ]
 }
