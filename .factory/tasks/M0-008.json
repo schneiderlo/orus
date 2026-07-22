@@ -1,0 +1,40 @@
+{
+  "id": "M0-008",
+  "unit": "Security Controls, Secret Scanning, and Parser Assurance",
+  "status": "PENDING",
+  "depends_on": [
+    "M0-002"
+  ],
+  "parallel_with": [
+    "M0-003",
+    "M0-004",
+    "M0-005",
+    "M0-006",
+    "M0-007"
+  ],
+  "shared_surface": "Security boundary/capability/resource/parser inventories, Gitleaks policy, scan metadata/manifests, exceptions, and security evidence; real producer populations are healed by M0-009.",
+  "deliverables": "Complete M0/future boundary inventory; exact least-privilege capability model; Gitleaks v8.30.1 offline orchestration; byte-preserving metadata field scans and digest-only final control pair; subject integrity; resource and parser reconciliation; fuzz registrations; claim/exception/primitive-change controls; bounded redacted failures.",
+  "spec_refs": "SEC-FR-001, SEC-FR-002, SEC-FR-003, SEC-FR-004, SEC-FR-005, SEC-FR-006, SEC-FR-007, SEC-FR-008, SEC-FR-009, SEC-FR-010, SEC-FR-011, SEC-FR-012, SEC-FR-013, SEC-FR-014, SEC-NFR-001, SEC-NFR-002, SEC-NFR-003, SEC-NFR-004, SEC-NFR-005, SEC-NFR-006, SEC-NFR-007",
+  "verify": "nix develop --command bazel test --config=dev //tests/security/... && nix develop --command bazel run //tools/security:capability_audit && nix develop --command bazel run //tools/security:resource_limit_reconcile && nix develop --command bazel run //tools/security:structured_input_reconcile && nix develop --command bazel test --config=fuzz //tests/fuzz:performance_result_parser_fuzz_smoke //tests/fuzz:corpus_ipc_parser_fuzz_smoke",
+  "healing_tasks": [
+    "M0-009"
+  ],
+  "created_at": "2026-07-22T02:13:06Z",
+  "updated_at": "2026-07-22T02:13:44Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:13:06Z",
+      "status": "PENDING",
+      "by": "agent",
+      "note": ""
+    },
+    {
+      "ts": "2026-07-22T02:13:44Z",
+      "edited": [
+        "healing_tasks"
+      ],
+      "by": "agent",
+      "note": "Actual producer scan populations and release evidence are healed by M0-009."
+    }
+  ]
+}

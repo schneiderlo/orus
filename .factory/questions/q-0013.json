@@ -1,0 +1,40 @@
+{
+  "id": "q-0013",
+  "step": "07_plan_generator",
+  "steps": [
+    "07_plan_generator"
+  ],
+  "attempt": 1,
+  "status": "answered",
+  "asked_at": "2026-07-22T01:43:30Z",
+  "blocking": true,
+  "domain": "sbom_generator",
+  "kind": "design_choice",
+  "text": "Which generator should produce the canonical SPDX 2.3 JSON SBOM required by U04?",
+  "why_it_matters": "The generator determines whether the Nix/Bazel/admission graph can be reconciled exactly, which extra dependency and license records enter M0, how deterministic normalization is enforced, and how much release tooling remains under Orus control. The SPDX serialization is decided, but the generator is not.",
+  "unlocks": "U04's generator pin/admission record, SBOM data flow, normalization tests, and the U10 release-evidence path.",
+  "options": [
+    {
+      "id": "orus_spdx_emitter",
+      "label": "Orus-owned SPDX emitter",
+      "description": "Generate SPDX 2.3 directly from the reconciled Nix/Bazel/admission graph and validate it independently; pros: exact graph semantics, deterministic bytes, no scanner-discovery ambiguity, cons: more implementation and ongoing SPDX mapping responsibility. The Orus tool's revision/artifact identity becomes the pinned generator identity."
+    },
+    {
+      "id": "syft_adapter",
+      "label": "Pinned Syft adapter",
+      "description": "Use a pinned Syft executable, then reconcile and normalize its SPDX output; pros: mature artifact discovery and ecosystem coverage, cons: adds a sizeable tool dependency, producer-version output drift, and an adapter is still required to prove the exact Bazel/Nix build graph."
+    },
+    {
+      "id": "nix_native_adapter",
+      "label": "Nix-native generator",
+      "description": "Use a pinned Nix closure-to-SPDX generator plus a Bazel/admission reconciler; pros: strong package-closure visibility, cons: splits authority across two graph models and raises duplicate/identity reconciliation complexity."
+    }
+  ],
+  "default": "orus_spdx_emitter \u2014 emit only from the admitted resolved graph, validate against the pinned SPDX 2.3 schema/profile, and identify the in-repository generator by exact source/artifact digest.",
+  "answer": {
+    "text": "Option 1: implement an Orus-owned deterministic SPDX 2.3 JSON emitter that consumes only the admitted resolved Nix/Bazel dependency graph, validates against a pinned SPDX schema/profile, is identified by exact source and artifact digests, and is covered by golden, reconciliation, and malformed-input tests.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-22T02:03:40Z"
+  }
+}

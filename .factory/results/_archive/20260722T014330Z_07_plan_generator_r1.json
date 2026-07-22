@@ -1,0 +1,111 @@
+{
+  "verdict": "needs_user",
+  "summary": "Round-one planning review is complete for the verifier-approved M0 specifications. No task or substrate has been registered and IMPLEMENTATION_PLAN.md has not been created, as required by the two-round protocol. The proposed ten-unit DAG is: U01 -> U02 -> {U03,U04,U05,U06,U07,U08} -> U09 -> U10. Only the arrows in that expression are hard prerequisites; the cross-lane relationships described below are soft contract couplings.\n\nU01 \u2014 Hermetic Build, Toolchain, and Test Skeleton. Functional goal: establish the Nix/Bzlmod roots, exact compatible current-stable pinset and reference-environment ADR, Clang/LLVM/LLD and GCC C++23 configurations, acquisition/offline boundary, canonical command skeleton, and test/benchmark infrastructure (BUILD-FR-001 through BUILD-FR-008 and associated BUILD-NFRs). A3 risk: Nix and Bazel can silently become competing build owners, or a nominally pinned matrix can still fall back to host tools. Countermeasure/grouping rationale: treat the complete source-to-action ownership chain as one bundle and prove it with lock, aquery, sandbox, negative fallback, and clean-resolution evidence. Dependencies: no hard predecessor; it creates shared surfaces for every later unit.\n\nU02 \u2014 Canonical Evidence, Identity, and Reference-Environment Core. Functional goal: provide the shared bounded canonical-JSON/Unicode/SHA-256 facilities, build facts, reference-contract validation, subject-named identities, package-tree identity, resource guards, and cross-language goldens used by every M0 report (BUILD-FR-009 through BUILD-FR-011 plus the shared portions of GOV-FR-006/-008, PERF-FR-003/-012, CORP-FR-013, and SEC-FR-005/-007). A3 risk: seven domains can each produce individually plausible but byte-incompatible evidence, especially around duplicate names, NFC, integer bounds, hashing, and exact-bound/first-over failures. Countermeasure: one versioned contract core and one golden corpus, with a 70% package-scoped coverage floor before consumers branch. Dependencies: U01 is hard because the implementation and tests require the pinned toolchain; all consumer API coordination is soft once the contract and goldens are stable.\n\nU03 \u2014 CLI Diagnostics and Environment Truthfulness. Functional goal: deliver the real orus --version and orus doctor behavior, seven-row inventory, typed output/exit/stream contract, host fact collection, atomic rendering, resource failures, and no-future-claim tests (CLI-FR-001 through CLI-FR-010 and CLI-NFR-001 through CLI-NFR-005). A3 risk: error precedence and aggregate/component reuse can turn unknown or malformed facts into a false pass or partial output. Countermeasure: implement against immutable U02 contracts with subprocess, syscall-access, negative-row, renderer-fault, and 100-run repeatability tests. Dependencies: U02 hard; governance claim scanning in U04 and security reconciliation in U08 are soft consumers, not blockers.\n\nU04 \u2014 Governance, Dependency Admission, SBOM, and Release-Contract Tooling (dependency-isolated). Functional goal: deliver exact MIT/contribution/ADR policy, dependency admission and notice reconciliation, canonical SPDX generation/validation, approved-claim scanning, evidence-bundle validation, and the fail-closed release state machine using canonical synthetic producer bundles (GOV-FR-001 through GOV-FR-012 and GOV-NFR-001 through GOV-NFR-006). A3 risk: release identities, the SBOM, evidence manifest, final scan, and approval marker form an easy-to-cycle graph, while dependency/license completeness must stay exactly one-to-one. Countermeasure: contract-first validators plus mutation/DAG/concurrency fixtures; park the unit BLOCKED (Awaiting Healing) after implementation until U09 supplies real CLI, CI, performance, corpus, and security evidence. Dependencies: U01 and U02 hard; U03/U05/U06/U07/U08 are soft producer couplings; U09 is the mandatory healing task.\n\nU05 \u2014 Performance Harness, Comparator, and Allocation Accounting (dependency-isolated). Functional goal: implement the five-record workload registry, bounded raw/result schemas, alternating paired harness, deterministic SHA-256 counter bootstrap comparator, authority/conformance model, allocation counter, noise handling, and regression escalation (PERF-FR-001 through PERF-FR-013 and PERF-NFR-001 through PERF-NFR-006). A3 risk: ordinary floating-point/statistics libraries or noisy-runner shortcuts could make the strict 3% rule non-repeatable or accidentally authoritative. Countermeasure: integer-only arithmetic, intermediate goldens, an independent reference fixture, positive/zero allocation controls, and simulated runner predicates; U09 heals the real corpus target and advisory-CI wiring. Dependencies: U01/U02 hard; U06 and U07 are soft couplings through stable workload/result contracts; U09 is the healing task. The simulated controlled-runner predicates are contract fixtures rather than a claimed M0 runner integration, consistent with D-010's explicit exclusion of runner provisioning.\n\nU06 \u2014 Native Concurrent Corpus and Reliability Harness (dependency-isolated). Functional goal: implement the parent/exec-child topology, five workers, exact SOCK_SEQPACKET wire protocol, fixed observations and sums, bounded state synchronization, seven fault modes, process-group cleanup, run schema, and 100-run reliability gate (CORP-FR-001 through CORP-FR-013 and CORP-NFR-001 through CORP-NFR-005). A3 risk: cleanup and lifecycle tests can pass intermittently while leaking descendants or relying on timing luck. Countermeasure: explicit state predicates, one propagated absolute deadline, byte-level frame goldens, syscall/fault injection, and post-run group/resource proofs; U09 connects the real workload registry and CI evidence. Dependencies: U01/U02 hard; U05 registry and U07 job integration are soft; U09 is the healing task.\n\nU07 \u2014 CI Policy, Applicability, and Evidence Aggregator (dependency-isolated). Functional goal: implement the finite applicability/warning manifests, workflow AST and capability checks, pinned independent-job topology, typed bounded job evidence, advisory separation, provider-timeout handling, and fail-closed aggregator using synthetic producer results (CI-FR-001 through CI-FR-012 and CI-NFR-001 through CI-NFR-006). A3 risk: a green workflow can hide empty target groups, stale evidence, permission/network expansion, or advisory-to-blocking leakage. Countermeasure: generate jobs from a committed finite contract, reconcile every queried target/cell, mutate every permission/evidence state locally, and heal against a live GitHub Actions run in U09. Dependencies: U01/U02 hard; U03 through U06 and U08 are soft report-producer couplings; U09 is the healing task. The local workflow simulation must be registered as a github-actions substrate substitute, with U09 as its realization task.\n\nU08 \u2014 Security Controls, Secret Scanning, and Parser Assurance (dependency-isolated). Functional goal: implement security-boundary/capability/resource/structured-input inventories, exact Gitleaks orchestration and scan populations, metadata byte-preservation, subject integrity, exception/claim controls, parser fuzz registration, and cross-domain limit reconciliation (SEC-FR-001 through SEC-FR-014 and SEC-NFR-001 through SEC-NFR-007). A3 risk: security evidence can omit generated names or create a self-referential final-scan cycle while still looking complete. Countermeasure: finite one-to-one inventories, digest-only excluded control objects, original-byte field scans, fuzz/sanitizer coverage, and mutation tests against fixture evidence; U09 heals all real producer populations. Dependencies: U01/U02 hard; U04/U05/U06/U07 are soft contract couplings; U09 is the healing task.\n\nU09 \u2014 Real Producer, GitHub CI, and Cross-Domain Healing. Functional goal: connect the actual CLI, governance, performance, corpus, CI, and security targets; reconcile the real Bazel label graph and all typed evidence; execute the live GitHub Actions gate; and close the healing links for U04 through U08. A3 risk: fixture-complete lanes may disagree only at real artifact paths, target expansion, authority labels, evidence sizes, or final scan populations. Countermeasure: one integration bundle driven by actual producer outputs, a live remote run bound to the same revision/reference environment, and package-scoped coverage raised to 75% for logic-heavy packages. Dependencies: U03 through U08 are hard, but U09 is their registered healing task, so factory readiness may accept those dependencies specifically when they are BLOCKED (Awaiting Healing); factory task list --ready remains authoritative. U10 is only a soft downstream consumer until U09 is DONE.\n\nU10 \u2014 Clean Release Candidate and M0 Exit Gate. Functional goal: run every Charter canonical command from two clean checkouts, produce the release package and canonical SPDX/notice bundle, validate the 12 evidence types and three approvals, execute the complete final secret scan, create the external approval marker last, prove reproducibility/hermeticity/no-CMake/no-future-claim outcomes, and raise core/business-logic package coverage to 80%. A3 risk: the system can pass component tests yet fail clean-clone reproducibility, final digest binding, resource-edge behavior, or gate ordering. Countermeasure: a single cold-path release rehearsal with tamper/first-over fixtures plus a separate verifier relay. Dependencies: U09 hard; no soft successor.\n\nParallelization/relay intent: after U02, U03-U08 form six lanes. U04-U08 use verified contracts and fixtures to avoid false serial prerequisites, then U09 is the common healing join. U10 is the only final serial gate. Each unit is implemented through DOING -> IMPLEMENTED by one agent and handed to a different verification agent through CHECKING before DONE; status changes will use factory task status only. The later plan will encode the 70% -> 75% -> 80% package-scoped coverage ratchet, readiness rules, shared-surface locks, isolation ledger, live-substrate realization, and deterministic Bazel-based verification commands.",
+  "open_questions": [
+    {
+      "kind": "design_choice",
+      "domain": "m0_dependency_stack",
+      "text": "Which exact M0 library profile should the build ADR pin for structured data, Unicode normalization, SHA-256, unit tests, and benchmarks?",
+      "why_it_matters": "This fixes U01/U02's dependency graph, ABI and runtime closure, canonical-byte implementation, dependency-admission records, SBOM contents, build cost, and the test commands used by every later unit. The verified specs name the behavior but no accepted ADR selects these M0 libraries or their pins.",
+      "unlocks": "The U01 compatibility/pinning ADR, U02 shared contract API, dependency admission, and all downstream build/verification bundles.",
+      "options": [
+        {
+          "id": "seed_aligned_narrow",
+          "label": "Seed-aligned narrow stack",
+          "description": "Use Boost.JSON, utf8proc, OpenSSL EVP SHA-256, GoogleTest, and Google Benchmark, with Orus-owned strict canonical/schema rules; pros: follows the seed's Boost/OpenSSL/test direction and avoids bespoke Unicode/cryptography, cons: admits five dependency surfaces and still requires careful duplicate-key/number canonicalization. Exact mutually compatible stable versions and digests are selected by U01 and recorded in its ADR, following the already answered q-0003 pin policy."
+        },
+        {
+          "id": "nlohmann_narrow",
+          "label": "Nlohmann narrow stack",
+          "description": "Use nlohmann/json, utf8proc, OpenSSL EVP SHA-256, GoogleTest, and Google Benchmark; pros: familiar high-level JSON API and a small integration surface, cons: diverges from the seed's low-volume Boost.JSON preference, can increase C++ compile cost, and still needs a strict canonical validation layer."
+        },
+        {
+          "id": "mostly_in_tree",
+          "label": "Mostly in-tree primitives",
+          "description": "Keep GoogleTest/Google Benchmark but implement JSON, NFC handling, and SHA-256 in-tree; pros: smallest third-party runtime closure and maximum control, cons: substantially higher correctness, Unicode, cryptographic-maintenance, fuzzing, and schedule risk for an M0 foundation."
+        }
+      ],
+      "default": "seed_aligned_narrow \u2014 pin the narrow seed-aligned stack, contain each dependency behind U02, and select exact compatible stable versions/digests in the U01 ADR under the previously approved q-0003 policy.",
+      "blocking": true
+    },
+    {
+      "kind": "design_choice",
+      "domain": "sbom_generator",
+      "text": "Which generator should produce the canonical SPDX 2.3 JSON SBOM required by U04?",
+      "why_it_matters": "The generator determines whether the Nix/Bazel/admission graph can be reconciled exactly, which extra dependency and license records enter M0, how deterministic normalization is enforced, and how much release tooling remains under Orus control. The SPDX serialization is decided, but the generator is not.",
+      "unlocks": "U04's generator pin/admission record, SBOM data flow, normalization tests, and the U10 release-evidence path.",
+      "options": [
+        {
+          "id": "orus_spdx_emitter",
+          "label": "Orus-owned SPDX emitter",
+          "description": "Generate SPDX 2.3 directly from the reconciled Nix/Bazel/admission graph and validate it independently; pros: exact graph semantics, deterministic bytes, no scanner-discovery ambiguity, cons: more implementation and ongoing SPDX mapping responsibility. The Orus tool's revision/artifact identity becomes the pinned generator identity."
+        },
+        {
+          "id": "syft_adapter",
+          "label": "Pinned Syft adapter",
+          "description": "Use a pinned Syft executable, then reconcile and normalize its SPDX output; pros: mature artifact discovery and ecosystem coverage, cons: adds a sizeable tool dependency, producer-version output drift, and an adapter is still required to prove the exact Bazel/Nix build graph."
+        },
+        {
+          "id": "nix_native_adapter",
+          "label": "Nix-native generator",
+          "description": "Use a pinned Nix closure-to-SPDX generator plus a Bazel/admission reconciler; pros: strong package-closure visibility, cons: splits authority across two graph models and raises duplicate/identity reconciliation complexity."
+        }
+      ],
+      "default": "orus_spdx_emitter \u2014 emit only from the admitted resolved graph, validate against the pinned SPDX 2.3 schema/profile, and identify the in-repository generator by exact source/artifact digest.",
+      "blocking": true
+    },
+    {
+      "kind": "design_choice",
+      "domain": "policy_tool_language",
+      "text": "What implementation-language split should U04, U07, and U08 use for cold governance, CI, security, and release tooling?",
+      "why_it_matters": "This choice changes the build graph, CI applicability cells, shared canonical-data boundary, fuzz strategy, developer velocity, and whether policy tools duplicate or reuse native C++ parsing logic. No accepted ADR currently fixes the cold-tool language.",
+      "unlocks": "The unit deliverable boundaries, Bazel target types, cross-language golden strategy, formatter/linter selection, and package-scoped coverage gates.",
+      "options": [
+        {
+          "id": "cpp_python_hybrid",
+          "label": "C++ and Python hybrid",
+          "description": "Use C++23 for the CLI, canonical native core, performance code, and corpus; use a hermetically pinned Python 3 standard-library toolchain for cold governance/CI/security/release orchestration, with shared byte goldens; pros: fast, readable policy implementation and alignment with the specs' non-C++ policy target groups, cons: two implementations must prove identical canonical/error behavior."
+        },
+        {
+          "id": "all_cpp",
+          "label": "All C++23",
+          "description": "Implement policy and release tools in C++23 against U02; pros: one canonical implementation and sanitizer/fuzz story, cons: materially more code/build time and it requires revisiting CI applicability rows that classify policy targets as non-C/C++."
+        },
+        {
+          "id": "starlark_orchestration",
+          "label": "Starlark-centric tools",
+          "description": "Use Bazel Starlark plus small standalone executables for policy orchestration; pros: close to the build graph with little runtime packaging, cons: weak fit for bounded schema validators, resource/fuzz tests, subprocess control, and consistent typed diagnostics."
+        }
+      ],
+      "default": "cpp_python_hybrid \u2014 pin Python with the reference environment, keep native/untrusted parsers in C++23, and require byte-identical cross-language canonical goldens before either implementation is authoritative.",
+      "blocking": true
+    },
+    {
+      "kind": "design_choice",
+      "domain": "github_actions_realization",
+      "text": "Should the M0 plan require U09 to realize the CI substrate with a live GitHub Actions run for the exact revision, or stop at local workflow simulation?",
+      "why_it_matters": "The Charter makes GitHub Actions results blocking, while local AST and synthetic-job tests are only a substitute for provider triggers, permissions, cancellation, artifact retention, and required-check behavior. A live run may require later push/branch-protection authority that the local factory does not implicitly have.",
+      "unlocks": "The U07 isolation link, github-actions substrate record, U09 verification command/evidence, and whether the M0 exit gate can close without a CI waiver.",
+      "options": [
+        {
+          "id": "live_realization",
+          "label": "Require live realization",
+          "description": "Register local simulation as the substitute and make U09 pass against a live GitHub Actions run bound to the exact revision; pros: satisfies SM-04 and validates real provider behavior, cons: needs repository push/trigger and branch-protection coordination when U09 executes."
+        },
+        {
+          "id": "park_substrate",
+          "label": "Park live realization",
+          "description": "Complete local workflow/aggregator tests and leave the GitHub Actions substrate outstanding for a later authorized run; pros: no external mutation or credential dependency during implementation, cons: the factory and M0 gate remain incomplete until a human explicitly approves the substitute or realizes it."
+        },
+        {
+          "id": "change_m0_gate",
+          "label": "Change the M0 gate",
+          "description": "Revise the Charter/domain specs so static/local validation is sufficient; pros: fully local delivery, cons: weakens already verified blocking success metrics and requires specification rework before planning can resume."
+        }
+      ],
+      "default": "live_realization \u2014 plan a bounded, separately authorized live GitHub Actions realization in U09; do not treat local simulation as final CI evidence.",
+      "blocking": true
+    }
+  ],
+  "task_count": 0
+}

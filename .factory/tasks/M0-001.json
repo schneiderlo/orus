@@ -1,0 +1,22 @@
+{
+  "id": "M0-001",
+  "unit": "Hermetic Build, Toolchain, and Test Skeleton",
+  "status": "PENDING",
+  "depends_on": [],
+  "parallel_with": [],
+  "shared_surface": "Root Nix/Bzlmod/Bazel locks and configuration, toolchains, and dependency ADR; M0-001 owns these shared roots until DONE.",
+  "deliverables": "Nix and Bazel roots/locks; C++23 Clang/LLD and GCC configurations; pinned Python; Glaze v7.5.0, utf8proc, OpenSSL 3 EVP, GoogleTest, and Google Benchmark admissions with exact compatible pins/digests; acquisition, hermeticity, no-CMake, formatting, test, and benchmark skeletons.",
+  "spec_refs": "BUILD-FR-001, BUILD-FR-002, BUILD-FR-003, BUILD-FR-004, BUILD-FR-005, BUILD-FR-006, BUILD-FR-007, BUILD-FR-008, BUILD-FR-010, BUILD-FR-012, BUILD-NFR-002, BUILD-NFR-003, BUILD-NFR-005",
+  "verify": "nix flake check && nix develop --command bazel test --config=dev //tests/build/... && nix develop --command bazel test --config=gcc //tests/build/...",
+  "healing_tasks": [],
+  "created_at": "2026-07-22T02:13:05Z",
+  "updated_at": "2026-07-22T02:13:05Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:13:05Z",
+      "status": "PENDING",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

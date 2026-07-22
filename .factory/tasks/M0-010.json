@@ -1,0 +1,30 @@
+{
+  "id": "M0-010",
+  "unit": "Clean Release Candidate and M0 Exit Gate",
+  "status": "PENDING",
+  "depends_on": [
+    "M0-003",
+    "M0-004",
+    "M0-005",
+    "M0-006",
+    "M0-007",
+    "M0-008",
+    "M0-009"
+  ],
+  "parallel_with": [],
+  "shared_surface": "Exclusive ownership of clean-checkout rehearsal outputs, final package/evidence bundle, approval marker, and milestone report; consumes frozen DONE lane artifacts.",
+  "deliverables": "Two-clean-checkout canonical-command rehearsal; release package with executable/package-tree/SBOM/notices; exact 12 evidence types, 12 validators, and 3 role approvals; complete final secret scan and marker-last DAG; reproducibility/hermeticity/no-CMake/no-future-claim/tamper/first-over reports; 80% package-scoped core/business coverage gate and verifier relay.",
+  "spec_refs": "SM-01, SM-02, SM-03, SM-04, SM-05, SM-06, SM-07, SM-08, SM-09, SM-10, SM-11, SM-12, BUILD-FR-011, BUILD-FR-012, BUILD-NFR-001, BUILD-NFR-002, BUILD-NFR-003, BUILD-NFR-004, BUILD-NFR-005, GOV-FR-001, GOV-FR-005, GOV-FR-006, GOV-FR-007, GOV-FR-008, GOV-FR-009, GOV-FR-010, GOV-FR-012, GOV-NFR-001, GOV-NFR-002, GOV-NFR-003, GOV-NFR-004, GOV-NFR-005, GOV-NFR-006, CI-NFR-001, CI-NFR-002, CI-NFR-003, CI-NFR-004, CI-NFR-005, CI-NFR-006, PERF-NFR-001, PERF-NFR-002, PERF-NFR-003, PERF-NFR-004, PERF-NFR-005, PERF-NFR-006, CORP-NFR-001, CORP-NFR-002, CORP-NFR-003, CORP-NFR-004, CORP-NFR-005, SEC-NFR-001, SEC-NFR-002, SEC-NFR-003, SEC-NFR-004, SEC-NFR-005, SEC-NFR-006, SEC-NFR-007",
+  "verify": "nix develop --command bazel test --config=dev //tests/release/... && nix develop --command bazel run //tools/release:m0_exit_rehearsal -- --revision=HEAD --clean-checkouts=2 --candidate-dir=bazel-bin/release/candidate && nix develop --command bazel run //tools/coverage:package_gate -- --threshold=80",
+  "healing_tasks": [],
+  "created_at": "2026-07-22T02:14:10Z",
+  "updated_at": "2026-07-22T02:14:10Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:14:10Z",
+      "status": "PENDING",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

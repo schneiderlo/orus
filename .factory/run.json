@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "07_plan_generator",
+  "current_step": "08_bundle_author",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -73,6 +73,17 @@
       "last_result_path": ".factory/results/06_domain_spec_verifier/r1/result.json"
     },
     "07_plan_generator": {
+      "status": "done",
+      "attempts": 2,
+      "last_result": {
+        "verdict": "plan_ready",
+        "summary": "Generated IMPLEMENTATION_PLAN.md from the verifier-approved M0 specifications and the four authoritative planning answers. Registered a ten-unit contract-first DAG: M0-001 build foundation, M0-002 canonical evidence core, six parallel domain lanes M0-003 through M0-008, M0-009 real-producer/live-GitHub healing, and M0-010 clean release exit. M0-004 through M0-008 have mandatory M0-009 healing links; M0-010 directly waits for every lane to be formally DONE after healing. Registered local GitHub workflow simulation as the github-actions substitute with M0-009 as its separately authorized live exact-revision realization task. The plan includes A3 risk/countermeasure rationale per unit, hard and soft dependency semantics, shared-surface ownership, implementation/verifier relay, CLI-enforced statuses and readiness, deterministic Nix/Bazel test commands, a 70% -> 75% -> 80% package-scoped coverage ratchet, and complete M0 exit criteria. Factory doctor validates 10 task records and all ledgers; no planning question remains.",
+        "open_questions": [],
+        "task_count": 10
+      },
+      "last_result_path": ".factory/results/07_plan_generator/r2/result.json"
+    },
+    "08_bundle_author": {
       "status": "pending",
       "attempts": 0
     }
@@ -665,6 +676,72 @@
       "step": "06_domain_spec_verifier",
       "event": "commit_scheduled",
       "detail": "20260722T013334Z_06_domain_spec_verifier_r1"
+    },
+    {
+      "ts": "2026-07-22T01:33:34Z",
+      "step": "07_plan_generator",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T01:43:30Z",
+      "step": "07_plan_generator",
+      "event": "attempt_finished",
+      "detail": "r1 in 9m56s (175412 tokens)"
+    },
+    {
+      "ts": "2026-07-22T01:43:30Z",
+      "step": "07_plan_generator",
+      "event": "parked",
+      "detail": "4 open blocking question(s)"
+    },
+    {
+      "ts": "2026-07-22T02:02:23Z",
+      "step": "07_plan_generator",
+      "event": "question_answered",
+      "detail": "q-0012 by human"
+    },
+    {
+      "ts": "2026-07-22T02:03:40Z",
+      "step": "07_plan_generator",
+      "event": "question_answered",
+      "detail": "q-0013 by human"
+    },
+    {
+      "ts": "2026-07-22T02:04:27Z",
+      "step": "07_plan_generator",
+      "event": "question_answered",
+      "detail": "q-0014 by human"
+    },
+    {
+      "ts": "2026-07-22T02:06:18Z",
+      "step": "07_plan_generator",
+      "event": "question_answered",
+      "detail": "q-0015 by human"
+    },
+    {
+      "ts": "2026-07-22T02:06:30Z",
+      "step": "07_plan_generator",
+      "event": "attempt_started",
+      "detail": "r2 via codex"
+    },
+    {
+      "ts": "2026-07-22T02:20:31Z",
+      "step": "07_plan_generator",
+      "event": "attempt_finished",
+      "detail": "r2 in 14m01s (204820 tokens)"
+    },
+    {
+      "ts": "2026-07-22T02:20:31Z",
+      "step": "07_plan_generator",
+      "event": "transition",
+      "detail": "-> 08_bundle_author"
+    },
+    {
+      "ts": "2026-07-22T02:20:31Z",
+      "step": "07_plan_generator",
+      "event": "commit_scheduled",
+      "detail": "20260722T022031Z_07_plan_generator_r2"
     }
   ],
   "metrics": [
@@ -827,13 +904,22 @@
       "executor": "codex",
       "ts": "2026-07-22T01:33:34Z",
       "duration_s": 170.2
+    },
+    {
+      "step": "07_plan_generator",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-22T01:43:30Z",
+      "duration_s": 595.8,
+      "tokens": 175412
+    },
+    {
+      "step": "07_plan_generator",
+      "attempt": 2,
+      "executor": "codex",
+      "ts": "2026-07-22T02:20:31Z",
+      "duration_s": 841.1,
+      "tokens": 204820
     }
-  ],
-  "step_context": {
-    "07_plan_generator": {
-      "source_step": "06_domain_spec_verifier",
-      "created_at": "2026-07-22T01:33:34Z",
-      "instruction": "The verifier PASSED `M0` and reported no remaining phases needed before planning. Generate the implementation plan from the verified domain specs."
-    }
-  }
+  ]
 }

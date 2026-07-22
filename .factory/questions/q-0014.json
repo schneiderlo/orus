@@ -1,0 +1,40 @@
+{
+  "id": "q-0014",
+  "step": "07_plan_generator",
+  "steps": [
+    "07_plan_generator"
+  ],
+  "attempt": 1,
+  "status": "answered",
+  "asked_at": "2026-07-22T01:43:30Z",
+  "blocking": true,
+  "domain": "policy_tool_language",
+  "kind": "design_choice",
+  "text": "What implementation-language split should U04, U07, and U08 use for cold governance, CI, security, and release tooling?",
+  "why_it_matters": "This choice changes the build graph, CI applicability cells, shared canonical-data boundary, fuzz strategy, developer velocity, and whether policy tools duplicate or reuse native C++ parsing logic. No accepted ADR currently fixes the cold-tool language.",
+  "unlocks": "The unit deliverable boundaries, Bazel target types, cross-language golden strategy, formatter/linter selection, and package-scoped coverage gates.",
+  "options": [
+    {
+      "id": "cpp_python_hybrid",
+      "label": "C++ and Python hybrid",
+      "description": "Use C++23 for the CLI, canonical native core, performance code, and corpus; use a hermetically pinned Python 3 standard-library toolchain for cold governance/CI/security/release orchestration, with shared byte goldens; pros: fast, readable policy implementation and alignment with the specs' non-C++ policy target groups, cons: two implementations must prove identical canonical/error behavior."
+    },
+    {
+      "id": "all_cpp",
+      "label": "All C++23",
+      "description": "Implement policy and release tools in C++23 against U02; pros: one canonical implementation and sanitizer/fuzz story, cons: materially more code/build time and it requires revisiting CI applicability rows that classify policy targets as non-C/C++."
+    },
+    {
+      "id": "starlark_orchestration",
+      "label": "Starlark-centric tools",
+      "description": "Use Bazel Starlark plus small standalone executables for policy orchestration; pros: close to the build graph with little runtime packaging, cons: weak fit for bounded schema validators, resource/fuzz tests, subprocess control, and consistent typed diagnostics."
+    }
+  ],
+  "default": "cpp_python_hybrid \u2014 pin Python with the reference environment, keep native/untrusted parsers in C++23, and require byte-identical cross-language canonical goldens before either implementation is authoritative.",
+  "answer": {
+    "text": "Option 1: use a pinned C++23 and Python hybrid. Keep native and untrusted parsers plus canonical core data logic in C++23; use pinned Python for cold governance, CI, security, and release automation; require byte-identical cross-language canonical goldens before either implementation is authoritative.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-22T02:04:27Z"
+  }
+}

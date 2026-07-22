@@ -1,0 +1,40 @@
+{
+  "id": "q-0015",
+  "step": "07_plan_generator",
+  "steps": [
+    "07_plan_generator"
+  ],
+  "attempt": 1,
+  "status": "answered",
+  "asked_at": "2026-07-22T01:43:30Z",
+  "blocking": true,
+  "domain": "github_actions_realization",
+  "kind": "design_choice",
+  "text": "Should the M0 plan require U09 to realize the CI substrate with a live GitHub Actions run for the exact revision, or stop at local workflow simulation?",
+  "why_it_matters": "The Charter makes GitHub Actions results blocking, while local AST and synthetic-job tests are only a substitute for provider triggers, permissions, cancellation, artifact retention, and required-check behavior. A live run may require later push/branch-protection authority that the local factory does not implicitly have.",
+  "unlocks": "The U07 isolation link, github-actions substrate record, U09 verification command/evidence, and whether the M0 exit gate can close without a CI waiver.",
+  "options": [
+    {
+      "id": "live_realization",
+      "label": "Require live realization",
+      "description": "Register local simulation as the substitute and make U09 pass against a live GitHub Actions run bound to the exact revision; pros: satisfies SM-04 and validates real provider behavior, cons: needs repository push/trigger and branch-protection coordination when U09 executes."
+    },
+    {
+      "id": "park_substrate",
+      "label": "Park live realization",
+      "description": "Complete local workflow/aggregator tests and leave the GitHub Actions substrate outstanding for a later authorized run; pros: no external mutation or credential dependency during implementation, cons: the factory and M0 gate remain incomplete until a human explicitly approves the substitute or realizes it."
+    },
+    {
+      "id": "change_m0_gate",
+      "label": "Change the M0 gate",
+      "description": "Revise the Charter/domain specs so static/local validation is sufficient; pros: fully local delivery, cons: weakens already verified blocking success metrics and requires specification rework before planning can resume."
+    }
+  ],
+  "default": "live_realization \u2014 plan a bounded, separately authorized live GitHub Actions realization in U09; do not treat local simulation as final CI evidence.",
+  "answer": {
+    "text": "Option 1: require U09 to realize the CI substrate with a live GitHub Actions run for the exact revision. Local workflow simulation is preliminary evidence only; the plan must separately request authorization before any push or branch-protection change and retain the live run, artifact, permission, trigger, cancellation, and required-check evidence.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-22T02:06:18Z"
+  }
+}

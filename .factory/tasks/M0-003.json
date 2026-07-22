@@ -1,0 +1,30 @@
+{
+  "id": "M0-003",
+  "unit": "CLI Diagnostics and Environment Truthfulness",
+  "status": "PENDING",
+  "depends_on": [
+    "M0-002"
+  ],
+  "parallel_with": [
+    "M0-004",
+    "M0-005",
+    "M0-006",
+    "M0-007",
+    "M0-008"
+  ],
+  "shared_surface": "CLI sources, doctor inventory, output/error strings, and CLI goldens; build facts and reference contracts are read-only M0-002 interfaces.",
+  "deliverables": "Real orus --version and orus doctor; exact seven-row inventory; typed JSON/exit/stream behavior; host-fact collection; atomic bounded rendering; syscall-access, claim, resource, negative-row, and 100-run repeatability tests.",
+  "spec_refs": "CLI-FR-001, CLI-FR-002, CLI-FR-003, CLI-FR-004, CLI-FR-005, CLI-FR-006, CLI-FR-007, CLI-FR-008, CLI-FR-009, CLI-FR-010, CLI-NFR-001, CLI-NFR-002, CLI-NFR-003, CLI-NFR-004, CLI-NFR-005",
+  "verify": "nix develop --command bazel test --config=dev //tests/cli/... && nix develop --command bazel test --config=asan //tests/cli/... && nix develop --command bazel test --config=ubsan //tests/cli/...",
+  "healing_tasks": [],
+  "created_at": "2026-07-22T02:13:05Z",
+  "updated_at": "2026-07-22T02:13:05Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:13:05Z",
+      "status": "PENDING",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

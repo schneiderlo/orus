@@ -1,0 +1,6 @@
+{
+  "verdict": "plan_ready",
+  "summary": "Generated IMPLEMENTATION_PLAN.md from the verifier-approved M0 specifications and the four authoritative planning answers. Registered a ten-unit contract-first DAG: M0-001 build foundation, M0-002 canonical evidence core, six parallel domain lanes M0-003 through M0-008, M0-009 real-producer/live-GitHub healing, and M0-010 clean release exit. M0-004 through M0-008 have mandatory M0-009 healing links; M0-010 directly waits for every lane to be formally DONE after healing. Registered local GitHub workflow simulation as the github-actions substitute with M0-009 as its separately authorized live exact-revision realization task. The plan includes A3 risk/countermeasure rationale per unit, hard and soft dependency semantics, shared-surface ownership, implementation/verifier relay, CLI-enforced statuses and readiness, deterministic Nix/Bazel test commands, a 70% -> 75% -> 80% package-scoped coverage ratchet, and complete M0 exit criteria. Factory doctor validates 10 task records and all ledgers; no planning question remains.",
+  "open_questions": [],
+  "task_count": 10
+}

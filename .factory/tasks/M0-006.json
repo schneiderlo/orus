@@ -1,0 +1,48 @@
+{
+  "id": "M0-006",
+  "unit": "Native Concurrent Corpus and Reliability Harness",
+  "status": "PENDING",
+  "depends_on": [
+    "M0-002"
+  ],
+  "parallel_with": [
+    "M0-003",
+    "M0-004",
+    "M0-005",
+    "M0-007",
+    "M0-008"
+  ],
+  "shared_surface": "Concurrent corpus parent/child binaries, IPC wire contract, fault modes, process-group harness, and corpus evidence; registry/CI adapters wait for M0-009.",
+  "deliverables": "Parent plus exec-child topology with five workers; exact SOCK_SEQPACKET frames; fixed observations and sums; bounded predicate synchronization and absolute deadlines; seven fault modes; process-group cleanup; canonical run/reliability documents; 100-run gate and native parser fuzzing.",
+  "spec_refs": "CORP-FR-001, CORP-FR-002, CORP-FR-003, CORP-FR-004, CORP-FR-005, CORP-FR-006, CORP-FR-007, CORP-FR-008, CORP-FR-009, CORP-FR-010, CORP-FR-011, CORP-FR-012, CORP-FR-013, CORP-NFR-001, CORP-NFR-002, CORP-NFR-003, CORP-NFR-004, CORP-NFR-005",
+  "verify": "nix develop --command bazel test --config=dev //tests/concurrent/... && nix develop --command bazel test --config=gcc //tests/concurrent/... && nix develop --command bazel test --config=asan //tests/concurrent/... && nix develop --command bazel test --config=ubsan //tests/concurrent/... && nix develop --command bazel test --config=tsan //tests/concurrent/... && nix develop --command bazel test --config=fuzz //tests/fuzz:corpus_ipc_parser_fuzz_smoke && nix develop --command bazel run //tests/concurrent:corpus_reliability -- --runs=100 --timeout-seconds=10 --output=bazel-bin/test-evidence/m0-corpus-reliability-v1.json",
+  "healing_tasks": [
+    "M0-009"
+  ],
+  "created_at": "2026-07-22T02:13:06Z",
+  "updated_at": "2026-07-22T02:19:00Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:13:06Z",
+      "status": "PENDING",
+      "by": "agent",
+      "note": ""
+    },
+    {
+      "ts": "2026-07-22T02:13:44Z",
+      "edited": [
+        "healing_tasks"
+      ],
+      "by": "agent",
+      "note": "Performance registry and live CI corpus consumption are healed by M0-009."
+    },
+    {
+      "ts": "2026-07-22T02:19:00Z",
+      "edited": [
+        "verify"
+      ],
+      "by": "agent",
+      "note": "Include the native corpus parser fuzz smoke in the unit-wide Jidoka command."
+    }
+  ]
+}

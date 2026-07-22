@@ -1,0 +1,40 @@
+{
+  "id": "q-0012",
+  "step": "07_plan_generator",
+  "steps": [
+    "07_plan_generator"
+  ],
+  "attempt": 1,
+  "status": "answered",
+  "asked_at": "2026-07-22T01:43:30Z",
+  "blocking": true,
+  "domain": "m0_dependency_stack",
+  "kind": "design_choice",
+  "text": "Which exact M0 library profile should the build ADR pin for structured data, Unicode normalization, SHA-256, unit tests, and benchmarks?",
+  "why_it_matters": "This fixes U01/U02's dependency graph, ABI and runtime closure, canonical-byte implementation, dependency-admission records, SBOM contents, build cost, and the test commands used by every later unit. The verified specs name the behavior but no accepted ADR selects these M0 libraries or their pins.",
+  "unlocks": "The U01 compatibility/pinning ADR, U02 shared contract API, dependency admission, and all downstream build/verification bundles.",
+  "options": [
+    {
+      "id": "seed_aligned_narrow",
+      "label": "Seed-aligned narrow stack",
+      "description": "Use Boost.JSON, utf8proc, OpenSSL EVP SHA-256, GoogleTest, and Google Benchmark, with Orus-owned strict canonical/schema rules; pros: follows the seed's Boost/OpenSSL/test direction and avoids bespoke Unicode/cryptography, cons: admits five dependency surfaces and still requires careful duplicate-key/number canonicalization. Exact mutually compatible stable versions and digests are selected by U01 and recorded in its ADR, following the already answered q-0003 pin policy."
+    },
+    {
+      "id": "nlohmann_narrow",
+      "label": "Nlohmann narrow stack",
+      "description": "Use nlohmann/json, utf8proc, OpenSSL EVP SHA-256, GoogleTest, and Google Benchmark; pros: familiar high-level JSON API and a small integration surface, cons: diverges from the seed's low-volume Boost.JSON preference, can increase C++ compile cost, and still needs a strict canonical validation layer."
+    },
+    {
+      "id": "mostly_in_tree",
+      "label": "Mostly in-tree primitives",
+      "description": "Keep GoogleTest/Google Benchmark but implement JSON, NFC handling, and SHA-256 in-tree; pros: smallest third-party runtime closure and maximum control, cons: substantially higher correctness, Unicode, cryptographic-maintenance, fuzzing, and schedule risk for an M0 foundation."
+    }
+  ],
+  "default": "seed_aligned_narrow \u2014 pin the narrow seed-aligned stack, contain each dependency behind U02, and select exact compatible stable versions/digests in the U01 ADR under the previously approved q-0003 policy.",
+  "answer": {
+    "text": "Custom Glaze-centered performance profile: pin Glaze v7.5.0 for structured JSON behind an Orus-owned canonicalization boundary; pin utf8proc for Unicode NFC normalization; use the pinned OpenSSL 3 EVP interface for SHA-256; use GoogleTest and Google Benchmark. Contain every dependency behind U02, require canonical-byte goldens, differential/fuzz validation, and exact compatible versions plus immutable digests in the U01 ADR under q-0003. Do not adopt Glaze's optional CMake workflow; expose it through Bazel/Bzlmod and Nix only.",
+    "by": "human",
+    "rationale": "",
+    "at": "2026-07-22T02:02:23Z"
+  }
+}

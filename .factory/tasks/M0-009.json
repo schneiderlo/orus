@@ -1,0 +1,29 @@
+{
+  "id": "M0-009",
+  "unit": "Real Producer, GitHub CI, and Cross-Domain Healing",
+  "status": "PENDING",
+  "depends_on": [
+    "M0-003",
+    "M0-004",
+    "M0-005",
+    "M0-006",
+    "M0-007",
+    "M0-008"
+  ],
+  "parallel_with": [],
+  "shared_surface": "Exclusive integration ownership across actual Bazel labels, workflow jobs, package/evidence paths, and producer manifests; lane owners review but do not concurrently edit shared integration surfaces.",
+  "deliverables": "Real CLI/governance/performance/corpus/CI/security producer wiring; Bazel-label and typed-evidence reconciliation; actual package/scan populations; 75% package-scoped core/business coverage gate; separately authorized live GitHub Actions run for the exact revision with retained run, artifact, permission, trigger, cancellation, and required-check evidence; closure evidence for M0-004 through M0-008.",
+  "spec_refs": "BUILD-FR-005, BUILD-FR-006, BUILD-FR-008, BUILD-FR-011, BUILD-NFR-002, BUILD-NFR-005, GOV-FR-005, GOV-FR-006, GOV-FR-008, GOV-FR-009, GOV-FR-010, GOV-NFR-002, GOV-NFR-003, GOV-NFR-004, GOV-NFR-006, CLI-FR-008, CI-FR-001, CI-FR-002, CI-FR-003, CI-FR-004, CI-FR-005, CI-FR-006, CI-FR-007, CI-FR-008, CI-FR-009, CI-FR-010, CI-FR-011, CI-FR-012, CI-NFR-001, CI-NFR-002, CI-NFR-003, CI-NFR-004, CI-NFR-005, CI-NFR-006, PERF-FR-001, PERF-FR-002, PERF-FR-003, PERF-FR-005, PERF-FR-008, PERF-FR-012, PERF-NFR-003, PERF-NFR-004, PERF-NFR-006, CORP-FR-011, CORP-FR-012, CORP-FR-013, CORP-NFR-001, CORP-NFR-002, SEC-FR-002, SEC-FR-003, SEC-FR-004, SEC-FR-005, SEC-FR-006, SEC-FR-007, SEC-FR-008, SEC-FR-009, SEC-FR-011, SEC-FR-012, SEC-NFR-001, SEC-NFR-002, SEC-NFR-003, SEC-NFR-004, SEC-NFR-005, SEC-NFR-006, SEC-NFR-007",
+  "verify": "nix develop --command bazel test --config=dev //tests/integration/... && nix develop --command bazel run //tools/ci:live_run_reconcile -- --revision=HEAD --evidence-dir=bazel-bin/test-evidence/github-actions-live && nix develop --command bazel run //tools/coverage:package_gate -- --threshold=75",
+  "healing_tasks": [],
+  "created_at": "2026-07-22T02:13:34Z",
+  "updated_at": "2026-07-22T02:13:34Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:13:34Z",
+      "status": "PENDING",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

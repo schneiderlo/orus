@@ -1,0 +1,19 @@
+{
+  "name": "github-actions",
+  "description": "M0 functional CI provider boundary; local simulation is preliminary evidence only and M0-009 must realize it after separate push or branch-protection authorization.",
+  "status": "substitute",
+  "substitute": "Local workflow AST validation, trigger simulation, and synthetic provider-event/aggregator fixtures",
+  "real_target": "Live GitHub Actions run for the exact source revision with retained artifact, permission, trigger, cancellation, and required-check evidence",
+  "introduced_by": "M0-007",
+  "realized_by": "",
+  "created_at": "2026-07-22T02:13:44Z",
+  "updated_at": "2026-07-22T02:13:44Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:13:44Z",
+      "status": "substitute",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

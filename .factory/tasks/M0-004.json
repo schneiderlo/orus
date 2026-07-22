@@ -1,0 +1,40 @@
+{
+  "id": "M0-004",
+  "unit": "Governance, Dependency Admission, SBOM, and Release-Contract Tooling",
+  "status": "PENDING",
+  "depends_on": [
+    "M0-002"
+  ],
+  "parallel_with": [
+    "M0-003",
+    "M0-005",
+    "M0-006",
+    "M0-007",
+    "M0-008"
+  ],
+  "shared_surface": "Governance policies, admissions, licenses/notices, approved claims, SPDX/release schemas, and release gate; synthetic producer evidence is used only until M0-009.",
+  "deliverables": "MIT/contribution/ADR policy; admission and notice reconciliation; Orus-owned deterministic SPDX 2.3 emitter from admitted Nix/Bazel graph with pinned schema/profile and source/artifact identity; 12-evidence/3-approval validator; claim scanner; fail-closed acyclic release gate; agent guidance; Python cold tooling with C++ canonical-byte parity.",
+  "spec_refs": "GOV-FR-001, GOV-FR-002, GOV-FR-003, GOV-FR-004, GOV-FR-005, GOV-FR-006, GOV-FR-007, GOV-FR-008, GOV-FR-009, GOV-FR-010, GOV-FR-011, GOV-FR-012, GOV-NFR-001, GOV-NFR-002, GOV-NFR-003, GOV-NFR-004, GOV-NFR-005, GOV-NFR-006",
+  "verify": "nix develop --command bazel test --config=dev //tests/governance/... && nix develop --command bazel run //tools/governance:dependency_reconcile -- --graph=tests/governance/fixtures/admitted_resolved_graph.json && nix develop --command bazel run //tools/governance:release_gate -- --candidate-dir=tests/governance/fixtures/valid_candidate",
+  "healing_tasks": [
+    "M0-009"
+  ],
+  "created_at": "2026-07-22T02:13:06Z",
+  "updated_at": "2026-07-22T02:13:43Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:13:06Z",
+      "status": "PENDING",
+      "by": "agent",
+      "note": ""
+    },
+    {
+      "ts": "2026-07-22T02:13:43Z",
+      "edited": [
+        "healing_tasks"
+      ],
+      "by": "agent",
+      "note": "Real producer evidence and release integration are healed by M0-009."
+    }
+  ]
+}

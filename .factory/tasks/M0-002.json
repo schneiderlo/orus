@@ -1,0 +1,24 @@
+{
+  "id": "M0-002",
+  "unit": "Canonical Evidence, Identity, and Reference-Environment Core",
+  "status": "PENDING",
+  "depends_on": [
+    "M0-001"
+  ],
+  "parallel_with": [],
+  "shared_surface": "Canonical contract APIs, schemas, typed errors, resource guards, and golden corpus; freeze the boundary at DONE and coordinate every downstream change through its owner.",
+  "deliverables": "Orus canonical JSON boundary over Glaze; utf8proc NFC and OpenSSL EVP SHA-256 adapters; C++23/Python byte parity; build facts, reference-environment validation, subject-named content/package identities, bounded resource guards, differential/fuzz/canonical-byte goldens, and a 70% package-scoped core/business coverage gate.",
+  "spec_refs": "BUILD-FR-009, BUILD-FR-010, BUILD-FR-011, BUILD-NFR-004, GOV-FR-006, GOV-FR-008, GOV-NFR-004, GOV-NFR-006, PERF-FR-003, PERF-FR-012, PERF-NFR-003, PERF-NFR-005, CORP-FR-013, SEC-FR-005, SEC-FR-007, SEC-NFR-003",
+  "verify": "nix develop --command bazel test --config=dev //tests/contracts/... && nix develop --command bazel test --config=asan //tests/contracts/... && nix develop --command bazel test --config=ubsan //tests/contracts/... && nix develop --command bazel test --config=fuzz //tests/fuzz:canonical_json_parser_fuzz_smoke && nix develop --command bazel run //tools/coverage:package_gate -- --threshold=70",
+  "healing_tasks": [],
+  "created_at": "2026-07-22T02:13:05Z",
+  "updated_at": "2026-07-22T02:13:05Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:13:05Z",
+      "status": "PENDING",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

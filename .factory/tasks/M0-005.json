@@ -1,0 +1,40 @@
+{
+  "id": "M0-005",
+  "unit": "Performance Harness, Comparator, and Allocation Accounting",
+  "status": "PENDING",
+  "depends_on": [
+    "M0-002"
+  ],
+  "parallel_with": [
+    "M0-003",
+    "M0-004",
+    "M0-006",
+    "M0-007",
+    "M0-008"
+  ],
+  "shared_surface": "Performance schemas, workload registry, raw/result evidence, comparator, allocation instrumentation, and benchmark fixtures; CI and corpus consume only frozen contracts until M0-009.",
+  "deliverables": "Five-record workload registry; paired alternating harness; bounded raw/result/runner/comparison schemas; deterministic integer-only SHA-256 counter bootstrap comparator; authority/noise policies; allocation zero/positive controls; regression escalation; differential intermediate goldens and parser fuzzing.",
+  "spec_refs": "PERF-FR-001, PERF-FR-002, PERF-FR-003, PERF-FR-004, PERF-FR-005, PERF-FR-006, PERF-FR-007, PERF-FR-008, PERF-FR-009, PERF-FR-010, PERF-FR-011, PERF-FR-012, PERF-FR-013, PERF-NFR-001, PERF-NFR-002, PERF-NFR-003, PERF-NFR-004, PERF-NFR-005, PERF-NFR-006",
+  "verify": "nix develop --command bazel test --config=dev //tests/performance/... && nix develop --command bazel test --config=asan //tests/performance/... && nix develop --command bazel test --config=ubsan //tests/performance/... && nix develop --command bazel test --config=benchmark //tests/benchmarks/... && nix develop --command bazel test --config=fuzz //tests/fuzz:performance_result_parser_fuzz_smoke",
+  "healing_tasks": [
+    "M0-009"
+  ],
+  "created_at": "2026-07-22T02:13:06Z",
+  "updated_at": "2026-07-22T02:13:43Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:13:06Z",
+      "status": "PENDING",
+      "by": "agent",
+      "note": ""
+    },
+    {
+      "ts": "2026-07-22T02:13:43Z",
+      "edited": [
+        "healing_tasks"
+      ],
+      "by": "agent",
+      "note": "Actual workload producers and CI evidence wiring are healed by M0-009."
+    }
+  ]
+}

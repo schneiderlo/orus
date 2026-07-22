@@ -1,0 +1,40 @@
+{
+  "id": "M0-007",
+  "unit": "CI Policy, Applicability, and Evidence Aggregator",
+  "status": "PENDING",
+  "depends_on": [
+    "M0-002"
+  ],
+  "parallel_with": [
+    "M0-003",
+    "M0-004",
+    "M0-005",
+    "M0-006",
+    "M0-008"
+  ],
+  "shared_surface": "GitHub workflow files, applicability/warning manifests, CI schemas, permissions/capabilities, evidence limits, and aggregator; local provider simulation remains a substitute until M0-009.",
+  "deliverables": "Finite applicability and warning contracts; workflow AST/security checks; independent-job topology; acquisition handoff; bounded typed evidence and provider-timeout semantics; advisory separation; fail-closed aggregator; trigger, permission, cancellation, retention, and required-check simulations.",
+  "spec_refs": "CI-FR-001, CI-FR-002, CI-FR-003, CI-FR-004, CI-FR-005, CI-FR-006, CI-FR-007, CI-FR-008, CI-FR-009, CI-FR-010, CI-FR-011, CI-FR-012, CI-NFR-001, CI-NFR-002, CI-NFR-003, CI-NFR-004, CI-NFR-005, CI-NFR-006",
+  "verify": "nix flake check && nix develop --command bazel test --config=dev //tests/ci/... && nix develop --command bazel run //tools/ci:applicability_reconcile && nix develop --command bazel run //tools/ci:workflow_policy_check",
+  "healing_tasks": [
+    "M0-009"
+  ],
+  "created_at": "2026-07-22T02:13:06Z",
+  "updated_at": "2026-07-22T02:13:44Z",
+  "history": [
+    {
+      "ts": "2026-07-22T02:13:06Z",
+      "status": "PENDING",
+      "by": "agent",
+      "note": ""
+    },
+    {
+      "ts": "2026-07-22T02:13:44Z",
+      "edited": [
+        "healing_tasks"
+      ],
+      "by": "agent",
+      "note": "The live GitHub Actions provider boundary is healed by M0-009."
+    }
+  ]
+}
