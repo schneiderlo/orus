@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "06_domain_spec_verifier",
+  "current_step": "07_plan_generator",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -60,17 +60,21 @@
       "last_result_path": ".factory/results/05_domain_spec_writer/r1/result.json"
     },
     "06_domain_spec_verifier": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "last_result": {
-        "verdict": "needs_work",
-        "summary": "M0 re-review resolves all four prior findings, but READY remains blocked by one new-in-rework CI defect: narrowing the advisory-bundle exception removed the terminal state for advisory typed-report and retained-log first-over cases, while the gate and security reconciliation still require one exact state per resource operation. No user clarification is required.",
+        "verdict": "pass",
+        "summary": "M0 passes domain-spec re-verification. The sole fifth-round finding is resolved: specs 13 and 16 now assign CI_EVIDENCE_LIMIT/failed to blocking and advisory typed-report and retained-log first-over cases, test both authorities at exact-bound and first-over values, preserve the advisory bundle's distinct incomplete state, and keep measured benchmark deltas non-blocking. No carried or new-in-rework blocking finding remains, and no user clarification is required.",
         "phase": "M0",
         "more_phases": false,
         "report_path": "specs/_reviews/2026-07-21_phaseM0_review.md",
         "open_questions": []
       },
       "last_result_path": ".factory/results/06_domain_spec_verifier/r1/result.json"
+    },
+    "07_plan_generator": {
+      "status": "pending",
+      "attempts": 0
     }
   },
   "history": [
@@ -631,6 +635,36 @@
       "step": "05_domain_spec_writer",
       "event": "commit_scheduled",
       "detail": "20260722T013044Z_05_domain_spec_writer_r1"
+    },
+    {
+      "ts": "2026-07-22T01:30:44Z",
+      "step": "06_domain_spec_verifier",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T01:33:34Z",
+      "step": "06_domain_spec_verifier",
+      "event": "attempt_finished",
+      "detail": "r1 in 2m50s"
+    },
+    {
+      "ts": "2026-07-22T01:33:34Z",
+      "step": "06_domain_spec_verifier",
+      "event": "specs_promotion_noop",
+      "detail": "no Draft rows promoted for phase 'M0'"
+    },
+    {
+      "ts": "2026-07-22T01:33:34Z",
+      "step": "06_domain_spec_verifier",
+      "event": "transition",
+      "detail": "-> 07_plan_generator"
+    },
+    {
+      "ts": "2026-07-22T01:33:34Z",
+      "step": "06_domain_spec_verifier",
+      "event": "commit_scheduled",
+      "detail": "20260722T013334Z_06_domain_spec_verifier_r1"
     }
   ],
   "metrics": [
@@ -786,13 +820,20 @@
       "executor": "codex",
       "ts": "2026-07-22T01:30:44Z",
       "duration_s": 360.5
+    },
+    {
+      "step": "06_domain_spec_verifier",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-22T01:33:34Z",
+      "duration_s": 170.2
     }
   ],
   "step_context": {
-    "06_domain_spec_verifier": {
-      "source_step": "05_domain_spec_writer",
-      "created_at": "2026-07-22T01:30:44Z",
-      "instruction": "Verify ONLY `M0`, the phase named by the immediately previous domain-spec writer result. Do not verify earlier Draft phases just because they still appear first in `SPECS.md`."
+    "07_plan_generator": {
+      "source_step": "06_domain_spec_verifier",
+      "created_at": "2026-07-22T01:33:34Z",
+      "instruction": "The verifier PASSED `M0` and reported no remaining phases needed before planning. Generate the implementation plan from the verified domain specs."
     }
   }
 }
