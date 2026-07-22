@@ -1,0 +1,16 @@
+load("@rules_python//python:defs.bzl", "py_library")
+
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "coverage_sources",
+    srcs = glob(["*.py"]),
+)
+
+py_library(
+    name = "orus_contracts",
+    srcs = [
+        "__init__.py",
+        "canonical.py",
+    ],
+)

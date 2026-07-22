@@ -1,0 +1,1 @@
+{"embedded_environment_id":"8eb5cc0dcbec4255bb8250b59870fa851273324d1e70a2dc835028027d82da94","facts":{"host":{"architecture":"x86_64","cpu_family":6,"cpu_model":85,"cpu_vendor":"GenuineIntel","kernel_release":"6.12.0-fixture","libc_name":"glibc","libc_version":"2.40","os_family":"linux","required_isa":["sse2"]}},"schema":"M0-REFENV-OBSERVED-v1"}

@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "09_implementer",
+  "current_step": "10_verifier",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -99,81 +99,79 @@
       "last_result_path": ".factory/results/08_bundle_author/r1/result.json"
     },
     "09_implementer": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 2,
       "last_result": {
         "verdict": "implemented",
-        "summary": "Implemented M0-001's pinned Nix/Bazel build substrate, exact dependency and reference-environment contracts, fail-closed Clang/LLD and GCC configurations, network-denied action boundary, build/benchmark/format/coverage skeletons, and automated positive/negative contract tests. Final Factory check run run-20260722T111448Z is green for all eleven runnable checks; the task is IMPLEMENTED and handed off for independent c-12/c-13 review and acceptance.",
-        "task_ref": "M0-001",
+        "summary": "Implemented M0-002's Orus-owned canonical JSON/NFC/SHA-256 boundary, build facts, exact reference-environment and package identities, shared governance/performance/corpus validators, C++/Python parity, resource guards, fuzzing, and package-scoped coverage. Hardened the recovered candidate's nested schema, subject, ordering, authority, forged-success, and typed-bound checks; added matching negative tests. Factory check run run-20260722T154456Z is green, current contracts coverage is 85.34%, no temporary substitute or Pending Healing remains, and M0-002 is IMPLEMENTED for independent verification (not DONE).",
+        "task_ref": "M0-002",
         "artifacts": [
-          ".agents/M0-001/handoff.md",
           ".bazelrc",
-          ".bazelversion",
-          ".gitignore",
-          "BUILD.bazel",
+          ".agents/M0-002/handoff.md",
           "MODULE.bazel",
-          "MODULE.bazel.lock",
-          "flake.nix",
-          "flake.lock",
           "config/BUILD.bazel",
-          "config/bcr-distdir.json",
-          "config/build-applicability.json",
-          "config/dependency-inventory.json",
-          "config/input-acquisition.json",
-          "config/m0-reference-environment.json",
-          "config/wrapper-map.json",
-          "docs/adr/0001-m0-build-toolchain-and-dependencies.md",
-          "docs/build.md",
-          "tests/benchmarks/BUILD.bazel",
-          "tests/benchmarks/benchmark_smoke_test.cc",
+          "contracts/BUILD.bazel",
+          "contracts/build_contracts.cc",
+          "contracts/canonical_json.cc",
+          "contracts/crypto_resource.cc",
+          "contracts/evidence_contracts.cc",
+          "contracts/include/orus/contracts/contracts.h",
+          "flake.nix",
+          "python/orus_contracts/BUILD.bazel",
+          "python/orus_contracts/__init__.py",
+          "python/orus_contracts/canonical.py",
           "tests/build/BUILD.bazel",
           "tests/build/contract_test.py",
-          "tests/build/network_denial_test.py",
-          "tests/build/toolchain_conformance_test.cc",
-          "tests/build/fixtures/prohibited/BUILD.bazel",
-          "tests/build/fixtures/prohibited/CMakeLists.txt",
-          "tests/build/fixtures/prohibited/CMakePresets.json",
-          "tests/build/fixtures/prohibited/docs/alternate-build.md",
-          "third_party/BUILD.bazel",
-          "third_party/bootstrap-admissions.json",
-          "toolchains/BUILD.bazel",
-          "toolchains/bin/orus-clang",
-          "toolchains/bin/orus-gcc",
-          "tools/BUILD.bazel",
-          "tools/format.py",
-          "tools/build/BUILD.bazel",
-          "tools/build/__init__.py",
-          "tools/build/build_contract.py",
-          "tools/build/hermeticity_audit.py",
+          "tests/contracts/BUILD.bazel",
+          "tests/contracts/boundary_test.py",
+          "tests/contracts/build_test.cc",
+          "tests/contracts/canonical_test.cc",
+          "tests/contracts/evidence_test.cc",
+          "tests/contracts/fixtures/corpus-reliability.json",
+          "tests/contracts/fixtures/corpus-run.json",
+          "tests/contracts/fixtures/perf-comparison.json",
+          "tests/contracts/fixtures/perf-raw-sample.json",
+          "tests/contracts/fixtures/perf-result.json",
+          "tests/contracts/fixtures/perf-runner.json",
+          "tests/contracts/fixtures/perf-workload.json",
+          "tests/contracts/fixtures/reference-fixed.json",
+          "tests/contracts/fixtures/reference-observed-fixed.json",
+          "tests/contracts/fixtures/release-evidence-assembled.json",
+          "tests/contracts/fixtures/sbom-descriptor.json",
+          "tests/contracts/public_header_test.cc",
+          "tests/contracts/python_parity_test.py",
+          "tests/contracts/test_support.h",
+          "tests/fuzz/BUILD.bazel",
+          "tests/fuzz/canonical_json_parser_fuzz.cc",
+          "tests/fuzz/corpus/canonical_json/invalid-duplicate",
+          "tests/fuzz/corpus/canonical_json/invalid-number",
+          "tests/fuzz/corpus/canonical_json/invalid-resource-depth",
+          "tests/fuzz/corpus/canonical_json/valid-empty-object",
+          "tests/fuzz/corpus/canonical_json/valid-nested",
           "tools/build/nix_repositories.bzl",
-          "tools/build/prohibited_path_scan.py",
-          "tools/coverage/BUILD.bazel",
-          "tools/coverage/__init__.py",
           "tools/coverage/package_gate.py",
           "tools/coverage/packages.json"
         ],
         "commands_run": [
-          "nix flake check",
-          "nix develop --command bazel mod graph",
-          "nix develop --command bazel build --config=release //...",
-          "nix develop --command bazel test --config=dev //tests/build/...",
-          "nix develop --command bazel test --config=gcc //tests/build/...",
-          "nix develop --command bazel test --test_output=errors --config=asan //tests/build/...",
-          "nix develop --command bazel test --test_output=errors --config=ubsan //tests/build/...",
-          "nix develop --command bazel test --test_output=errors --config=benchmark //tests/benchmarks/...",
-          "nix develop --command bazel run //tools/build:hermeticity_audit",
-          "nix develop --command bazel run //tools/build:prohibited_path_scan",
+          "uv run --no-project /home/lschneid/workspace/schneiderlo/factory/factory.py task status M0-002 DOING",
+          "nix develop --command bazel test --config=dev //tests/contracts/...",
+          "nix develop --command bazel test --config=dev //tests/contracts:build_test",
+          "nix develop --command bazel test --config=dev //tests/contracts:evidence_test",
+          "nix develop --command bazel coverage --config=dev --combined_report=lcov --instrumentation_filter='^//(contracts|python/orus_contracts|tools)[/:]' //tests/build/... //tests/contracts/... && nix develop --command bazel run //tools/coverage:package_gate -- --threshold=70",
           "nix develop --command bazel run //tools:format",
-          "nix develop --command bazel coverage --config=dev --combined_report=lcov //tests/build/... && nix develop --command bazel run //tools/coverage:package_gate -- --threshold=70",
-          "uv run --no-project /home/lschneid/workspace/schneiderlo/factory/factory.py check run M0-001",
-          "uv run --no-project /home/lschneid/workspace/schneiderlo/factory/factory.py task status M0-001 IMPLEMENTED"
-        ]
+          "git diff --check",
+          "uv run --no-project /home/lschneid/workspace/schneiderlo/factory/factory.py check run M0-002",
+          "nix develop --command bazel build --config=release //contracts:contracts //python/orus_contracts:orus_contracts",
+          "nix flake check",
+          "uv run --no-project /home/lschneid/workspace/schneiderlo/factory/factory.py task status M0-002 IMPLEMENTED"
+        ],
+        "open_questions": []
       },
       "last_result_path": ".factory/results/09_implementer/r2/result.json"
     },
     "10_verifier": {
-      "status": "done",
-      "attempts": 1,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "pass",
         "summary": "M0-001 is DONE: authoritative run run-20260722T135616Z passed all registered machine checks, manual checks c-12 and c-13 passed, the 70% package coverage gate is satisfied, and no healing or scope blocker remains.",
@@ -1091,6 +1089,42 @@
       "step": "08_bundle_author",
       "event": "commit_scheduled",
       "detail": "20260722T141623Z_08_bundle_author_r1"
+    },
+    {
+      "ts": "2026-07-22T14:16:23Z",
+      "step": "09_implementer",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T15:16:24Z",
+      "step": "09_implementer",
+      "event": "attempt_failed",
+      "detail": "executor 'codex' timed out after 3600s on 09_implementer (see /home/lschneid/workspace/schneiderlo/orus/.factory/logs/09_implementer-r1.stderr.log)"
+    },
+    {
+      "ts": "2026-07-22T15:23:45Z",
+      "step": "09_implementer",
+      "event": "attempt_started",
+      "detail": "r2 via codex"
+    },
+    {
+      "ts": "2026-07-22T15:52:48Z",
+      "step": "09_implementer",
+      "event": "attempt_finished",
+      "detail": "r2 in 29m03s (481151 tokens)"
+    },
+    {
+      "ts": "2026-07-22T15:52:48Z",
+      "step": "09_implementer",
+      "event": "transition",
+      "detail": "-> 10_verifier"
+    },
+    {
+      "ts": "2026-07-22T15:52:48Z",
+      "step": "09_implementer",
+      "event": "commit_scheduled",
+      "detail": "20260722T155248Z_09_implementer_r2"
     }
   ],
   "metrics": [
@@ -1333,6 +1367,14 @@
       "ts": "2026-07-22T14:16:22Z",
       "duration_s": 721.9,
       "tokens": 285625
+    },
+    {
+      "step": "09_implementer",
+      "attempt": 2,
+      "executor": "codex",
+      "ts": "2026-07-22T15:52:48Z",
+      "duration_s": 1742.8,
+      "tokens": 481151
     }
   ]
 }

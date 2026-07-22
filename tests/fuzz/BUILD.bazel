@@ -1,0 +1,19 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "canonical_corpus",
+    srcs = glob(["corpus/canonical_json/*"]),
+)
+
+cc_test(
+    name = "canonical_json_parser_fuzz_smoke",
+    srcs = ["canonical_json_parser_fuzz.cc"],
+    args = [
+        "-runs=256",
+        "tests/fuzz/corpus/canonical_json",
+    ],
+    data = [":canonical_corpus"],
+    deps = ["//contracts:contracts"],
+)

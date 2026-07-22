@@ -57,6 +57,7 @@
       ];
       pinnedPath = pkgs.lib.makeBinPath shellPackages;
       environment = {
+        GCOV = "${llvm.llvm}/bin/llvm-cov";
         ORUS_BAZEL = "${pkgs.bazel_8}/bin/bazel";
         ORUS_ACQUISITION_PROFILE = "${bcrAcquisition}";
         ORUS_BCR_DISTDIR = "${bcrDistdir}";

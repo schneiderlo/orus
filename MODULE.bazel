@@ -42,3 +42,20 @@ nix_source_repository(
     kind = "google_benchmark",
     source_env = "ORUS_BENCHMARK_SRC",
 )
+
+nix_library_repository = use_repo_rule(
+    "//tools/build:nix_repositories.bzl",
+    "nix_library_repository",
+)
+nix_library_repository(
+    name = "openssl_crypto",
+    kind = "openssl_crypto",
+    library_env = "ORUS_OPENSSL",
+    source_env = "ORUS_OPENSSL_DEV",
+)
+nix_library_repository(
+    name = "utf8proc",
+    kind = "utf8proc",
+    library_env = "ORUS_UTF8PROC",
+    source_env = "ORUS_UTF8PROC",
+)

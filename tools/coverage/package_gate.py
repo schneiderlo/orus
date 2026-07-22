@@ -9,10 +9,17 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
-def task_owned_python_sources(workspace: Path) -> set[str]:
+def task_owned_sources(workspace: Path) -> set[str]:
+    roots = (
+        (workspace / "contracts", "*.cc"),
+        (workspace / "python" / "orus_contracts", "*.py"),
+        (workspace / "tools", "*.py"),
+    )
     return {
         str(path.relative_to(workspace))
-        for path in (workspace / "tools").rglob("*.py")
+        for root, pattern in roots
+        if root.is_dir()
+        for path in root.rglob(pattern)
         if path.is_file()
     }
 
@@ -50,7 +57,7 @@ def validate_manifest(workspace: Path, manifest: Mapping[str, Any]) -> dict[str,
 
     if len(included) != len(set(included)) or set(included).intersection(excluded):
         raise ValueError("coverage source population is duplicated or both included and excluded")
-    owned = task_owned_python_sources(workspace)
+    owned = task_owned_sources(workspace)
     declared = set(included).union(excluded)
     if owned != declared:
         raise ValueError(

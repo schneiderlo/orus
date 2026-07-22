@@ -360,7 +360,10 @@ class CoverageGateTest(unittest.TestCase):
         root = workspace_root()
         manifest = json.loads((root / "tools/coverage/packages.json").read_text(encoding="utf-8"))
         packages = validate_manifest(root, manifest)
-        self.assertEqual(set(packages), {"tools", "tools/build", "tools/coverage"})
+        self.assertEqual(
+            set(packages),
+            {"contracts", "python/orus_contracts", "tools", "tools/build", "tools/coverage"},
+        )
 
 
 if __name__ == "__main__":

@@ -11,3 +11,8 @@ filegroup(
         "wrapper-map.json",
     ],
 )
+
+filegroup(
+    name = "m0_reference_environment",
+    srcs = ["m0-reference-environment.json"],
+)

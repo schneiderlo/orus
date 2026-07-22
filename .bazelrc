@@ -9,6 +9,7 @@ common --repo_env=ORUS_GLAZE_SRC
 common --repo_env=ORUS_GOOGLETEST_SRC
 common --repo_env=ORUS_BENCHMARK_SRC
 common --repo_env=ORUS_PYTHON
+common --repo_env=GCOV
 
 build --incompatible_strict_action_env
 build --spawn_strategy=sandboxed

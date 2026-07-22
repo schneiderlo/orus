@@ -134,6 +134,59 @@ nix_source_repository = repository_rule(
     local = True,
 )
 
+def _nix_library_repository_impl(repository_ctx):
+    include_root = _require_source(repository_ctx)
+    library_root = repository_ctx.os.environ.get(repository_ctx.attr.library_env)
+    if not library_root:
+        library_root = include_root
+    if not library_root.startswith("/nix/store/"):
+        fail("BUILD_ACQUISITION_DENIED: %s is not a Nix-store path" % repository_ctx.attr.library_env)
+
+    if repository_ctx.attr.kind == "openssl_crypto":
+        repository_ctx.symlink(include_root + "/include", "include")
+        headers = "include/openssl/**/*.h"
+        name = "crypto"
+        library = "crypto"
+    elif repository_ctx.attr.kind == "utf8proc":
+        repository_ctx.symlink(include_root + "/include", "include")
+        headers = "include/utf8proc.h"
+        name = "utf8proc"
+        library = "utf8proc"
+    else:
+        fail("BUILD_ACQUISITION_DENIED: unknown Nix library kind %s" % repository_ctx.attr.kind)
+
+    repository_ctx.file("BUILD.bazel", """
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_library(
+    name = "%s",
+    hdrs = glob(["%s"]),
+    includes = ["include"],
+    linkopts = [
+        "-L%s/lib",
+        "-Wl,-rpath,%s/lib",
+        "-l%s",
+    ],
+)
+""" % (name, headers, library_root, library_root, library))
+
+nix_library_repository = repository_rule(
+    implementation = _nix_library_repository_impl,
+    attrs = {
+        "kind": attr.string(mandatory = True),
+        "library_env": attr.string(mandatory = True),
+        "source_env": attr.string(mandatory = True),
+    },
+    environ = [
+        "ORUS_OPENSSL",
+        "ORUS_OPENSSL_DEV",
+        "ORUS_UTF8PROC",
+    ],
+    local = True,
+)
+
 def _nix_python_repository_impl(repository_ctx):
     interpreter = repository_ctx.os.environ.get(repository_ctx.attr.interpreter_env)
     if not interpreter or not interpreter.startswith("/nix/store/") or not interpreter.endswith("/bin/python3"):

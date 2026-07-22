@@ -1,0 +1,50 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+load("@rules_python//python:defs.bzl", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "fixtures",
+    srcs = glob(["fixtures/*.json"]),
+)
+
+[
+    cc_test(
+        name = name,
+        srcs = [name + ".cc", "test_support.h"],
+        data = [
+            ":fixtures",
+            "//config:m0_reference_environment",
+        ],
+        deps = [
+            "//contracts:contracts",
+            "@googletest//:gtest",
+            "@googletest//:gtest_main",
+        ],
+    )
+    for name in [
+        "build_test",
+        "canonical_test",
+        "evidence_test",
+        "public_header_test",
+    ]
+]
+
+py_test(
+    name = "python_parity_test",
+    srcs = ["python_parity_test.py"],
+    data = [":fixtures"],
+    deps = ["//python/orus_contracts"],
+)
+
+py_test(
+    name = "boundary_test",
+    srcs = ["boundary_test.py"],
+    data = [
+        "//:.bazelrc",
+        "//contracts:public_headers",
+        "//tests/fuzz:BUILD.bazel",
+        "//tests/fuzz:canonical_corpus",
+        "//tests/fuzz:canonical_json_parser_fuzz.cc",
+    ],
+)

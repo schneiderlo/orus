@@ -19,6 +19,8 @@ py_test(
     data = [
         "//:build_roots",
         "//config:contract_data",
+        "//contracts:coverage_sources",
+        "//python/orus_contracts:coverage_sources",
         "//third_party:admissions",
         "//toolchains:bin/orus-clang",
         "//toolchains:bin/orus-gcc",

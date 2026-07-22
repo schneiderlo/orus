@@ -1,0 +1,30 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "public_headers",
+    srcs = ["include/orus/contracts/contracts.h"],
+)
+
+filegroup(
+    name = "coverage_sources",
+    srcs = glob(["*.cc"]),
+)
+
+cc_library(
+    name = "contracts",
+    srcs = [
+        "build_contracts.cc",
+        "canonical_json.cc",
+        "crypto_resource.cc",
+        "evidence_contracts.cc",
+    ],
+    hdrs = ["include/orus/contracts/contracts.h"],
+    includes = ["include"],
+    deps = [
+        "@glaze//:glaze",
+        "@openssl_crypto//:crypto",
+        "@utf8proc//:utf8proc",
+    ],
+)
