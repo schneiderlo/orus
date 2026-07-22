@@ -1,0 +1,85 @@
+{
+  "id": "run-20260722T172410Z",
+  "task": "M0-002",
+  "started_at": "2026-07-22T17:24:10Z",
+  "finished_at": "2026-07-22T17:32:05Z",
+  "green": true,
+  "checks": [
+    {
+      "id": "c-01",
+      "kind": "test",
+      "cmd": "nix develop --command bazel test --config=dev //tests/contracts/... && nix develop --command bazel test --config=release //tests/contracts:build_test",
+      "desc": "Run the complete dev contract suite and the Bazel-generated embedded build-facts test under the real release configuration.",
+      "required": true,
+      "status": "pass",
+      "exit_code": 0,
+      "duration_s": 170.9,
+      "stdout_log": ".factory/logs/checks/M0-002/run-20260722T172410Z/c-01.stdout.log",
+      "stderr_log": ".factory/logs/checks/M0-002/run-20260722T172410Z/c-01.stderr.log"
+    },
+    {
+      "id": "c-02",
+      "kind": "test",
+      "cmd": "nix develop --command bazel test --config=asan //tests/contracts/...",
+      "desc": "",
+      "required": true,
+      "status": "pass",
+      "exit_code": 0,
+      "duration_s": 79.5,
+      "stdout_log": ".factory/logs/checks/M0-002/run-20260722T172410Z/c-02.stdout.log",
+      "stderr_log": ".factory/logs/checks/M0-002/run-20260722T172410Z/c-02.stderr.log"
+    },
+    {
+      "id": "c-03",
+      "kind": "test",
+      "cmd": "nix develop --command bazel test --config=ubsan //tests/contracts/...",
+      "desc": "",
+      "required": true,
+      "status": "pass",
+      "exit_code": 0,
+      "duration_s": 73.9,
+      "stdout_log": ".factory/logs/checks/M0-002/run-20260722T172410Z/c-03.stdout.log",
+      "stderr_log": ".factory/logs/checks/M0-002/run-20260722T172410Z/c-03.stderr.log"
+    },
+    {
+      "id": "c-04",
+      "kind": "test",
+      "cmd": "nix develop --command bazel test --config=fuzz //tests/fuzz:canonical_json_parser_fuzz_smoke",
+      "desc": "",
+      "required": true,
+      "status": "pass",
+      "exit_code": 0,
+      "duration_s": 37.6,
+      "stdout_log": ".factory/logs/checks/M0-002/run-20260722T172410Z/c-04.stdout.log",
+      "stderr_log": ".factory/logs/checks/M0-002/run-20260722T172410Z/c-04.stderr.log"
+    },
+    {
+      "id": "c-05",
+      "kind": "coverage",
+      "cmd": "nix develop --command bazel coverage --config=dev --combined_report=lcov --instrumentation_filter='^//(contracts|python/orus_contracts|tools)[/:]' //tests/build/... //tests/contracts/... && nix develop --command bazel run //tools/coverage:package_gate -- --threshold=70",
+      "desc": "",
+      "required": true,
+      "status": "pass",
+      "exit_code": 0,
+      "duration_s": 113.5,
+      "stdout_log": ".factory/logs/checks/M0-002/run-20260722T172410Z/c-05.stdout.log",
+      "stderr_log": ".factory/logs/checks/M0-002/run-20260722T172410Z/c-05.stderr.log"
+    },
+    {
+      "id": "c-06",
+      "kind": "manual",
+      "cmd": "",
+      "desc": "Review the frozen Orus-owned canonical/API/error/limit/identity surface, C++ authority and Python parity, exact spec literals, downstream ownership boundaries, and handoff inventory per verification V6.",
+      "required": true,
+      "status": "manual"
+    },
+    {
+      "id": "c-07",
+      "kind": "manual",
+      "cmd": "",
+      "desc": "Audit the full handoff revision range per verification V7, reporting task-owned implementation separately from factory/audit metadata and exempting append-only historical evidence from product-source scope guards.",
+      "required": true,
+      "status": "manual"
+    }
+  ]
+}
