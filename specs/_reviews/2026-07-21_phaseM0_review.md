@@ -1,19 +1,27 @@
 # M0 Domain Specification Review — 2026-07-21
 
-**Round:** Fourth review, after rework commit `444768c`  
-**Prior review:** Third-round report at this path, produced by commit `176125f`  
+**Round:** Fifth review, after rework commit `85141bb`
+**Prior review:** Fourth-round report at this path, produced by commit `962b794`
 **Scope:** `SPECS.md`, foundation files `00`-`03`, and all seven M0 domain
 specifications (`10`-`16`)  
 **Verdict:** `needs_work`
 
-The rework resolves the prior secret-scan-manifest exposure and most of the
-carried resource-outcome finding. One part of the carried finding remains: the
-security inventory still omits the CLI renderer's 16-MiB limit. Three blocking
-defects were introduced by the new CI terminal-state wording and secret-scan
-metadata design. No owner clarification is required; all four findings are
-precision or consistency corrections within existing M0 requirements.
+The rework resolves all four findings from the prior report. The CLI renderer
+limit is now present in the finite security inventory; the advisory-bundle
+state is consistent; decoded metadata fields reach the detector as their
+original value bytes; and metadata findings carry a unique tuple locator and
+field enum with actionable recovery tests.
 
-The unchanged build, governance, performance, and corpus contracts remain
+One blocking defect was introduced while narrowing the CI terminal-state rule:
+advisory typed-report and retained-log first-over cases no longer have any
+defined terminal job state. The unchanged contracts still require every job to
+emit a terminal result, and the security reconciliation still requires one
+exact state for every resource-bearing operation. No owner clarification is
+required because the prior contract already assigned these non-bundle evidence
+limits `CI_EVIDENCE_LIMIT`/`failed`; the only established advisory exception is
+the 64-MiB bundle's `incomplete` state.
+
+The unchanged build, governance, CLI, performance, and corpus contracts remain
 acceptable. Requirement-definition IDs remain unique, no M1+ capability or
 scope was introduced, and every M0 spec still states that it has no open
 question.
@@ -23,150 +31,84 @@ question.
 | File | Status | Blocking findings | Re-review summary |
 |---|---|---|---|
 | `SPECS.md` | ACCEPTABLE | None | M0 remains the only delivery wave; all seven M0 specs remain Draft and M1-M11 remain roadmap-only. |
-| `specs/10-build-environment.md` | ACCEPTABLE | None | Reference-validator and package-identity resource faults now have exact codes, exact boundaries, and first-over fixtures. |
-| `specs/11-governance-release.md` | ACCEPTABLE | None | Admission, SBOM, and release-evidence validators now consistently use `GOV_RESOURCE_LIMIT`; gate ordering correctly consumes the new security metadata contract. |
-| `specs/12-cli-diagnostics.md` | ACCEPTABLE | None in owner spec | Collection and rendering now select exact codes and tests. The remaining mismatch is in spec `16`'s reconciliation row. |
-| `specs/13-ci-quality.md` | NEEDS WORK | M0-R4-001 | Provider timeout is exact, but the broadened failure-mode row conflicts with the existing advisory evidence-bundle state. |
-| `specs/14-performance-foundation.md` | ACCEPTABLE | None | Unchanged since the prior accepted review: workloads, schemas, arithmetic, authority, and verification remain exact. |
-| `specs/15-concurrent-corpus.md` | ACCEPTABLE | None | Unchanged since the prior accepted review: topology, wire contracts, failure mapping, aggregation, and cleanup remain exact. |
-| `specs/16-security-foundations.md` | NEEDS WORK | M0-010, M0-R4-002, M0-R4-003 | The final manifest no longer retains raw attacker-derived names, but the CLI limit inventory is incomplete and the new metadata scan neither defines byte-exact raw-string inspection nor an attributable metadata finding. |
+| `specs/10-build-environment.md` | ACCEPTABLE | None | Unchanged since the prior accepted review; build, reference-environment, acquisition, resource, and package-identity contracts remain exact. |
+| `specs/11-governance-release.md` | ACCEPTABLE | None | Unchanged since the prior accepted review; its acyclic release order delegates the complete scan to spec `16` and remains compatible with the decoded-field step. |
+| `specs/12-cli-diagnostics.md` | ACCEPTABLE | None | The owning collection/render limits remain exact, and spec `16` now inventories the renderer's 16-MiB ceiling, error, cleanup, and boundary fixtures. |
+| `specs/13-ci-quality.md` | NEEDS WORK | M0-R5-001 | The advisory 64-MiB bundle and provider-timeout states are now exact, but advisory typed-report and retained-log over-limits lost their terminal state. |
+| `specs/14-performance-foundation.md` | ACCEPTABLE | None | Unchanged since the prior accepted review; workloads, schemas, arithmetic, authority, and verification remain exact. |
+| `specs/15-concurrent-corpus.md` | ACCEPTABLE | None | Unchanged since the prior accepted review; topology, wire contracts, failure mapping, aggregation, and cleanup remain exact. |
+| `specs/16-security-foundations.md` | NEEDS WORK | M0-R5-001 | Decoded-field scanning and finding attribution are now exact, but the resource inventory/test still cannot reconcile advisory report/log first-over terminal states. |
 
 ## Prior-finding disposition
 
 | Prior finding | Disposition | Re-review evidence |
 |---|---|---|
-| M0-010 resource-limit inventory | **CARRIED, PARTIALLY RESOLVED** | Specs `10`, `11`, `12`, and `13` now select exact resource codes/states and exact-bound/first-over tests. Spec `16` still omits the renderer's 16-MiB limit from `SEC-LIM-12-02`, even though its own SEC-TEST-007 requires that owner value to reconcile. |
-| M0-R3-001 excluded manifest can retain an unscanned secret | **RESOLVED** | Spec `16` now scans a frozen metadata document, binds it by digest, and permits only digest-derived path/source displays in the excluded manifest. Specs `11` and `16` agree on the acyclic order. M0-R4-002 and M0-R4-003 concern defects introduced inside that new mechanism, not the prior raw-manifest exposure. |
+| M0-010 resource-limit inventory | **RESOLVED** | `SEC-LIM-12-02` now includes the existing 16-MiB render-stage RSS ceiling, `CLI_RENDER_ERROR`/exit 4, cleanup, and CLI-TEST-010's exact-bound/first-over fixtures. |
+| M0-R4-001 conflicting advisory-bundle states | **RESOLVED** | CI-FR-011, Section 6.3, CI-FAIL-007, CI-TEST-011, `SEC-LIM-13-03`, and SEC-TEST-007 now agree that an advisory 64-MiB-plus-one-byte bundle is `CI_EVIDENCE_LIMIT`/`incomplete`, while a blocking bundle is `failed` and a known provider timeout is `failed`. M0-R5-001 is a separate omission introduced by narrowing the failure row. |
+| M0-R4-002 transformed metadata-string scan | **RESOLVED** | Spec `16` now sends every decoded `logical_path` and `source_identity` to the detector as an exact length-delimited UTF-8 byte sequence, binds each result to the metadata digest/tuple/field, rejects serialization-only scanning, and tests quote, backslash, U+0001, and LF boundaries. |
+| M0-R4-003 unattributable metadata findings | **RESOLVED** | The report schema now distinguishes content/metadata origins and gives each metadata finding a deterministic tuple locator and exact field enum; validation, recovery, collision handling, duplicate-canary counts, and no-raw-name retention are explicit. |
 
 ## Cross-spec consistency check
 
 | Contract / concern | Result | Evidence |
 |---|---|---|
-| M0 scope and foundation decisions | CONSISTENT | The rework remains within M0, preserves the Charter hierarchy, and adds no availability, platform, license, build-system, or publication-authority change. |
-| Build/reference/governance resource outcomes | CONSISTENT | Exact codes and boundary tests now agree across specs `10`, `11`, and the corresponding spec-`16` rows. |
-| CLI resource ownership | BLOCKED | Spec `12` makes 16 MiB normative for collection and rendering, while `SEC-LIM-12-02` lists the render deadline and output limit but not render RSS (M0-010). |
-| CI evidence terminal states | BLOCKED | Spec `13` Section 6.3 makes an advisory bundle over-limit `incomplete`, while CI-FAIL-007 now makes every numeric evidence/log/bundle excess `failed` (M0-R4-001). |
-| Secret-scan gate DAG and final-pair content | CONSISTENT WITH FINDINGS | Metadata precedes the final pair; the final manifest uses digest-only displays; the marker remains last. Raw-value scan semantics and finding attribution remain invalid (M0-R4-002/-003). |
-| Performance, corpus, and CI applicability | CONSISTENT | Specs `13`-`15` retain compatible workload, corpus, sanitizer/fuzz, authority, and evidence dependencies apart from M0-R4-001. |
-| Risk and ADR application | CONSISTENT WITH FINDINGS | Accepted decisions remain intact. The findings prevent complete verification of DOD-08 and mitigations for R-005, R-008, R-201, and R-202. |
+| M0 scope and foundation decisions | CONSISTENT | The rework stays within M0, preserves the Charter hierarchy and D-010 authority split, and adds no platform, license, build-system, publication, or M1+ availability change. |
+| CLI resource ownership | CONSISTENT | Specs `12` and `16` now agree on collection versus rendering codes, 16-MiB/10-second ceilings, exit 4, cleanup, and exact-bound/first-over fixtures. |
+| CI advisory bundle and provider timeout | CONSISTENT | Specs `13` and `16` now assign one state to blocking/advisory bundle first-over and to known provider timeout. |
+| CI advisory report/log resource outcomes | **BLOCKED** | Spec `13` requires terminal results for expected checks and makes schema/tool failures functional failures, but CI-FAIL-007 now defines report/log excess only for blocking jobs and defines an advisory state only for bundles. `SEC-LIM-13-02/-03` and SEC-TEST-007 likewise omit the advisory report/log state (M0-R5-001). |
+| Secret-scan byte preservation and attribution | CONSISTENT | Canonical metadata remains an ordinary scanned entry; every decoded field has a byte-exact scan unit, deterministic locator, exact field enum, one-to-one manifest mapping, bounded failure behavior, and retained verification artifacts. |
+| Secret-scan/release gate DAG | CONSISTENT | Spec `11`'s evidence-to-metadata-to-complete-scan-to-final-pair-to-marker order remains acyclic and delegates the expanded complete-scan semantics to spec `16`. |
+| Performance, corpus, and CI applicability | CONSISTENT WITH FINDING | Specs `13`-`15` retain compatible workload, corpus, sanitizer/fuzz, authority, and evidence dependencies apart from M0-R5-001. |
+| Risk and ADR application | CONSISTENT WITH FINDING | Accepted decisions remain intact. M0-R5-001 prevents complete verification of DOD-08 and the R-008/R-201 mitigations. |
 
 ## Required edits
 
-### M0-010 — carried — the renderer RSS limit is absent from its security inventory row
+### M0-R5-001 — new-in-rework — advisory report and log over-limits have no terminal job state
 
-**Locations:** spec `12` lines 63, 177-184, 246, and 287; spec `16` lines
-175-176, 190-195, and 546.
+**Edit that introduced it:** The CI-FAIL-007 rewrite narrowed the previous
+`CI_EVIDENCE_LIMIT`/`failed` rule from every numeric evidence/log/bundle excess
+to excesses "in a blocking job," then restored an advisory outcome only for
+the 64-MiB bundle.
 
-**Finding:** Spec `12` now makes a 16-MiB peak-RSS ceiling normative in both
-collection and render stages and assigns render excess to `CLI_RENDER_ERROR`.
-`SEC-LIM-12-01` records 16 MiB only for embedded/input collection.
-`SEC-LIM-12-02`, the result/error-output row, records the 256-KiB document and
-10-second render bounds but omits the 16-MiB render ceiling. Yet SEC-TEST-007
-requires every owner operation to have a byte-identical memory number, exact
-error, and owner test. The finite inventory therefore cannot reconcile the
-render RSS case it claims to test.
+**Locations:** spec `13` lines 65, 70, 155-183, 279, and 328-329; spec `16`
+lines 178-179 and 614.
 
-**Required edit:** Add the existing 16-MiB render-stage peak-RSS ceiling to
-`SEC-LIM-12-02`, retain `CLI_RENDER_ERROR`/exit 4 and the existing cleanup, and
-name CLI-TEST-010's exact-16-MiB and 16-MiB-plus-one-byte render fixtures in the
-row. Do not change the numeric limit or owner behavior.
+**Finding:** CI-FR-006 says an advisory benchmark's schema or tool failure
+blocks that functional job even though its measured delta cannot block the M0
+gate. Section 6.3 requires `M0-CI-GATE-v1` to carry terminal states and defines
+first-over handling for an 8-MiB typed report and a 32-MiB retained log.
+CI-FAIL-007 now assigns `CI_EVIDENCE_LIMIT`/`failed` to those cases only when
+the job is blocking; its only advisory rule is the distinct 64-MiB bundle
+exception. CI-TEST-011 has advisory fixtures only for bundles. Consequently an
+advisory report or log at first-over can be represented as `failed`,
+`incomplete`, or an advisory success without violating the changed rows.
+Spec `16` nevertheless claims every applicable operation reconciles to one
+exact error and terminal state, while `SEC-LIM-13-02/-03` and SEC-TEST-007 do
+not select or test those two advisory states.
 
-**Risk:** R-201 and DOD-08; the security readiness matrix can pass while
-omitting an owner-defined resource limit.
+**Required edit:** Preserve the existing 64-MiB advisory-bundle
+`CI_EVIDENCE_LIMIT`/`incomplete` exception. In CI-FAIL-007, state that the
+previous `CI_EVIDENCE_LIMIT`/`failed` outcome continues for typed-report and
+retained-log first-over regardless of blocking/advisory authority; do not make
+a measured benchmark delta blocking. Add advisory 8-MiB report and 32-MiB log
+exact-bound/first-over cases to CI-TEST-011 with that exact state. Mirror those
+owner outcomes and fixtures in `SEC-LIM-13-02/-03` and SEC-TEST-007 so the
+finite reconciliation has one state per operation. Do not change any numeric
+limit, provider-timeout state, or bundle state.
 
-### M0-R4-001 — new-in-rework — CI assigns two terminal states to an advisory bundle over-limit
-
-**Edit that introduced it:** The CI-FAIL-007 rewrite that assigns terminal
-state `failed` to every numeric evidence/log/bundle excess while fixing the
-provider-timeout state.
-
-**Locations:** spec `13` lines 166-183, 279, and 329; spec `16` lines 179 and
-546.
-
-**Finding:** Section 6.3 says a per-job evidence bundle above 64 MiB makes a
-blocking job fail but makes an advisory job `incomplete`. CI-FAIL-007 now says
-any numeric evidence/log/bundle excess has code `CI_EVIDENCE_LIMIT` and job
-state `failed`. CI-TEST-011 says only that evidence over-limits follow their
-exact table rule, while SEC-TEST-007 requires exact terminal-state
-reconciliation. An advisory bundle first-over fixture therefore has two
-normative expected states.
-
-**Required edit:** Narrow CI-FAIL-007's unconditional `failed` state to the
-cases already defined as failed, including the known provider timeout and
-blocking evidence limits. Preserve Section 6.3's existing advisory-bundle
-`incomplete` outcome and state that exact outcome in CI-TEST-011 and the
-SEC-LIM-13-03 reconciliation text/fixture. Keep `CI_EVIDENCE_LIMIT` and the
-numeric limits unchanged.
-
-**Risk:** R-008, R-201, and DOD-08; CI, the gate aggregator, and security
-reconciliation can disagree on the same typed evidence record.
-
-### M0-R4-002 — new-in-rework — scanning canonical JSON does not define a scan of the raw metadata strings
-
-**Edit that introduced it:** The new `M0-SECRET-SCAN-METADATA-v1` document and
-the rule that it is scanned as one ordinary population byte source.
-
-**Locations:** spec `16` lines 218-234, 267-270, 355-374, and 541.
-
-**Finding:** SEC-FR-002 requires every raw `logical_path` and
-`source_identity` string to be scanned. The new contract instead serializes
-those values into canonical JSON and scans that document as an ordinary byte
-stream. Canonical JSON escapes quotes, backslashes, and control characters, so
-the scanner is not necessarily presented with the original UTF-8 value bytes.
-The test matrix has filename/source-identity canaries but no escaping mutation
-and does not select a semantic decoded-field scan. Consequently an accepted
-implementation can scan only escaped JSON bytes while claiming that every raw
-string was inspected.
-
-**Required edit:** Define one exact byte-preserving scan input for each decoded
-metadata value (for example, scan the decoded UTF-8 field bytes under a
-length-delimited field contract bound to the canonical metadata digest) and
-state how its results reconcile to the metadata row. Add filename and
-`source_identity` fixtures containing quote, backslash, and escaped control/LF
-boundaries; the detector must receive the original value bytes and produce the
-existing secret outcome. Preserve the canonical metadata document, digest,
-population, and final-pair exclusion rules.
-
-**Risk:** R-005 and R-202; the new proof can say raw names were scanned when
-only a transformed serialization was examined.
-
-### M0-R4-003 — new-in-rework — metadata-only findings cannot identify the offending tuple or field
-
-**Edit that introduced it:** The new metadata-only canary flow combined with
-the rewritten digest-only `M0-SECRET-SCAN-REPORT-v1` finding schema.
-
-**Locations:** spec `16` lines 221-230, 333-344, 372-374, 489-502, and 541.
-
-**Finding:** A secret occurring only in an original filename or
-`source_identity` is detected inside the single metadata document. Its report
-row contains the metadata document's `logical_path_sha256` and content digest,
-not a digest locator for the original metadata tuple or an enum identifying
-`logical_path` versus `source_identity`. Multiple metadata-only findings can
-therefore have the same report identity after redaction, and the prescribed
-recovery cannot tell the owner which source name must be removed or reviewed.
-The interface is concrete but does not carry enough information to verify the
-eight metadata-only canaries independently or execute SEC-FAIL-001 recovery.
-
-**Required edit:** Extend the existing finding contract for a metadata-origin
-finding with a deterministic non-secret locator for the original tuple and an
-exact field enum (`logical_path` or `source_identity`); define its derivation
-from the scanned metadata and its one-to-one manifest mapping. Add a fixture
-with the same rule/canary in two different metadata rows and prove distinct
-locators, exact counts, no raw name/secret in the final pair, and actionable
-recovery. Do not restore raw path/source values to the excluded pair.
-
-**Risk:** R-202 and DOD-08; a gate can detect a secret but cannot attribute or
-remediate it from the retained bounded evidence.
+**Risk:** R-008, R-201, and DOD-08; the producer, gate aggregator, and security
+readiness matrix can classify the same advisory evidence-limit event
+differently or accept incomplete evidence.
 
 ## Open questions
 
-None. These are exactness, consistency, and recovery defects within accepted
-M0 scope; they do not require a product or policy choice.
+None. The required correction restores an already-defined non-bundle resource
+outcome and does not require a product, authority, or policy choice.
 
 ## Verdict
 
 `needs_work`
 
-M0 cannot be marked READY until carried finding M0-010 and new-in-rework
-findings M0-R4-001 through M0-R4-003 are resolved. M1-M11 specs are not needed
-before planning this M0-only factory wave, so `more_phases` is false.
+M0 cannot be marked READY until new-in-rework finding M0-R5-001 is resolved.
+M1-M11 specs are not needed before planning this M0-only factory wave, so
+`more_phases` is false.
