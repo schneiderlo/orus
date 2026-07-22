@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "10_verifier",
+  "current_step": "08_bundle_author",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -84,8 +84,8 @@
       "last_result_path": ".factory/results/07_plan_generator/r2/result.json"
     },
     "08_bundle_author": {
-      "status": "done",
-      "attempts": 1,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "bundle_ready",
         "summary": "Selected the first ready task, M0-001, produced its auditable A3 and verification bundle, registered all 11 runnable and 2 manual checks in execution order, and advanced the task through PLANNING to PLANNED.",
@@ -172,14 +172,14 @@
       "last_result_path": ".factory/results/09_implementer/r2/result.json"
     },
     "10_verifier": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "last_result": {
-        "verdict": "fail",
-        "summary": "M0-001 is BLOCKED despite green run run-20260722T115238Z: c-12 and c-13 pass and the rework closes inventory and coverage omissions, but c-09 still does not enforce admitted-only, whole-profile time/aggregate-byte limits before real Nix-store promotion; its first-over and unadmitted evidence remains a pure decision simulation.",
+        "verdict": "pass",
+        "summary": "M0-001 is DONE: authoritative run run-20260722T135616Z passed all registered machine checks, manual checks c-12 and c-13 passed, the 70% package coverage gate is satisfied, and no healing or scope blocker remains.",
         "task_ref": "M0-001",
-        "report_path": ".agents/M0-001/verification-report-r1.md",
-        "check_run": "run-20260722T115238Z"
+        "report_path": ".agents/M0-001/verification-report-r2.md",
+        "check_run": "run-20260722T135616Z"
       },
       "last_result_path": ".factory/results/10_verifier/r1/result.json"
     },
@@ -1037,6 +1037,36 @@
       "step": "11_rework",
       "event": "commit_scheduled",
       "detail": "20260722T135021Z_11_rework_r1"
+    },
+    {
+      "ts": "2026-07-22T13:50:21Z",
+      "step": "10_verifier",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T13:53:36Z",
+      "step": "10_verifier",
+      "event": "check_run",
+      "detail": "M0-001 run-20260722T135021Z red"
+    },
+    {
+      "ts": "2026-07-22T14:04:20Z",
+      "step": "10_verifier",
+      "event": "attempt_finished",
+      "detail": "r1 in 10m44s (199295 tokens)"
+    },
+    {
+      "ts": "2026-07-22T14:04:20Z",
+      "step": "10_verifier",
+      "event": "transition",
+      "detail": "-> 08_bundle_author"
+    },
+    {
+      "ts": "2026-07-22T14:04:20Z",
+      "step": "10_verifier",
+      "event": "commit_scheduled",
+      "detail": "20260722T140420Z_10_verifier_r1"
     }
   ],
   "metrics": [
@@ -1263,6 +1293,14 @@
       "ts": "2026-07-22T13:50:20Z",
       "duration_s": 1647.3,
       "tokens": 224203
+    },
+    {
+      "step": "10_verifier",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-22T14:04:20Z",
+      "duration_s": 644.2,
+      "tokens": 199295
     }
   ]
 }
