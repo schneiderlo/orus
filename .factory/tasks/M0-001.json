@@ -1,7 +1,7 @@
 {
   "id": "M0-001",
   "unit": "Hermetic Build, Toolchain, and Test Skeleton",
-  "status": "IMPLEMENTED",
+  "status": "BLOCKED",
   "depends_on": [],
   "parallel_with": [],
   "shared_surface": "Root Nix/Bzlmod/Bazel locks and configuration, toolchains, and dependency ADR; M0-001 owns these shared roots until DONE.",
@@ -10,7 +10,7 @@
   "verify": "nix flake check && nix develop --command bazel test --config=dev //tests/build/... && nix develop --command bazel test --config=gcc //tests/build/...",
   "healing_tasks": [],
   "created_at": "2026-07-22T02:13:05Z",
-  "updated_at": "2026-07-22T11:18:44Z",
+  "updated_at": "2026-07-22T11:28:55Z",
   "history": [
     {
       "ts": "2026-07-22T02:13:05Z",
@@ -52,6 +52,18 @@
     {
       "ts": "2026-07-22T11:18:44Z",
       "status": "IMPLEMENTED",
+      "by": "agent",
+      "note": ""
+    },
+    {
+      "ts": "2026-07-22T11:20:07Z",
+      "status": "CHECKING",
+      "by": "agent",
+      "note": ""
+    },
+    {
+      "ts": "2026-07-22T11:28:55Z",
+      "status": "BLOCKED",
       "by": "agent",
       "note": ""
     }

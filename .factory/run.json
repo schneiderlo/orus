@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "10_verifier",
+  "current_step": "11_rework",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -172,6 +172,18 @@
       "last_result_path": ".factory/results/09_implementer/r2/result.json"
     },
     "10_verifier": {
+      "status": "done",
+      "attempts": 1,
+      "last_result": {
+        "verdict": "fail",
+        "summary": "M0-001 is BLOCKED despite authoritative green run run-20260722T112100Z: the resolved/fetched Bzlmod population is not fully inventoried or admitted and the named acquisition boundary is simulated rather than enforced; the 70% coverage gate also omits task-owned logic and cannot detect missing source/package coverage.",
+        "task_ref": "M0-001",
+        "report_path": ".agents/M0-001/verification-report.md",
+        "check_run": "run-20260722T112100Z"
+      },
+      "last_result_path": ".factory/results/10_verifier/r1/result.json"
+    },
+    "11_rework": {
       "status": "pending",
       "attempts": 0
     }
@@ -890,6 +902,36 @@
       "step": "09_implementer",
       "event": "commit_scheduled",
       "detail": "20260722T111936Z_09_implementer_r2"
+    },
+    {
+      "ts": "2026-07-22T11:19:36Z",
+      "step": "10_verifier",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T11:19:36Z",
+      "step": "10_verifier",
+      "event": "check_run",
+      "detail": "M0-001 run-20260722T111936Z red"
+    },
+    {
+      "ts": "2026-07-22T11:29:18Z",
+      "step": "10_verifier",
+      "event": "attempt_finished",
+      "detail": "r1 in 9m42s (193275 tokens)"
+    },
+    {
+      "ts": "2026-07-22T11:29:18Z",
+      "step": "10_verifier",
+      "event": "transition",
+      "detail": "-> 11_rework"
+    },
+    {
+      "ts": "2026-07-22T11:29:18Z",
+      "step": "10_verifier",
+      "event": "commit_scheduled",
+      "detail": "20260722T112918Z_10_verifier_r1"
     }
   ],
   "metrics": [
@@ -1084,6 +1126,23 @@
       "ts": "2026-07-22T11:19:36Z",
       "duration_s": 1475.1,
       "tokens": 334838
+    },
+    {
+      "step": "10_verifier",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-22T11:29:18Z",
+      "duration_s": 581.8,
+      "tokens": 193275
     }
-  ]
+  ],
+  "step_context": {
+    "11_rework": {
+      "source_step": "10_verifier",
+      "created_at": "2026-07-22T11:29:18Z",
+      "task_ref": "M0-001",
+      "report_path": ".agents/M0-001/verification-report.md",
+      "instruction": "The verifier failed task `M0-001`. Rework ONLY `M0-001`. Use `.agents/M0-001/verification-report.md` as the authoritative verification report. Fix only the verifier-reported blockers for this routed task; do not select a different blocked task from table order while this context is present."
+    }
+  }
 }

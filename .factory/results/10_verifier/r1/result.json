@@ -1,0 +1,7 @@
+{
+  "verdict": "fail",
+  "summary": "M0-001 is BLOCKED despite authoritative green run run-20260722T112100Z: the resolved/fetched Bzlmod population is not fully inventoried or admitted and the named acquisition boundary is simulated rather than enforced; the 70% coverage gate also omits task-owned logic and cannot detect missing source/package coverage.",
+  "task_ref": "M0-001",
+  "report_path": ".agents/M0-001/verification-report.md",
+  "check_run": "run-20260722T112100Z"
+}
