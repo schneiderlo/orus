@@ -1,0 +1,22 @@
+{
+  "verdict": "reworked",
+  "summary": "Reworked only M0-002 against verification-report-r1: governance bundles now resolve canonical referenced bytes and exact subjects/cross-links, performance comparison conditionals and precedence are literal, governance errors and all seven shared resource rows match the frozen contracts, and LCOV is bound to the exact source revision/snapshot and report digest. Implementation commits 8679339 and 14eeed8 are recorded in handoff-r2.md; full registered run run-20260722T182133Z is green, package coverage remains at or above 70%, and M0-002 is IMPLEMENTED for independent re-verification.",
+  "task_ref": "M0-002",
+  "artifacts": [
+    ".agents/M0-002/handoff-r2.md",
+    ".agents/M0-002/verification.md",
+    ".factory/checks/M0-002/c-05.json",
+    ".factory/checks/M0-002/runs/run-20260722T180203Z.json",
+    ".factory/checks/M0-002/runs/run-20260722T182133Z.json",
+    ".factory/logs/checks/M0-002/run-20260722T180203Z/",
+    ".factory/logs/checks/M0-002/run-20260722T182133Z/",
+    ".factory/run.json",
+    ".factory/tasks/M0-002.json",
+    "IMPLEMENTATION_PLAN.md",
+    "contracts/evidence_contracts.cc",
+    "contracts/include/orus/contracts/contracts.h",
+    "tests/build/contract_test.py",
+    "tests/contracts/evidence_test.cc",
+    "tools/coverage/package_gate.py"
+  ]
+}

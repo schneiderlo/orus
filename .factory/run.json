@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "11_rework",
+  "current_step": "10_verifier",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -170,8 +170,8 @@
       "last_result_path": ".factory/results/09_implementer/r2/result.json"
     },
     "10_verifier": {
-      "status": "done",
-      "attempts": 1,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "fail",
         "summary": "M0-002 is BLOCKED: registered run run-20260722T172410Z is GREEN and c-07 passes, but c-06 fails because governance references are not byte/subject-bound, performance comparison relationships are incomplete, exact governance error/resource-row contracts drift, and coverage freshness is not source-revision-bound.",
@@ -182,48 +182,31 @@
       "last_result_path": ".factory/results/10_verifier/r1/result.json"
     },
     "11_rework": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "last_result": {
         "verdict": "reworked",
-        "summary": "Reworked only M0-002 against the authoritative verifier report: production validators now observe RSS/deadlines, build facts come from declared Bazel status/settings, performance and corpus cross-document relationships reconcile exact bytes and derived values, schema/DAG limits are literal and pre-parse where schema-specific, fuzz runs with ASan+UBSan plus fail-closed simulations, and coverage rejects stale reports. The full registered suite is green in run-20260722T171208Z, the blocker-to-fix audit is retained in handoff-r1.md, and M0-002 is IMPLEMENTED for independent re-verification.",
+        "summary": "Reworked only M0-002 against verification-report-r1: governance bundles now resolve canonical referenced bytes and exact subjects/cross-links, performance comparison conditionals and precedence are literal, governance errors and all seven shared resource rows match the frozen contracts, and LCOV is bound to the exact source revision/snapshot and report digest. Implementation commits 8679339 and 14eeed8 are recorded in handoff-r2.md; full registered run run-20260722T182133Z is green, package coverage remains at or above 70%, and M0-002 is IMPLEMENTED for independent re-verification.",
         "task_ref": "M0-002",
         "artifacts": [
-          ".agents/M0-002/handoff-r1.md",
+          ".agents/M0-002/handoff-r2.md",
           ".agents/M0-002/verification.md",
-          ".bazelrc",
-          ".factory/checks/M0-002/c-01.json",
-          ".factory/checks/M0-002/runs/run-20260722T162639Z.json",
-          ".factory/checks/M0-002/runs/run-20260722T163837Z.json",
-          ".factory/checks/M0-002/runs/run-20260722T171208Z.json",
-          ".factory/logs/checks/M0-002/run-20260722T171208Z/",
-          ".factory/results/11_rework/r1/result.json (deleted)",
-          ".factory/results/11_rework/r3/result.json",
+          ".factory/checks/M0-002/c-05.json",
+          ".factory/checks/M0-002/runs/run-20260722T180203Z.json",
+          ".factory/checks/M0-002/runs/run-20260722T182133Z.json",
+          ".factory/logs/checks/M0-002/run-20260722T180203Z/",
+          ".factory/logs/checks/M0-002/run-20260722T182133Z/",
           ".factory/run.json",
           ".factory/tasks/M0-002.json",
           "IMPLEMENTATION_PLAN.md",
-          "contracts/BUILD.bazel",
-          "contracts/build_contracts.cc",
-          "contracts/canonical_json.cc",
-          "contracts/crypto_resource.cc",
           "contracts/evidence_contracts.cc",
           "contracts/include/orus/contracts/contracts.h",
-          "contracts/resource_monitor.h",
           "tests/build/contract_test.py",
-          "tests/contracts/BUILD.bazel",
-          "tests/contracts/boundary_test.py",
-          "tests/contracts/build_test.cc",
-          "tests/contracts/canonical_test.cc",
           "tests/contracts/evidence_test.cc",
-          "tests/fuzz/BUILD.bazel",
-          "tests/fuzz/fuzz_smoke_verifier.py",
-          "tools/build/build_facts.bzl",
-          "tools/build/workspace_status.sh",
           "tools/coverage/package_gate.py"
-        ],
-        "open_questions": []
+        ]
       },
-      "last_result_path": ".factory/results/11_rework/r3/result.json"
+      "last_result_path": ".factory/results/11_rework/r1/result.json"
     }
   },
   "history": [
@@ -1246,6 +1229,30 @@
       "step": "10_verifier",
       "event": "commit_scheduled",
       "detail": "20260722T174359Z_10_verifier_r1"
+    },
+    {
+      "ts": "2026-07-22T17:43:59Z",
+      "step": "11_rework",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T18:38:42Z",
+      "step": "11_rework",
+      "event": "attempt_finished",
+      "detail": "r1 in 54m42s (403252 tokens)"
+    },
+    {
+      "ts": "2026-07-22T18:38:42Z",
+      "step": "11_rework",
+      "event": "transition",
+      "detail": "-> 10_verifier"
+    },
+    {
+      "ts": "2026-07-22T18:38:43Z",
+      "step": "11_rework",
+      "event": "commit_scheduled",
+      "detail": "20260722T183843Z_11_rework_r1"
     }
   ],
   "metrics": [
@@ -1520,15 +1527,14 @@
       "ts": "2026-07-22T17:43:59Z",
       "duration_s": 713.6,
       "tokens": 372231
+    },
+    {
+      "step": "11_rework",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-22T18:38:41Z",
+      "duration_s": 3281.9,
+      "tokens": 403252
     }
-  ],
-  "step_context": {
-    "11_rework": {
-      "source_step": "10_verifier",
-      "created_at": "2026-07-22T17:43:59Z",
-      "task_ref": "M0-002",
-      "report_path": ".agents/M0-002/verification-report-r1.md",
-      "instruction": "The verifier failed task `M0-002`. Rework ONLY `M0-002`. Use `.agents/M0-002/verification-report-r1.md` as the authoritative verification report. Fix only the verifier-reported blockers for this routed task; do not select a different blocked task from table order while this context is present."
-    }
-  }
+  ]
 }
