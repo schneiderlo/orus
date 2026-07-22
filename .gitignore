@@ -1,0 +1,6 @@
+bazel-bin
+bazel-orus
+bazel-out
+bazel-testlogs
+__pycache__/
+*.pyc

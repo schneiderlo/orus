@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${ORUS_GCC:?ORUS_GCC must name the pinned Nix GCC executable}"
+: "${ORUS_GCC_LIB:?ORUS_GCC_LIB must name the pinned Nix libstdc++ output}"
+
+case "${ORUS_GCC}" in
+  /nix/store/*/bin/gcc) ;;
+  *) printf '%s\n' 'BUILD_CONFIG_INVALID: ORUS_GCC is not a Nix-store GCC' >&2; exit 78 ;;
+esac
+
+case "${ORUS_GCC_LIB}" in
+  /nix/store/*-gcc-*-lib) ;;
+  *) printf '%s\n' 'BUILD_CONFIG_INVALID: ORUS_GCC_LIB is not a Nix-store GCC library' >&2; exit 78 ;;
+esac
+
+linking=1
+for argument in "$@"; do
+  case "${argument}" in
+    -c|-E|-S) linking=0 ;;
+  esac
+done
+
+if [[ "${linking}" -eq 1 ]]; then
+  exec "${ORUS_GCC}" -Wl,-rpath,"${ORUS_GCC_LIB}/lib" "$@"
+fi
+exec "${ORUS_GCC}" "$@"

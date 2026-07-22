@@ -1,0 +1,37 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+load("@rules_python//python:defs.bzl", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_test(
+    name = "toolchain_conformance_test",
+    srcs = ["toolchain_conformance_test.cc"],
+    deps = [
+        "@glaze//:glaze",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+py_test(
+    name = "contract_test",
+    srcs = ["contract_test.py"],
+    data = [
+        "//:build_roots",
+        "//config:contract_data",
+        "//third_party:admissions",
+        "//toolchains:bin/orus-clang",
+        "//toolchains:bin/orus-gcc",
+        "//tools/build:prohibited_path_scan",
+        "//tests/build/fixtures/prohibited:fixtures",
+    ],
+    deps = [
+        "//tools/build:build_contract",
+        "//tools/coverage:package_gate_lib",
+    ],
+)
+
+py_test(
+    name = "network_denial_test",
+    srcs = ["network_denial_test.py"],
+)

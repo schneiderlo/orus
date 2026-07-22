@@ -1,0 +1,44 @@
+module(
+    name = "orus",
+    version = "0.0.0-m0",
+)
+
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_cc", version = "0.2.22")
+bazel_dep(name = "rules_python", version = "2.2.0")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+
+nix_python_repository = use_repo_rule(
+    "//tools/build:nix_repositories.bzl",
+    "nix_python_repository",
+)
+nix_python_repository(
+    name = "orus_nix_python",
+    dev_dependency = True,
+    interpreter_env = "ORUS_PYTHON",
+)
+register_toolchains(
+    "@orus_nix_python//:exec_tools_toolchain",
+    "@orus_nix_python//:toolchain",
+    dev_dependency = True,
+)
+
+nix_source_repository = use_repo_rule(
+    "//tools/build:nix_repositories.bzl",
+    "nix_source_repository",
+)
+nix_source_repository(
+    name = "glaze",
+    kind = "glaze",
+    source_env = "ORUS_GLAZE_SRC",
+)
+nix_source_repository(
+    name = "googletest",
+    kind = "googletest",
+    source_env = "ORUS_GOOGLETEST_SRC",
+)
+nix_source_repository(
+    name = "google_benchmark",
+    kind = "google_benchmark",
+    source_env = "ORUS_BENCHMARK_SRC",
+)

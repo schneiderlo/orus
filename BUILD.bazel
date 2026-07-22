@@ -1,0 +1,24 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    ".bazelrc",
+    ".bazelversion",
+    "BUILD.bazel",
+    "MODULE.bazel",
+    "MODULE.bazel.lock",
+    "flake.lock",
+    "flake.nix",
+])
+
+filegroup(
+    name = "build_roots",
+    srcs = [
+        ".bazelrc",
+        ".bazelversion",
+        "BUILD.bazel",
+        "MODULE.bazel",
+        "MODULE.bazel.lock",
+        "flake.lock",
+        "flake.nix",
+    ],
+)

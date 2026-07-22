@@ -1,0 +1,22 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "build_contract",
+    srcs = ["build_contract.py"],
+)
+
+py_binary(
+    name = "hermeticity_audit",
+    srcs = ["hermeticity_audit.py"],
+    deps = [":build_contract"],
+)
+
+py_binary(
+    name = "prohibited_path_scan",
+    srcs = ["prohibited_path_scan.py"],
+    deps = [":build_contract"],
+)
+
+exports_files(["nix_repositories.bzl"])

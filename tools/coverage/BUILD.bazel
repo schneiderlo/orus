@@ -1,0 +1,14 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_library")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "package_gate_lib",
+    srcs = ["package_gate.py"],
+)
+
+py_binary(
+    name = "package_gate",
+    srcs = ["package_gate.py"],
+    data = ["packages.json"],
+)

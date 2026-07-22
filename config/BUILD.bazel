@@ -1,0 +1,12 @@
+package(default_visibility = ["//visibility:public"])
+
+filegroup(
+    name = "contract_data",
+    srcs = [
+        "build-applicability.json",
+        "dependency-inventory.json",
+        "input-acquisition.json",
+        "m0-reference-environment.json",
+        "wrapper-map.json",
+    ],
+)

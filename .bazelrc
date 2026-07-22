@@ -1,0 +1,96 @@
+common --enable_bzlmod
+common --incompatible_default_to_explicit_init_py
+common --announce_rc
+common --color=no
+common --curses=no
+common --show_progress_rate_limit=5
+common --repo_env=PATH
+common --repo_env=ORUS_GLAZE_SRC
+common --repo_env=ORUS_GOOGLETEST_SRC
+common --repo_env=ORUS_BENCHMARK_SRC
+common --repo_env=ORUS_PYTHON
+
+build --incompatible_strict_action_env
+build --spawn_strategy=sandboxed
+build --strategy=Genrule=sandboxed
+build --sandbox_default_allow_network=false
+build --action_env=PATH
+build --action_env=LANG
+build --action_env=LC_ALL
+build --action_env=SOURCE_DATE_EPOCH
+build --action_env=ORUS_BAZEL
+build --action_env=ORUS_CLANG
+build --action_env=ORUS_CLANGXX
+build --action_env=ORUS_GCC
+build --action_env=ORUS_GCC_LIB
+build --action_env=ORUS_GXX
+build --action_env=ORUS_LLD
+build --action_env=ORUS_LLVM
+build --action_env=ORUS_PYTHON
+build --action_env=ORUS_OPENSSL
+build --action_env=ORUS_OPENSSL_DEV
+build --action_env=ORUS_UTF8PROC
+build --action_env=ORUS_NETWORK_ALLOWED
+build --cxxopt=-std=c++23
+build --host_cxxopt=-std=c++23
+build --features=layering_check
+
+test --test_output=errors
+test --test_env=LANG
+test --test_env=LC_ALL
+test --test_env=SOURCE_DATE_EPOCH
+test --test_env=ORUS_BAZEL
+test --test_env=ORUS_CLANG
+test --test_env=ORUS_CLANGXX
+test --test_env=ORUS_GCC
+test --test_env=ORUS_GCC_LIB
+test --test_env=ORUS_GXX
+test --test_env=ORUS_LLD
+test --test_env=ORUS_LLVM
+test --test_env=ORUS_PYTHON
+test --test_env=ORUS_OPENSSL
+test --test_env=ORUS_OPENSSL_DEV
+test --test_env=ORUS_UTF8PROC
+test --test_env=ORUS_NETWORK_ALLOWED
+
+common:dev --repo_env=CC=orus-clang
+build:dev --compilation_mode=dbg
+build:dev --copt=-DORUS_EXPECT_CLANG=1
+build:dev --cxxopt=-DORUS_EXPECT_CLANG=1
+coverage:dev --instrumentation_filter=^//tools/build[/:]
+
+common:release --repo_env=CC=orus-clang
+build:release --compilation_mode=opt
+build:release --copt=-DORUS_EXPECT_CLANG=1
+build:release --cxxopt=-DORUS_EXPECT_CLANG=1
+build:release --strip=never
+
+common:gcc --repo_env=CC=orus-gcc
+build:gcc --compilation_mode=dbg
+build:gcc --copt=-DORUS_EXPECT_GCC=1
+build:gcc --cxxopt=-DORUS_EXPECT_GCC=1
+
+build:asan --config=dev
+build:asan --copt=-fsanitize=address
+build:asan --copt=-fno-omit-frame-pointer
+build:asan --linkopt=-fsanitize=address
+test:asan --test_env=ASAN_OPTIONS=detect_leaks=1:halt_on_error=1
+
+build:ubsan --config=dev
+build:ubsan --copt=-fsanitize=undefined
+build:ubsan --copt=-fno-sanitize-recover=all
+build:ubsan --linkopt=-fsanitize=undefined
+test:ubsan --test_env=UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
+
+build:tsan --config=dev
+build:tsan --copt=-fsanitize=thread
+build:tsan --linkopt=-fsanitize=thread
+test:tsan --test_env=TSAN_OPTIONS=halt_on_error=1
+
+build:fuzz --config=dev
+build:fuzz --copt=-fsanitize=fuzzer-no-link,address
+build:fuzz --linkopt=-fsanitize=fuzzer,address
+
+build:benchmark --config=release
+test:benchmark --test_arg=--benchmark_min_time=0.001s
+test:benchmark --test_arg=--benchmark_repetitions=1

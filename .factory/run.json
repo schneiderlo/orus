@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "09_implementer",
+  "current_step": "10_verifier",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -99,6 +99,79 @@
       "last_result_path": ".factory/results/08_bundle_author/r1/result.json"
     },
     "09_implementer": {
+      "status": "done",
+      "attempts": 2,
+      "last_result": {
+        "verdict": "implemented",
+        "summary": "Implemented M0-001's pinned Nix/Bazel build substrate, exact dependency and reference-environment contracts, fail-closed Clang/LLD and GCC configurations, network-denied action boundary, build/benchmark/format/coverage skeletons, and automated positive/negative contract tests. Final Factory check run run-20260722T111448Z is green for all eleven runnable checks; the task is IMPLEMENTED and handed off for independent c-12/c-13 review and acceptance.",
+        "task_ref": "M0-001",
+        "artifacts": [
+          ".agents/M0-001/handoff.md",
+          ".bazelrc",
+          ".bazelversion",
+          ".gitignore",
+          "BUILD.bazel",
+          "MODULE.bazel",
+          "MODULE.bazel.lock",
+          "flake.nix",
+          "flake.lock",
+          "config/BUILD.bazel",
+          "config/bcr-distdir.json",
+          "config/build-applicability.json",
+          "config/dependency-inventory.json",
+          "config/input-acquisition.json",
+          "config/m0-reference-environment.json",
+          "config/wrapper-map.json",
+          "docs/adr/0001-m0-build-toolchain-and-dependencies.md",
+          "docs/build.md",
+          "tests/benchmarks/BUILD.bazel",
+          "tests/benchmarks/benchmark_smoke_test.cc",
+          "tests/build/BUILD.bazel",
+          "tests/build/contract_test.py",
+          "tests/build/network_denial_test.py",
+          "tests/build/toolchain_conformance_test.cc",
+          "tests/build/fixtures/prohibited/BUILD.bazel",
+          "tests/build/fixtures/prohibited/CMakeLists.txt",
+          "tests/build/fixtures/prohibited/CMakePresets.json",
+          "tests/build/fixtures/prohibited/docs/alternate-build.md",
+          "third_party/BUILD.bazel",
+          "third_party/bootstrap-admissions.json",
+          "toolchains/BUILD.bazel",
+          "toolchains/bin/orus-clang",
+          "toolchains/bin/orus-gcc",
+          "tools/BUILD.bazel",
+          "tools/format.py",
+          "tools/build/BUILD.bazel",
+          "tools/build/__init__.py",
+          "tools/build/build_contract.py",
+          "tools/build/hermeticity_audit.py",
+          "tools/build/nix_repositories.bzl",
+          "tools/build/prohibited_path_scan.py",
+          "tools/coverage/BUILD.bazel",
+          "tools/coverage/__init__.py",
+          "tools/coverage/package_gate.py",
+          "tools/coverage/packages.json"
+        ],
+        "commands_run": [
+          "nix flake check",
+          "nix develop --command bazel mod graph",
+          "nix develop --command bazel build --config=release //...",
+          "nix develop --command bazel test --config=dev //tests/build/...",
+          "nix develop --command bazel test --config=gcc //tests/build/...",
+          "nix develop --command bazel test --test_output=errors --config=asan //tests/build/...",
+          "nix develop --command bazel test --test_output=errors --config=ubsan //tests/build/...",
+          "nix develop --command bazel test --test_output=errors --config=benchmark //tests/benchmarks/...",
+          "nix develop --command bazel run //tools/build:hermeticity_audit",
+          "nix develop --command bazel run //tools/build:prohibited_path_scan",
+          "nix develop --command bazel run //tools:format",
+          "nix develop --command bazel coverage --config=dev --combined_report=lcov //tests/build/... && nix develop --command bazel run //tools/coverage:package_gate -- --threshold=70",
+          "uv run --no-project /home/lschneid/workspace/schneiderlo/factory/factory.py check run M0-001",
+          "uv run --no-project /home/lschneid/workspace/schneiderlo/factory/factory.py task status M0-001 IMPLEMENTED"
+        ]
+      },
+      "last_result_path": ".factory/results/09_implementer/r2/result.json"
+    },
+    "10_verifier": {
       "status": "pending",
       "attempts": 0
     }
@@ -781,6 +854,42 @@
       "step": "08_bundle_author",
       "event": "commit_scheduled",
       "detail": "20260722T023052Z_08_bundle_author_r1"
+    },
+    {
+      "ts": "2026-07-22T02:30:52Z",
+      "step": "09_implementer",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T03:30:53Z",
+      "step": "09_implementer",
+      "event": "attempt_failed",
+      "detail": "executor 'codex' timed out after 3600s on 09_implementer (see /home/lschneid/workspace/schneiderlo/orus/.factory/logs/09_implementer-r1.stderr.log)"
+    },
+    {
+      "ts": "2026-07-22T10:55:01Z",
+      "step": "09_implementer",
+      "event": "attempt_started",
+      "detail": "r2 via codex"
+    },
+    {
+      "ts": "2026-07-22T11:19:36Z",
+      "step": "09_implementer",
+      "event": "attempt_finished",
+      "detail": "r2 in 24m35s (334838 tokens)"
+    },
+    {
+      "ts": "2026-07-22T11:19:36Z",
+      "step": "09_implementer",
+      "event": "transition",
+      "detail": "-> 10_verifier"
+    },
+    {
+      "ts": "2026-07-22T11:19:36Z",
+      "step": "09_implementer",
+      "event": "commit_scheduled",
+      "detail": "20260722T111936Z_09_implementer_r2"
     }
   ],
   "metrics": [
@@ -967,6 +1076,14 @@
       "ts": "2026-07-22T02:30:52Z",
       "duration_s": 620.9,
       "tokens": 245837
+    },
+    {
+      "step": "09_implementer",
+      "attempt": 2,
+      "executor": "codex",
+      "ts": "2026-07-22T11:19:36Z",
+      "duration_s": 1475.1,
+      "tokens": 334838
     }
   ]
 }

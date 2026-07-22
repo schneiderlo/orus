@@ -1,0 +1,10 @@
+load("@rules_cc//cc:defs.bzl", "cc_test")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_test(
+    name = "benchmark_smoke_test",
+    srcs = ["benchmark_smoke_test.cc"],
+    tags = ["benchmark_smoke", "advisory_only"],
+    deps = ["@google_benchmark//:benchmark_main"],
+)

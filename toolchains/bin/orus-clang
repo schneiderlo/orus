@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${ORUS_CLANG:?ORUS_CLANG must name the pinned Nix Clang executable}"
+: "${ORUS_GCC_LIB:?ORUS_GCC_LIB must name the pinned Nix libstdc++ output}"
+: "${ORUS_LLD:?ORUS_LLD must name the pinned Nix LLD executable}"
+
+case "${ORUS_CLANG}" in
+  /nix/store/*/bin/clang) ;;
+  *) printf '%s\n' 'BUILD_CONFIG_INVALID: ORUS_CLANG is not a Nix-store Clang' >&2; exit 78 ;;
+esac
+
+case "${ORUS_LLD}" in
+  /nix/store/*/bin/ld.lld) ;;
+  *) printf '%s\n' 'BUILD_CONFIG_INVALID: ORUS_LLD is not a Nix-store LLD' >&2; exit 78 ;;
+esac
+
+case "${ORUS_GCC_LIB}" in
+  /nix/store/*-gcc-*-lib) ;;
+  *) printf '%s\n' 'BUILD_CONFIG_INVALID: ORUS_GCC_LIB is not a Nix-store GCC library' >&2; exit 78 ;;
+esac
+
+linking=1
+for argument in "$@"; do
+  case "${argument}" in
+    -c|-E|-S) linking=0 ;;
+  esac
+done
+
+if [[ "${linking}" -eq 1 ]]; then
+  exec "${ORUS_CLANG}" -fuse-ld="${ORUS_LLD}" -Wl,-rpath,"${ORUS_GCC_LIB}/lib" "$@"
+fi
+exec "${ORUS_CLANG}" "$@"
