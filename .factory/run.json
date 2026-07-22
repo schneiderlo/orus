@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "10_verifier",
+  "current_step": "11_rework",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -170,20 +170,20 @@
       "last_result_path": ".factory/results/09_implementer/r2/result.json"
     },
     "10_verifier": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "last_result": {
-        "verdict": "pass",
-        "summary": "M0-001 is DONE: authoritative run run-20260722T135616Z passed all registered machine checks, manual checks c-12 and c-13 passed, the 70% package coverage gate is satisfied, and no healing or scope blocker remains.",
-        "task_ref": "M0-001",
-        "report_path": ".agents/M0-001/verification-report-r2.md",
-        "check_run": "run-20260722T135616Z"
+        "verdict": "fail",
+        "summary": "M0-002 is BLOCKED: run-20260722T155248Z is green and c-07 passes, but c-06 fails because production resource guards rely on injected counters, build facts are not bound to Bazel inputs, performance raw/result and corpus aggregate/reference relationships are not reconciled, literal limits drift, and required negative fuzz/freshness simulations are absent.",
+        "task_ref": "M0-002",
+        "report_path": ".agents/M0-002/verification-report.md",
+        "check_run": "run-20260722T155248Z"
       },
       "last_result_path": ".factory/results/10_verifier/r1/result.json"
     },
     "11_rework": {
-      "status": "done",
-      "attempts": 1,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "reworked",
         "summary": "Reworked only M0-001 and closed verifier finding F-01. BCR acquisition is now one admitted-manifest-driven fixed-output transaction that preflights the complete 39-coordinate Nix/Bzlmod population, keeps all 26 fetched BCR inputs quarantined under one 4-GiB-per-blob/16-GiB-total/1,200-second budget, verifies raw digests, and promotes one read-only store output only after the full profile succeeds. c-09 now exercises unadmitted, mutable, hash-mismatch, exact, and first-over coordinate/blob/aggregate/time cases through the same promotion state machine and retains non-promotion evidence. Full Factory run run-20260722T134530Z passed c-01 through c-11; M0-001 is IMPLEMENTED for independent re-verification.",
@@ -1125,6 +1125,36 @@
       "step": "09_implementer",
       "event": "commit_scheduled",
       "detail": "20260722T155248Z_09_implementer_r2"
+    },
+    {
+      "ts": "2026-07-22T15:52:48Z",
+      "step": "10_verifier",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T15:56:35Z",
+      "step": "10_verifier",
+      "event": "check_run",
+      "detail": "M0-002 run-20260722T155248Z green"
+    },
+    {
+      "ts": "2026-07-22T16:06:53Z",
+      "step": "10_verifier",
+      "event": "attempt_finished",
+      "detail": "r1 in 10m18s (288058 tokens)"
+    },
+    {
+      "ts": "2026-07-22T16:06:53Z",
+      "step": "10_verifier",
+      "event": "transition",
+      "detail": "-> 11_rework"
+    },
+    {
+      "ts": "2026-07-22T16:06:53Z",
+      "step": "10_verifier",
+      "event": "commit_scheduled",
+      "detail": "20260722T160653Z_10_verifier_r1"
     }
   ],
   "metrics": [
@@ -1375,6 +1405,23 @@
       "ts": "2026-07-22T15:52:48Z",
       "duration_s": 1742.8,
       "tokens": 481151
+    },
+    {
+      "step": "10_verifier",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-22T16:06:53Z",
+      "duration_s": 617.9,
+      "tokens": 288058
     }
-  ]
+  ],
+  "step_context": {
+    "11_rework": {
+      "source_step": "10_verifier",
+      "created_at": "2026-07-22T16:06:53Z",
+      "task_ref": "M0-002",
+      "report_path": ".agents/M0-002/verification-report.md",
+      "instruction": "The verifier failed task `M0-002`. Rework ONLY `M0-002`. Use `.agents/M0-002/verification-report.md` as the authoritative verification report. Fix only the verifier-reported blockers for this routed task; do not select a different blocked task from table order while this context is present."
+    }
+  }
 }
