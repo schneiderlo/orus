@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "10_verifier",
+  "current_step": "11_rework",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -170,20 +170,20 @@
       "last_result_path": ".factory/results/09_implementer/r2/result.json"
     },
     "10_verifier": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "last_result": {
         "verdict": "fail",
-        "summary": "M0-002 is BLOCKED: registered run run-20260722T172410Z is GREEN and c-07 passes, but c-06 fails because governance references are not byte/subject-bound, performance comparison relationships are incomplete, exact governance error/resource-row contracts drift, and coverage freshness is not source-revision-bound.",
+        "summary": "M0-002 is BLOCKED: authoritative run run-20260722T183843Z is GREEN and c-07 passes, but required manual check c-06 fails because the frozen release-evidence approval-time validator accepts impossible calendar dates as UTC RFC3339 seconds and lacks the required negative coverage.",
         "task_ref": "M0-002",
-        "report_path": ".agents/M0-002/verification-report-r1.md",
-        "check_run": "run-20260722T172410Z"
+        "report_path": ".agents/M0-002/verification-report-r2.md",
+        "check_run": "run-20260722T183843Z"
       },
       "last_result_path": ".factory/results/10_verifier/r1/result.json"
     },
     "11_rework": {
-      "status": "done",
-      "attempts": 1,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "reworked",
         "summary": "Reworked only M0-002 against verification-report-r1: governance bundles now resolve canonical referenced bytes and exact subjects/cross-links, performance comparison conditionals and precedence are literal, governance errors and all seven shared resource rows match the frozen contracts, and LCOV is bound to the exact source revision/snapshot and report digest. Implementation commits 8679339 and 14eeed8 are recorded in handoff-r2.md; full registered run run-20260722T182133Z is green, package coverage remains at or above 70%, and M0-002 is IMPLEMENTED for independent re-verification.",
@@ -1253,6 +1253,36 @@
       "step": "11_rework",
       "event": "commit_scheduled",
       "detail": "20260722T183843Z_11_rework_r1"
+    },
+    {
+      "ts": "2026-07-22T18:38:43Z",
+      "step": "10_verifier",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T18:51:33Z",
+      "step": "10_verifier",
+      "event": "check_run",
+      "detail": "M0-002 run-20260722T183843Z green"
+    },
+    {
+      "ts": "2026-07-22T19:02:00Z",
+      "step": "10_verifier",
+      "event": "attempt_finished",
+      "detail": "r1 in 10m27s (389574 tokens)"
+    },
+    {
+      "ts": "2026-07-22T19:02:00Z",
+      "step": "10_verifier",
+      "event": "transition",
+      "detail": "-> 11_rework"
+    },
+    {
+      "ts": "2026-07-22T19:02:00Z",
+      "step": "10_verifier",
+      "event": "commit_scheduled",
+      "detail": "20260722T190200Z_10_verifier_r1"
     }
   ],
   "metrics": [
@@ -1535,6 +1565,23 @@
       "ts": "2026-07-22T18:38:41Z",
       "duration_s": 3281.9,
       "tokens": 403252
+    },
+    {
+      "step": "10_verifier",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-22T19:02:00Z",
+      "duration_s": 626.9,
+      "tokens": 389574
     }
-  ]
+  ],
+  "step_context": {
+    "11_rework": {
+      "source_step": "10_verifier",
+      "created_at": "2026-07-22T19:02:00Z",
+      "task_ref": "M0-002",
+      "report_path": ".agents/M0-002/verification-report-r2.md",
+      "instruction": "The verifier failed task `M0-002`. Rework ONLY `M0-002`. Use `.agents/M0-002/verification-report-r2.md` as the authoritative verification report. Fix only the verifier-reported blockers for this routed task; do not select a different blocked task from table order while this context is present."
+    }
+  }
 }
