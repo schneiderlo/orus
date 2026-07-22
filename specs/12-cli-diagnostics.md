@@ -60,7 +60,7 @@ inventory-to-test reconciliation proving there are no undocumented checks.
 | CLI-FR-007 | M0 commands shall be read-only, local, deterministic for identical facts, and non-privileged. | System-call/file-access test finds no network, process launch, ptrace, privilege change, persistent write, or host repair; repeated runs over identical fixture facts are byte-identical after excluding no fields (M0 output has no current-time field). | CLI-TEST-007 syscall/access-policy and repeatability test. | D-001, C-11. |
 | CLI-FR-008 | Error and successful documents plus compiled CLI strings shall make no future-capability or broad-support claim. | Approved-claims scan finds zero record/replay availability, deterministic-execution, or broad Linux support statement; mismatch output uses `unvalidated`; there is no help document or advertised help operation to scan. | CLI-TEST-008 golden/string-table/claim-scan corpus. | G-07, SM-11, R-004, R-009. |
 | CLI-FR-009 | Unsupported argument combinations shall fail before diagnostic evaluation. | No arguments, `--help`, unknown option/subcommand, `--version` plus another operation, or extra `doctor` operands return the Section 6.3.3 JSON usage error and exit 2, identify at most the first 128 raw token bytes as <=256 lowercase hex characters with explicit truncation, and perform zero host checks. | CLI-TEST-009 argument/document boundary tests. | DOD-08. |
-| CLI-FR-010 | Diagnostic collection shall enforce input/output bounds before allocation or rendering. | Contract/inventory bounds in Section 6 are checked first; input depth over 16, strings over 4 KiB, inventory over 64 rows, duplicate IDs, observed values over 4 KiB, a document that would exceed 256 KiB, process allocation over 16 MiB RSS, or evaluation over 10 seconds produces the exact exit-4 error on stderr with no partial stdout. | CLI-TEST-010 resource-bound, deadline, stream, and malformed-contract tests. | C-09, R-008, R-201 policy precursor. |
+| CLI-FR-010 | Diagnostic collection and rendering shall enforce input/output bounds before unsafe allocation or stream commit. | Input depth over 16, input/observed strings over 4 KiB, inventory over 64 rows, duplicate IDs, collection-stage peak RSS over 16 MiB, or collection/evaluation time over 10 seconds returns exactly `CLI_CONTRACT_INVALID`, exit 4, on stderr. A result predicted to exceed 256 KiB, render-stage peak RSS over 16 MiB, or render/atomic-write time over 10 seconds returns exactly `CLI_RENDER_ERROR`, exit 4, on stderr. Exactly 16 MiB and 10 seconds are permitted in either stage; first-over fixtures use 16 MiB + 1 byte and 10 seconds + 1 nanosecond. Every resource failure leaves stdout empty and emits no partial document. | CLI-TEST-010 exact-bound/first-over collection and rendering resource, stream, and malformed-contract tests. | C-09, R-008, R-201 policy precursor. |
 
 ## 5. Non-Functional Requirements
 
@@ -174,6 +174,15 @@ schema is the mandatory fallback for allocation/renderer failure, so every
 testable invocation still emits exactly one JSON document; CLI-TEST-004 faults
 every renderer step before the atomic write.
 
+Resource-code selection is stage-exact. Input/schema/observation collection,
+including its 16-MiB peak-RSS and 10-second wall-time ceilings, uses
+`CLI_CONTRACT_INVALID`. Predicted output-size, rendering, or atomic-write
+resource excess, including the same process ceilings measured in the render
+stage, uses `CLI_RENDER_ERROR`. `CLI_INTERNAL_ERROR` is never a resource-limit
+outcome. In either resource case `field_path` names the contract root or output
+document, and `limit` is exactly `16777216`, `10000000000`, or `262144` for the
+RSS-byte, wall-time-nanosecond, or output-byte ceiling respectively.
+
 ### 6.4 Design choice: output representation
 
 | Alternative | Pros | Cons |
@@ -218,9 +227,11 @@ codes and do not change result state.
 4. **Cancellation/termination (CLI-FR-007).** The OS terminates the process at
    any point; no child/persistent resource exists; a new invocation starts
    from immutable contracts and recollects facts.
-5. **Malformed/unsupported invocation (CLI-FR-009, CLI-FR-010).** Reject
-   syntax before checks with exit 2, or reject invalid internal schema/bounds
-   before partial rendering with exit 4.
+5. **Malformed/unsupported/resource invocation (CLI-FR-009, CLI-FR-010).**
+   Reject syntax before checks with exit 2. Reject invalid input/schema or a
+   collection RSS/deadline excess as `CLI_CONTRACT_INVALID`; reject predicted
+   output or render RSS/deadline excess as `CLI_RENDER_ERROR`; both resource
+   paths exit 4 before partial stdout.
 
 ## 9. Failure Modes
 
@@ -232,6 +243,7 @@ codes and do not change result state.
 | CLI-FAIL-004 | Invalid argument/combination, including `--help`. | Parse boundary. | Section 6.3.3 `CLI_USAGE_ERROR`; bounded token/truncation; exit 2 on stderr. | No checks or writes; stdout empty. | Use exactly `--version` or `doctor`. | CLI-FR-009 / CLI-TEST-009. |
 | CLI-FAIL-005 | Renderer cannot encode a bounded valid result. | Before stdout commit. | Section 6.3.3 `CLI_RENDER_ERROR`; schema/field cause; exit 4 on stderr. | No partial stdout; temporary memory released on exit. | Internal defect; rebuild after fix. | CLI-FR-004 / CLI-TEST-004. |
 | CLI-FAIL-006 | A compiled CLI string or output/error document contains a prohibited future claim. [R-004] | CI/release claim scan, before publication. | `GOV_UNAPPROVED_CLAIM`; CLI surface and rule. | Release candidate rejected; local binary unchanged. | Correct wording or supersede scope decision. | CLI-FR-008 / CLI-TEST-008. |
+| CLI-FAIL-007 | Collection or rendering exceeds 16 MiB peak RSS or 10 seconds, or predicted output exceeds 256 KiB. [R-201] | Collection guard before observation/allocation, or render guard before atomic stderr/stdout commit. | Collection: exactly `CLI_CONTRACT_INVALID`; output/render: exactly `CLI_RENDER_ERROR`; resource path, limit, observed/requested value, exit 4. | No partial stdout; one bounded stderr error; process-local memory and handles released at exit. | Retry only with bounded valid inputs; internal render pressure requires a fix before release. | CLI-FR-010 / CLI-TEST-010. |
 
 ## 10. Observability
 
@@ -272,7 +284,7 @@ nix develop --command bazel run //tools/governance:claim_scan -- --scope=cli
 | CLI-FR-007, CLI-NFR-005 | CLI-TEST-007 | End-to-end/security/reliability | 100 reference invocations under syscall/file-access observation. | Byte-identical output/status; zero forbidden capability or leaked resource. | `cli-repeatability.json`, access report. |
 | CLI-FR-008, CLI-NFR-003 | CLI-TEST-008 | Static/golden/negative | Compiled strings and output/error corpus plus injected claims; assertion that no help operation is advertised. | Zero real findings/help contract; all prohibited fixtures detected; unknown never pass. | `cli-claims.sarif`. |
 | CLI-FR-009 | CLI-TEST-009 | Boundary/integration | Empty, `--help`, unknown, combined, extra-operand, and overlong/invalid-UTF-8 token invocations. | Exact JSON usage error/exit 2/stderr, token bound/truncation, zero check evaluation. | `cli-argument-boundaries.json`. |
-| CLI-FR-010, CLI-NFR-004 | CLI-TEST-010 | Resource/security | Maximum-valid and exact-over contract/string/row/output fixtures under allocation instrumentation, plus 16-MiB+1 allocation and synthetic 10-second+1-tick evaluation. | Max valid stays within 256 KiB output, 16 MiB RSS, and 10 seconds; each over-limit rejects before excess allocation or partial output. | `cli-resource-limits.json`. |
+| CLI-FR-010, CLI-NFR-004 | CLI-TEST-010 | Resource/security | Maximum-valid contract/string/row/output fixtures; collection and render-stage peak-RSS fixtures at exactly 16 MiB and 16 MiB + 1 byte; collection and render-stage clock fixtures at exactly 10 seconds and 10 seconds + 1 nanosecond; predicted outputs at exactly 256 KiB and 256 KiB + 1 byte. | Exact-bound fixtures complete with the normal operation outcome. Collection first-over RSS/time and every input/schema first-over return exactly `CLI_CONTRACT_INVALID`; render first-over RSS/time and 256-KiB + 1 output return exactly `CLI_RENDER_ERROR`; all exit 4 on stderr before excess allocation or partial stdout. | `cli-resource-limits.json`. |
 
 ## 12. Open Questions
 
