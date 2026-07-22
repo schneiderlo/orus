@@ -181,6 +181,40 @@ std::optional<std::string_view> TopLevelStringMember(
   return std::nullopt;
 }
 
+GovernanceError AsGovernanceError(const Error& error, std::string_view document_bytes) {
+  const auto declared_schema = TopLevelStringMember(document_bytes, "schema");
+  const bool declared_supported =
+      declared_schema == "M0-SBOM-CONTRACT-v1" ||
+      declared_schema == "M0-RELEASE-EVIDENCE-v1";
+  const bool error_supported =
+      error.document_schema == "M0-SBOM-CONTRACT-v1" ||
+      error.document_schema == "M0-RELEASE-EVIDENCE-v1";
+  const std::string contract = declared_supported
+                                   ? std::string(*declared_schema)
+                                   : error_supported ? error.document_schema
+                                                     : "M0-RELEASE-EVIDENCE-v1";
+  std::optional<std::string> record_id;
+  for (const auto member : {"descriptor_id", "release_id"}) {
+    if (const auto value = TopLevelStringMember(document_bytes, member); value && IsId(*value)) {
+      record_id = std::string(*value);
+      break;
+    }
+  }
+  return GovernanceError{
+      .schema = "M0-GOV-ERROR-v1",
+      .code = error.code,
+      .contract = contract,
+      .field_path = error.field_path,
+      .record_id = std::move(record_id),
+      .expected = error.code == "GOV_RESOURCE_LIMIT" && error.expected == "rss_bytes"
+                      ? "peak_rss_bytes"
+                      : error.expected,
+      .observed = error.observed,
+      .limit = error.limit,
+      .message = error.message,
+  };
+}
+
 bool IsSortedUniqueUint32Array(const JsonValue& value, std::size_t maximum) {
   const auto* rows = value.AsArray();
   if (rows == nullptr || rows->empty() || rows->size() > maximum) return false;
@@ -392,6 +426,30 @@ Result<void> ValidateDerivedId(const JsonValue& document, std::string_view membe
         *declared, "derived identity does not match canonical document content"));
   }
   return {};
+}
+
+Result<std::string> ComparatorSeed(
+    std::string_view baseline_result_id,
+    std::string_view candidate_result_id,
+    std::string_view schema) {
+  auto baseline = Sha256Digest::ParseHex(baseline_result_id, schema);
+  auto candidate = Sha256Digest::ParseHex(candidate_result_id, schema);
+  if (!baseline || !candidate) {
+    return std::unexpected(EvidenceError(
+        "PERF_DIGEST_INVALID", schema, "$.seed_sha256", "two result SHA-256 identities",
+        "invalid", "comparator seed inputs are invalid"));
+  }
+  constexpr std::string_view kPrefix = "M0-PAIRED-BOOTSTRAP-v1\n";
+  std::vector<std::byte> input;
+  input.reserve(kPrefix.size() + 64);
+  for (const char character : kPrefix) {
+    input.push_back(static_cast<std::byte>(static_cast<unsigned char>(character)));
+  }
+  input.insert(input.end(), baseline->Bytes().begin(), baseline->Bytes().end());
+  input.insert(input.end(), candidate->Bytes().begin(), candidate->Bytes().end());
+  auto digest = Sha256(std::span<const std::byte>(input));
+  if (!digest) return std::unexpected(digest.error());
+  return digest->Hex();
 }
 
 Result<JsonValue> ParseDomain(
@@ -1020,18 +1078,21 @@ Result<void> ValidatePerformanceCore(const JsonValue& document, std::string_view
       }
       previous_mismatch = std::string(*path);
     }
-    const bool statistical = !point->IsNull() || !lower->IsNull() || !seed->IsNull() ||
-                             !threshold_fired->IsNull() || !significance_fired->IsNull();
+    const bool statistical = !point->IsNull() && !lower->IsNull() && !seed->IsNull() &&
+                             !threshold_fired->IsNull() && !significance_fired->IsNull();
+    const bool partially_statistical = !point->IsNull() || !lower->IsNull() || !seed->IsNull() ||
+                                       !threshold_fired->IsNull() || !significance_fired->IsNull();
     if (statistical) {
+      auto expected_seed = ComparatorSeed(*baseline, *candidate, schema);
       if (point->AsInteger() == nullptr || lower->AsInteger() == nullptr || seed->AsString() == nullptr ||
           !IsHex(*seed->AsString()) || threshold_fired->AsBoolean() == nullptr ||
           significance_fired->AsBoolean() == nullptr || *resamples != 10000 || *valid_pairs < 30 ||
+          !expected_seed || *seed->AsString() != *expected_seed ||
           *threshold_fired->AsBoolean() != (*lower->AsInteger() > *threshold) ||
           *significance_fired->AsBoolean() != (*lower->AsInteger() > *threshold)) {
         return std::unexpected(EvidenceError("PERF_RELATIONSHIP_INVALID", schema, "$", "complete statistical disposition", "invalid", "comparison statistics are inconsistent"));
       }
-    } else if (!point->IsNull() || !lower->IsNull() || !seed->IsNull() || !threshold_fired->IsNull() ||
-               !significance_fired->IsNull() || *resamples != 0) {
+    } else if (partially_statistical || *resamples != 0) {
       return std::unexpected(EvidenceError("PERF_RELATIONSHIP_INVALID", schema, "$", "all-null non-statistical fields", "invalid", "comparison non-statistical fields are inconsistent"));
     }
     const std::set<std::tuple<std::string, std::string, std::string>> valid_states{
@@ -1046,8 +1107,26 @@ Result<void> ValidatePerformanceCore(const JsonValue& document, std::string_view
     if (!valid_states.contains({std::string(*state), std::string(*reason), std::string(*action)})) {
       return std::unexpected(EvidenceError("PERF_RELATIONSHIP_INVALID", schema, "$.state", "valid state/reason/action", "mismatch", "comparison terminal mapping is invalid"));
     }
-    if (((*state == "incomparable") != !(*mismatches)->empty()) ||
-        ((*state == "no_regression_detected" || *state == "regression_requires_approval") != statistical)) {
+    const bool incomparable = *state == "incomparable";
+    const bool inconclusive = *state == "inconclusive";
+    const bool advisory = *state == "advisory_only";
+    const bool no_regression = *state == "no_regression_detected";
+    const bool regression = *state == "regression_requires_approval";
+    const bool fired = statistical && *threshold_fired->AsBoolean() &&
+                       *significance_fired->AsBoolean();
+    const bool terminal_payload_valid =
+        (incomparable && !(*mismatches)->empty() && !statistical) ||
+        (inconclusive && (*mismatches)->empty() && !statistical) ||
+        (advisory && (*mismatches)->empty() && statistical && *authority == "advisory" &&
+         *noise == "pass") ||
+        (no_regression && (*mismatches)->empty() && statistical && *authority == "authoritative" &&
+         *noise == "pass" && !fired) ||
+        (regression && (*mismatches)->empty() && statistical && *authority == "authoritative" &&
+         *noise == "pass" && fired);
+    const bool precedence_valid =
+        (*noise != "failed" || (inconclusive && *reason == "PERF_NOISE_POLICY_FAILED")) &&
+        (!inconclusive || *reason != "PERF_NOISE_POLICY_FAILED" || *noise == "failed");
+    if (!terminal_payload_valid || !precedence_valid) {
       return std::unexpected(EvidenceError("PERF_RELATIONSHIP_INVALID", schema, "$.state", "state-consistent mismatch/statistical fields", "mismatch", "comparison state payload is inconsistent"));
     }
     return {};
@@ -1516,7 +1595,7 @@ Result<std::int64_t> NearestRankPercentile(
   return sorted[rank - 1];
 }
 
-Result<JsonValue> ValidateGovernanceDocument(std::string_view bytes, ResourceUsage usage) {
+Result<JsonValue> ValidateGovernanceDocumentInternal(std::string_view bytes, ResourceUsage usage) {
   const std::uint64_t started_ns = internal::MonotonicNowNs();
   const auto declared_schema = TopLevelStringMember(bytes, "schema");
   constexpr std::uint64_t kSbomDescriptorMaximumBytes = 64U * 1024U;
@@ -1549,6 +1628,248 @@ Result<JsonValue> ValidateGovernanceDocument(std::string_view bytes, ResourceUsa
       internal::ObserveResourceUsage(usage, started_ns), limits, *schema, "GOV_RESOURCE_LIMIT");
   if (!resource) return std::unexpected(resource.error());
   return document;
+}
+
+GovernanceResult<JsonValue> ValidateGovernanceDocument(
+    std::string_view bytes,
+    ResourceUsage usage) {
+  auto result = ValidateGovernanceDocumentInternal(bytes, usage);
+  if (!result) return std::unexpected(AsGovernanceError(result.error(), bytes));
+  return *result;
+}
+
+GovernanceResult<JsonValue> ValidateGovernanceBundle(
+    std::string_view manifest_bytes,
+    std::span<const ReferencedDocument> referenced_documents,
+    ResourceUsage usage) {
+  auto manifest_result = ValidateGovernanceDocument(manifest_bytes, usage);
+  if (!manifest_result) return std::unexpected(manifest_result.error());
+  JsonValue manifest = *manifest_result;
+  const auto* schema = FindMember(manifest, "schema");
+  if (schema == nullptr || schema->AsString() == nullptr ||
+      *schema->AsString() != "M0-RELEASE-EVIDENCE-v1") {
+    return std::unexpected(AsGovernanceError(
+        EvidenceError(
+            "GOV_SCHEMA_UNKNOWN", "M0-RELEASE-EVIDENCE-v1", "$.schema",
+            "M0-RELEASE-EVIDENCE-v1", schema && schema->AsString() ? *schema->AsString() : "missing",
+            "governance bundle root must be a release-evidence manifest"),
+        manifest_bytes));
+  }
+
+  const auto fail = [&](Error error) -> GovernanceResult<JsonValue> {
+    return std::unexpected(AsGovernanceError(error, manifest_bytes));
+  };
+  std::map<std::string, const ReferencedDocument*> documents;
+  for (const auto& document : referenced_documents) {
+    if (!IsRelPath(document.path) ||
+        !documents.emplace(document.path, &document).second) {
+      return fail(EvidenceError(
+          "GOV_REFERENCE_UNRESOLVED", "M0-RELEASE-EVIDENCE-v1", "$.evidence",
+          "unique relative referenced-document path", document.path,
+          "governance referenced-document inventory is invalid"));
+    }
+  }
+
+  const auto* evidence_value = FindMember(manifest, "evidence");
+  const auto* evidence = evidence_value == nullptr ? nullptr : evidence_value->AsArray();
+  if (evidence == nullptr) {
+    return fail(EvidenceError(
+        "GOV_FIELD_TYPE", "M0-RELEASE-EVIDENCE-v1", "$.evidence", "array", "invalid",
+        "release evidence inventory is unavailable"));
+  }
+  const auto manifest_string = [&](std::string_view member) -> std::string_view {
+    const auto* value = FindMember(manifest, member);
+    return value && value->AsString() ? *value->AsString() : std::string_view{};
+  };
+  const std::string_view source_revision = manifest_string("source_revision");
+  const std::string_view executable_digest = manifest_string("orus_executable_sha256");
+  const std::string_view package_digest = manifest_string("package_tree_sha256");
+  const std::string_view sbom_digest = manifest_string("sbom_sha256");
+  bool source_bound{};
+  bool executable_bound{};
+  bool package_bound{};
+  bool sbom_bound{};
+  const ReferencedDocument* descriptor_bytes = nullptr;
+  JsonValue descriptor;
+  std::set<std::string> used_paths;
+
+  const auto check_optional_identity = [&](const JsonValue& document,
+                                           std::string_view member,
+                                           std::string_view expected,
+                                           std::string_view path) -> Result<bool> {
+    const auto* value = FindMember(document, member);
+    if (value == nullptr) return false;
+    if (value->AsString() == nullptr || *value->AsString() != expected) {
+      return std::unexpected(EvidenceError(
+          "GOV_RELATIONSHIP_INVALID", "M0-RELEASE-EVIDENCE-v1", path, expected,
+          value->AsString() ? *value->AsString() : "invalid",
+          "referenced evidence subject does not match the release manifest"));
+    }
+    return true;
+  };
+
+  for (const auto& row : *evidence) {
+    const auto* path_value = FindMember(row, "path");
+    const auto* row_schema_value = FindMember(row, "schema");
+    const auto* length_value = FindMember(row, "byte_length");
+    const auto* digest_value = FindMember(row, "evidence_object_sha256");
+    const auto* type_value = FindMember(row, "type");
+    if (path_value == nullptr || path_value->AsString() == nullptr ||
+        row_schema_value == nullptr || row_schema_value->AsString() == nullptr ||
+        length_value == nullptr || length_value->AsInteger() == nullptr ||
+        digest_value == nullptr || digest_value->AsString() == nullptr ||
+        type_value == nullptr || type_value->AsString() == nullptr) {
+      return fail(EvidenceError(
+          "GOV_FIELD_TYPE", "M0-RELEASE-EVIDENCE-v1", "$.evidence[]",
+          "complete evidence reference", "invalid", "evidence reference is incomplete"));
+    }
+    const std::string_view path = *path_value->AsString();
+    const std::string_view row_schema = *row_schema_value->AsString();
+    const auto found = documents.find(std::string(path));
+    if (found == documents.end()) {
+      return fail(EvidenceError(
+          "GOV_REFERENCE_UNRESOLVED", "M0-RELEASE-EVIDENCE-v1", "$.evidence[].path",
+          "referenced bytes present", path, "evidence reference cannot be resolved"));
+    }
+    const ReferencedDocument& referenced = *found->second;
+    used_paths.insert(referenced.path);
+    if (*length_value->AsInteger() != static_cast<std::int64_t>(referenced.bytes.size())) {
+      return fail(EvidenceError(
+          "GOV_REFERENCE_UNRESOLVED", "M0-RELEASE-EVIDENCE-v1", "$.evidence[].byte_length",
+          std::to_string(referenced.bytes.size()), std::to_string(*length_value->AsInteger()),
+          "evidence byte length does not match referenced bytes"));
+    }
+    auto actual_digest = Sha256(referenced.bytes);
+    if (!actual_digest || actual_digest->Hex() != *digest_value->AsString()) {
+      return fail(EvidenceError(
+          "GOV_DIGEST_INVALID", "M0-RELEASE-EVIDENCE-v1", "$.evidence[].evidence_object_sha256",
+          actual_digest ? actual_digest->Hex() : "computable evidence_object_sha256",
+          *digest_value->AsString(), "evidence-object subject digest does not match referenced bytes"));
+    }
+    auto referenced_value = ParseCanonicalJson(
+        referenced.bytes, row_schema, "GOV_NONCANONICAL",
+        {.maximum_bytes = 16U * 1024U * 1024U, .maximum_depth = 32});
+    if (!referenced_value) {
+      return std::unexpected(AsGovernanceError(referenced_value.error(), manifest_bytes));
+    }
+    const auto* actual_schema = FindMember(*referenced_value, "schema");
+    if (actual_schema == nullptr || actual_schema->AsString() == nullptr ||
+        *actual_schema->AsString() != row_schema) {
+      return fail(EvidenceError(
+          "GOV_REFERENCE_UNRESOLVED", "M0-RELEASE-EVIDENCE-v1", "$.evidence[].schema",
+          row_schema, actual_schema && actual_schema->AsString() ? *actual_schema->AsString() : "missing",
+          "referenced evidence schema does not match its manifest row"));
+    }
+
+    auto source = check_optional_identity(
+        *referenced_value, "source_revision", source_revision, "$.evidence[].source_revision");
+    auto executable = check_optional_identity(
+        *referenced_value, "orus_executable_sha256", executable_digest,
+        "$.evidence[].orus_executable_sha256");
+    auto package = check_optional_identity(
+        *referenced_value, "package_tree_sha256", package_digest,
+        "$.evidence[].package_tree_sha256");
+    auto sbom = check_optional_identity(
+        *referenced_value, "sbom_sha256", sbom_digest, "$.evidence[].sbom_sha256");
+    for (const auto* relationship : {&source, &executable, &package, &sbom}) {
+      if (!*relationship) return std::unexpected(AsGovernanceError(relationship->error(), manifest_bytes));
+    }
+    source_bound = source_bound || *source;
+    executable_bound = executable_bound || *executable;
+    package_bound = package_bound || *package;
+    sbom_bound = sbom_bound || *sbom;
+
+    if (*type_value->AsString() == "sbom_descriptor") {
+      auto validated_descriptor = ValidateGovernanceDocumentInternal(referenced.bytes, usage);
+      if (!validated_descriptor) {
+        return std::unexpected(AsGovernanceError(validated_descriptor.error(), referenced.bytes));
+      }
+      descriptor_bytes = &referenced;
+      descriptor = *validated_descriptor;
+    }
+  }
+
+  if (descriptor_bytes != nullptr) {
+    const auto* spdx_path_value = FindMember(descriptor, "spdx_path");
+    const auto* descriptor_digest_value = FindMember(descriptor, "sbom_sha256");
+    const auto* component_count_value = FindMember(descriptor, "component_count");
+    const auto* relationship_count_value = FindMember(descriptor, "relationship_count");
+    const std::string_view spdx_path =
+        spdx_path_value && spdx_path_value->AsString() ? *spdx_path_value->AsString()
+                                                        : std::string_view{};
+    const auto spdx_found = documents.find(std::string(spdx_path));
+    if (spdx_path.empty() || spdx_found == documents.end()) {
+      return fail(EvidenceError(
+          "GOV_REFERENCE_UNRESOLVED", "M0-SBOM-CONTRACT-v1", "$.spdx_path",
+          "canonical SPDX bytes present", spdx_path, "SBOM descriptor path cannot be resolved"));
+    }
+    used_paths.insert(spdx_found->first);
+    const ReferencedDocument& spdx = *spdx_found->second;
+    auto spdx_digest = Sha256(spdx.bytes);
+    if (!spdx_digest || descriptor_digest_value == nullptr ||
+        descriptor_digest_value->AsString() == nullptr ||
+        spdx_digest->Hex() != *descriptor_digest_value->AsString() ||
+        spdx_digest->Hex() != sbom_digest) {
+      return fail(EvidenceError(
+          "GOV_DIGEST_INVALID", "M0-SBOM-CONTRACT-v1", "$.sbom_sha256",
+          spdx_digest ? spdx_digest->Hex() : "computable sbom_sha256",
+          descriptor_digest_value && descriptor_digest_value->AsString()
+              ? *descriptor_digest_value->AsString()
+              : "missing",
+          "SBOM subject digest does not match the completed canonical SPDX bytes"));
+    }
+    auto spdx_value = ParseCanonicalJson(
+        spdx.bytes, "SPDX-2.3", "GOV_NONCANONICAL",
+        {.maximum_bytes = 16U * 1024U * 1024U, .maximum_depth = 32});
+    if (!spdx_value) return std::unexpected(AsGovernanceError(spdx_value.error(), descriptor_bytes->bytes));
+    const auto* spdx_version = FindMember(*spdx_value, "spdxVersion");
+    const auto* spdx_id = FindMember(*spdx_value, "SPDXID");
+    const auto* spdx_namespace = FindMember(*spdx_value, "documentNamespace");
+    const auto* packages = FindMember(*spdx_value, "packages");
+    const auto* files = FindMember(*spdx_value, "files");
+    const auto* relationships = FindMember(*spdx_value, "relationships");
+    const std::size_t component_count =
+        (packages && packages->AsArray() ? packages->AsArray()->size() : 0) +
+        (files && files->AsArray() ? files->AsArray()->size() : 0);
+    const std::size_t relationship_count =
+        relationships && relationships->AsArray() ? relationships->AsArray()->size() : 0;
+    const auto* expected_namespace_value = FindMember(descriptor, "document_namespace");
+    if (spdx_version == nullptr || spdx_version->AsString() == nullptr ||
+        *spdx_version->AsString() != "SPDX-2.3" || spdx_id == nullptr ||
+        spdx_id->AsString() == nullptr || *spdx_id->AsString() != "SPDXRef-DOCUMENT" ||
+        spdx_namespace == nullptr || spdx_namespace->AsString() == nullptr ||
+        expected_namespace_value == nullptr || expected_namespace_value->AsString() == nullptr ||
+        *spdx_namespace->AsString() != *expected_namespace_value->AsString() ||
+        component_count_value == nullptr || component_count_value->AsInteger() == nullptr ||
+        static_cast<std::uint64_t>(*component_count_value->AsInteger()) != component_count ||
+        relationship_count_value == nullptr || relationship_count_value->AsInteger() == nullptr ||
+        static_cast<std::uint64_t>(*relationship_count_value->AsInteger()) != relationship_count ||
+        FindMember(*spdx_value, "sbom_sha256") != nullptr ||
+        FindMember(*spdx_value, "package_tree_sha256") != nullptr) {
+      return fail(EvidenceError(
+          "GOV_RELATIONSHIP_INVALID", "M0-SBOM-CONTRACT-v1", "$.spdx_path",
+          "subject-bound SPDX 2.3 document", "relationship mismatch",
+          "completed SPDX bytes do not match their descriptor relationships"));
+    }
+    sbom_bound = true;
+  }
+
+  const std::string_view state = manifest_string("state");
+  if (state == "preapproval_validated" &&
+      (descriptor_bytes == nullptr || !source_bound || !executable_bound ||
+       !package_bound || !sbom_bound)) {
+    return fail(EvidenceError(
+        "GOV_RELATIONSHIP_INVALID", "M0-RELEASE-EVIDENCE-v1", "$.state",
+        "all source/executable/package/SBOM subjects resolved", "unbound subject",
+        "preapproval manifest is not bound to all release subjects"));
+  }
+  if (used_paths.size() != documents.size()) {
+    return fail(EvidenceError(
+        "GOV_REFERENCE_UNRESOLVED", "M0-RELEASE-EVIDENCE-v1", "$.evidence",
+        "exact referenced-document closure", "unreferenced document",
+        "governance bundle contains bytes outside the resolved reference closure"));
+  }
+  return manifest;
 }
 
 Result<JsonValue> ValidatePerformanceDocument(std::string_view bytes, ResourceUsage usage) {
@@ -2022,15 +2343,50 @@ Result<JsonValue> ValidateCorpusReliabilityBundle(
 
 const std::vector<ResourceContractRow>& M0SharedResourceContracts() {
   static const std::vector<ResourceContractRow> rows{
-      {.limit_id = "SEC-LIM-10-02", .operation = "reference_environment", .limits = {.input_bytes = 96U * 1024U, .count = 128, .depth = 8, .rss_bytes = 64U * 1024U * 1024U, .wall_time_ns = 10000000000ULL}, .error = "BUILD_REFENV_RESOURCE_LIMIT", .owner_requirement = "BUILD-FR-010"},
-      {.limit_id = "SEC-LIM-10-03", .operation = "package_tree_identity", .limits = {.input_bytes = 16ULL * 1024ULL * 1024ULL * 1024ULL, .count = 100000, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 1200000000000ULL}, .error = "BUILD_PACKAGE_IDENTITY_INVALID", .owner_requirement = "BUILD-FR-011"},
-      {.limit_id = "SEC-LIM-11-03", .operation = "spdx_descriptor", .limits = {.input_bytes = 64U * 1024U, .count = 200000, .depth = 32, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 120000000000ULL}, .error = "GOV_RESOURCE_LIMIT", .owner_requirement = "GOV-FR-006"},
-      {.limit_id = "SEC-LIM-11-04", .operation = "release_evidence", .limits = {.input_bytes = 16U * 1024U * 1024U, .count = 12, .depth = 16, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 120000000000ULL}, .error = "GOV_RESOURCE_LIMIT", .owner_requirement = "GOV-FR-008"},
-      {.limit_id = "SEC-LIM-14-01", .operation = "performance_document", .limits = {.input_bytes = 16U * 1024U * 1024U, .count = 100000, .depth = 16}, .error = "PERF_RESOURCE_LIMIT", .owner_requirement = "PERF-FR-012"},
-      {.limit_id = "SEC-LIM-14-02", .operation = "performance_comparator", .limits = {.count = 100000, .work_units = 10000, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 120000000000ULL}, .error = "PERF_RESOURCE_LIMIT", .owner_requirement = "PERF-FR-012"},
-      {.limit_id = "SEC-LIM-15-03", .operation = "corpus_run_report", .limits = {.input_bytes = 1U * 1024U * 1024U, .count = 100, .depth = 16}, .alternate_limits = ResourceLimits{.input_bytes = 16U * 1024U * 1024U, .count = 100, .depth = 16}, .error = "CORP_REPORT_FIELD_BOUND", .owner_requirement = "CORP-FR-013"},
+      {.schema = "M0-RESOURCE-LIMIT-v1", .limit_id = "SEC-LIM-10-02", .domain = "build", .operation = "reference_environment", .parser = "M0-REFENV-v1 canonical JSON", .input_trust = "untrusted contract and observed environment bytes", .status = "applicable", .units = "bytes,count,depth,peak_rss_bytes,wall_time_ns", .limits = {.input_bytes = 96U * 1024U, .count = 128, .depth = 8, .rss_bytes = 64U * 1024U * 1024U, .wall_time_ns = 10000000000ULL}, .derived_allocation_memory = "validator <=64 MiB peak RSS", .process_thread_fd = "one in-process cold parser; no child or FD growth", .cpu_time = "wall time <=10 s", .storage_queue_io = "declared contract/observed inputs only; no queue", .enforcement_point = "before_parse_and_support_outcome", .error = "BUILD_REFENV_RESOURCE_LIMIT", .cleanup = "release parser and validation buffers", .tests = "BUILD-TEST-010,CLI-TEST-003,CLI-TEST-010", .owner = "build", .owner_requirement = "BUILD-FR-010", .not_applicable_rationale = "process/thread/FD expansion is not applicable because validation is in-process over declared inputs"},
+      {.schema = "M0-RESOURCE-LIMIT-v1", .limit_id = "SEC-LIM-10-03", .domain = "build", .operation = "package_tree_identity", .parser = "bounded package-tree walk", .input_trust = "untrusted package filesystem tree", .status = "applicable", .units = "bytes,count,peak_rss_bytes,wall_time_ns", .limits = {.input_bytes = 16ULL * 1024ULL * 1024ULL * 1024ULL, .count = 100000, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 1200000000000ULL}, .derived_allocation_memory = "streaming hasher <=256 MiB peak RSS", .process_thread_fd = "one streaming process; bounded current input handle", .cpu_time = "wall time <=1200 s", .storage_queue_io = "read-only package walk; no storage queue", .enforcement_point = "before_hash_and_identity_acceptance", .error = "BUILD_PACKAGE_IDENTITY_INVALID", .cleanup = "close handles and delete temporary manifest", .tests = "BUILD-TEST-011", .owner = "build", .owner_requirement = "BUILD-FR-011", .not_applicable_rationale = "thread and queue limits are not applicable because the walk is single-process streaming"},
+      {.schema = "M0-RESOURCE-LIMIT-v1", .limit_id = "SEC-LIM-11-03", .domain = "governance", .operation = "spdx_descriptor", .parser = "SPDX 2.3 plus M0-SBOM-CONTRACT-v1", .input_trust = "untrusted completed SBOM and descriptor bytes", .status = "applicable", .units = "bytes,count,depth,peak_rss_bytes,wall_time_ns", .limits = {.input_bytes = 64U * 1024U, .count = 200000, .depth = 32, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 120000000000ULL}, .alternate_limits = ResourceLimits{.input_bytes = 16U * 1024U * 1024U, .count = 200000, .depth = 32, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 120000000000ULL}, .derived_allocation_memory = "validator <=256 MiB peak RSS", .process_thread_fd = "in-process cold validator; no child or FD growth", .cpu_time = "wall time <=120 s", .storage_queue_io = "retained bundle bytes only; no queue", .enforcement_point = "before_graph_allocation_and_descriptor_acceptance", .error = "GOV_RESOURCE_LIMIT", .cleanup = "release buffers; create no descriptor or approval", .tests = "GOV-TEST-006", .owner = "governance", .owner_requirement = "GOV-FR-006", .not_applicable_rationale = "process/thread/FD and queue expansion are not applicable to the in-process validator"},
+      {.schema = "M0-RESOURCE-LIMIT-v1", .limit_id = "SEC-LIM-11-04", .domain = "governance", .operation = "release_evidence", .parser = "M0-RELEASE-EVIDENCE-v1 bundle resolver", .input_trust = "untrusted release manifest and referenced evidence bytes", .status = "applicable", .units = "bytes,count,depth,peak_rss_bytes,wall_time_ns", .limits = {.input_bytes = 16U * 1024U * 1024U, .count = 12, .depth = 16, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 120000000000ULL}, .derived_allocation_memory = "validator <=256 MiB peak RSS", .process_thread_fd = "in-process cold resolver; no child or FD growth", .cpu_time = "wall time <=120 s", .storage_queue_io = "retained bundle bytes only; no final-scan queue", .enforcement_point = "before_final_scan_marker_or_subject_acceptance", .error = "GOV_RESOURCE_LIMIT", .cleanup = "remove temporary index; create no approval marker", .tests = "GOV-TEST-008,GOV-TEST-010", .owner = "governance", .owner_requirement = "GOV-FR-008", .not_applicable_rationale = "process/thread/FD expansion is not applicable to the in-process bundle resolver"},
+      {.schema = "M0-RESOURCE-LIMIT-v1", .limit_id = "SEC-LIM-14-01", .domain = "performance", .operation = "performance_document", .parser = "M0 performance canonical JSON", .input_trust = "untrusted performance document bytes", .status = "applicable", .units = "bytes,count,depth", .limits = {.input_bytes = 16U * 1024U * 1024U, .count = 100000, .depth = 16}, .derived_allocation_memory = "proportional allocation forbidden before bounds", .process_thread_fd = "in-process parser; no child or FD growth", .cpu_time = "comparator time represented by SEC-LIM-14-02", .storage_queue_io = "no storage queue or network", .enforcement_point = "before_proportional_allocation_or_comparison_state", .error = "PERF_RESOURCE_LIMIT", .cleanup = "release parser buffers; emit no result or comparison", .tests = "PERF-TEST-003,PERF-TEST-012", .owner = "performance", .owner_requirement = "PERF-FR-012", .not_applicable_rationale = "process/thread/FD and storage queue resources are not applicable to document parsing"},
+      {.schema = "M0-RESOURCE-LIMIT-v1", .limit_id = "SEC-LIM-14-02", .domain = "performance", .operation = "performance_comparator", .parser = "M0 paired-bootstrap comparator", .input_trust = "validated but untrusted performance result pair", .status = "applicable", .units = "count,work_units,peak_rss_bytes,wall_time_ns", .limits = {.count = 100000, .work_units = 10000, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 120000000000ULL}, .derived_allocation_memory = "comparator <=256 MiB peak RSS", .process_thread_fd = "one owned worker process group; no network or FD growth", .cpu_time = "wall time <=120 s", .storage_queue_io = "no storage queue or network", .enforcement_point = "before_work_increment_and_comparison_commit", .error = "PERF_RESOURCE_LIMIT", .cleanup = "terminate worker and release buffers", .tests = "PERF-TEST-007,PERF-TEST-012", .owner = "performance", .owner_requirement = "PERF-FR-012", .not_applicable_rationale = "storage queue and network are not applicable because the comparator is local and offline"},
+      {.schema = "M0-RESOURCE-LIMIT-v1", .limit_id = "SEC-LIM-15-03", .domain = "corpus", .operation = "corpus_run_report", .parser = "M0-CORPUS-RUN-v1 and M0-CORPUS-RELIABILITY-v1", .input_trust = "untrusted corpus run and aggregate report bytes", .status = "applicable", .units = "bytes,count,depth", .limits = {.input_bytes = 1U * 1024U * 1024U, .count = 100, .depth = 16}, .alternate_limits = ResourceLimits{.input_bytes = 16U * 1024U * 1024U, .count = 100, .depth = 16}, .derived_allocation_memory = "bounded canonical parser and aggregate reference inventory", .process_thread_fd = "in-process report validator; no child or FD growth", .cpu_time = "no independent runtime ceiling beyond bounded proportional work", .storage_queue_io = "retained report bytes only; no queue", .enforcement_point = "before_parse_aggregate_or_pass_state", .error = "CORP_REPORT_FIELD_BOUND", .cleanup = "retain valid reports; emit no aggregate pass", .tests = "CORP-TEST-013", .owner = "corpus", .owner_requirement = "CORP-FR-013", .not_applicable_rationale = "process/thread/FD and storage queue expansion are not applicable to report validation"},
   };
   return rows;
+}
+
+Result<void> ValidateM0SharedResourceContracts(
+    std::span<const ResourceContractRow> rows) {
+  const auto& expected = M0SharedResourceContracts();
+  if (rows.size() != expected.size()) {
+    return std::unexpected(EvidenceError(
+        "SEC_RESOURCE_LIMIT", "M0-RESOURCE-LIMIT-v1", "$.rows",
+        std::to_string(expected.size()), std::to_string(rows.size()),
+        "resource contract inventory has a missing or extra owner operation"));
+  }
+  std::set<std::string> identifiers;
+  std::set<std::string> operations;
+  for (std::size_t index = 0; index < rows.size(); ++index) {
+    const auto& row = rows[index];
+    const bool complete =
+        row.schema == "M0-RESOURCE-LIMIT-v1" && row.status == "applicable" &&
+        !row.limit_id.empty() && !row.domain.empty() && !row.operation.empty() &&
+        !row.parser.empty() && !row.input_trust.empty() && !row.units.empty() &&
+        !row.derived_allocation_memory.empty() && !row.process_thread_fd.empty() &&
+        !row.cpu_time.empty() && !row.storage_queue_io.empty() &&
+        !row.enforcement_point.empty() && !row.error.empty() && !row.cleanup.empty() &&
+        !row.tests.empty() && !row.owner.empty() && !row.owner_requirement.empty() &&
+        !row.not_applicable_rationale.empty() &&
+        (row.limits.input_bytes || row.limits.count || row.limits.work_units || row.limits.depth ||
+         row.limits.rss_bytes || row.limits.wall_time_ns) &&
+        identifiers.insert(row.limit_id).second && operations.insert(row.operation).second;
+    if (!complete || row != expected[index]) {
+      return std::unexpected(EvidenceError(
+          "SEC_RESOURCE_LIMIT", "M0-RESOURCE-LIMIT-v1",
+          "$.rows[" + std::to_string(index) + "]", "exact M0 owner resource contract",
+          row.limit_id, "resource contract row is missing, drifted, late, or lacks cleanup/test evidence"));
+    }
+  }
+  return {};
 }
 
 }  // namespace orus::contracts

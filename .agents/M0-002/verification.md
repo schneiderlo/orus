@@ -76,14 +76,17 @@ UBSan finding. A zero-execution smoke run or corpus omission fails.
 ### V5 — Fresh package-scoped 70% coverage gate
 
 ```bash
-nix develop --command bazel coverage --config=dev --combined_report=lcov --instrumentation_filter='^//(contracts|python/orus_contracts|tools)[/:]' //tests/build/... //tests/contracts/... && nix develop --command bazel run //tools/coverage:package_gate -- --threshold=70
+nix develop --command python3 tools/coverage/package_gate.py --run-coverage && nix develop --command bazel run //tools/coverage:package_gate -- --threshold=70
 ```
 
-The first clause must regenerate LCOV for the retained M0-001 tool packages and
-all task-owned M0-002 C++/Python/core-tool packages. The second clause is the
-task ledger's exact threshold gate. If the Author chooses a different in-scope
-package path, the registered command and this document must be reconciled
-before handoff; silently omitting it from the filter is failure.
+The first clause runs the same fixed Bazel coverage population and
+instrumentation filter through the source-snapshot producer, then records the
+exact Git revision, source snapshot, package manifest, and LCOV digest in a
+sidecar. The second clause is the task ledger's exact threshold gate and must
+verify that provenance before evaluating coverage. If the Author chooses a
+different in-scope package path, the registered command and this document must
+be reconciled before handoff; silently omitting it from the producer is
+failure.
 
 ### V6 — Manual frozen-contract, API, and ownership review
 
@@ -256,7 +259,7 @@ red runnable check into PASS.
 **Command:**
 
 ```bash
-nix develop --command bazel coverage --config=dev --combined_report=lcov --instrumentation_filter='^//(contracts|python/orus_contracts|tools)[/:]' //tests/build/... //tests/contracts/... && nix develop --command bazel run //tools/coverage:package_gate -- --threshold=70
+nix develop --command python3 tools/coverage/package_gate.py --run-coverage && nix develop --command bazel run //tools/coverage:package_gate -- --threshold=70
 ```
 
 **Scope:** Every M0-002-owned core/business package exercised by

@@ -6,8 +6,12 @@ import argparse
 import hashlib
 import json
 import os
+import subprocess
 from pathlib import Path
 from typing import Any, Mapping
+
+
+PROVENANCE_SCHEMA = "M0-LCOV-PROVENANCE-v1"
 
 
 def task_owned_sources(workspace: Path) -> set[str]:
@@ -125,15 +129,12 @@ def locate_lcov(workspace: Path) -> Path:
     raise ValueError("coverage data is absent")
 
 
-def validate_freshness(report: Path, workspace: Path, expected_sources: set[str]) -> str:
-    report_mtime = report.stat().st_mtime_ns
+def source_snapshot_sha256(workspace: Path, expected_sources: set[str]) -> str:
     digest = hashlib.sha256()
     for source in sorted(expected_sources):
         path = workspace / source
         if not path.is_file():
             raise ValueError(f"coverage source is absent: {source}")
-        if path.stat().st_mtime_ns > report_mtime:
-            raise ValueError(f"coverage data is stale relative to {source}")
         payload = path.read_bytes()
         digest.update(source.encode("utf-8"))
         digest.update(b"\0")
@@ -143,11 +144,120 @@ def validate_freshness(report: Path, workspace: Path, expected_sources: set[str]
     return digest.hexdigest()
 
 
+def source_revision(workspace: Path) -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=workspace,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip() if result.returncode == 0 and result.stdout.strip() else "unversioned"
+
+
+def coverage_provenance_path(workspace: Path) -> Path:
+    return workspace / "bazel-out/_coverage/orus-source-provenance.json"
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as input_file:
+        for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def write_coverage_provenance(
+    report: Path,
+    workspace: Path,
+    expected_sources: set[str],
+    coverage_command: list[str] | None = None,
+) -> dict[str, Any]:
+    provenance = {
+        "coverage_command": coverage_command or ["fixture"],
+        "manifest_sha256": _sha256_file(workspace / "tools/coverage/packages.json")
+        if (workspace / "tools/coverage/packages.json").is_file()
+        else "fixture",
+        "report_sha256": _sha256_file(report),
+        "schema": PROVENANCE_SCHEMA,
+        "source_revision": source_revision(workspace),
+        "source_snapshot_sha256": source_snapshot_sha256(workspace, expected_sources),
+        "sources": sorted(expected_sources),
+    }
+    output = coverage_provenance_path(workspace)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(provenance, separators=(",", ":"), sort_keys=True) + "\n", encoding="utf-8")
+    return provenance
+
+
+def validate_freshness(report: Path, workspace: Path, expected_sources: set[str]) -> str:
+    provenance_path = coverage_provenance_path(workspace)
+    if not provenance_path.is_file():
+        raise ValueError("coverage provenance is absent")
+    try:
+        provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as error:
+        raise ValueError("coverage provenance is invalid") from error
+    required = {
+        "coverage_command",
+        "manifest_sha256",
+        "report_sha256",
+        "schema",
+        "source_revision",
+        "source_snapshot_sha256",
+        "sources",
+    }
+    if set(provenance) != required or provenance.get("schema") != PROVENANCE_SCHEMA:
+        raise ValueError("coverage provenance schema or fields are invalid")
+    if provenance.get("sources") != sorted(expected_sources):
+        raise ValueError("coverage provenance source inventory is stale")
+    snapshot = source_snapshot_sha256(workspace, expected_sources)
+    if provenance.get("source_snapshot_sha256") != snapshot:
+        raise ValueError("coverage provenance source snapshot is stale")
+    if provenance.get("source_revision") != source_revision(workspace):
+        raise ValueError("coverage provenance source revision is stale")
+    manifest = workspace / "tools/coverage/packages.json"
+    if manifest.is_file() and provenance.get("manifest_sha256") != _sha256_file(manifest):
+        raise ValueError("coverage provenance package manifest is stale")
+    if provenance.get("report_sha256") != _sha256_file(report):
+        raise ValueError("coverage report does not match its provenance digest")
+    return snapshot
+
+
+def run_coverage(workspace: Path) -> int:
+    manifest = json.loads((workspace / "tools/coverage/packages.json").read_text(encoding="utf-8"))
+    packages = validate_manifest(workspace, manifest)
+    expected_sources = {source for sources in packages.values() for source in sources}
+    before = source_snapshot_sha256(workspace, expected_sources)
+    command = [
+        "bazel",
+        "coverage",
+        "--config=dev",
+        "--combined_report=lcov",
+        "--instrumentation_filter=^//(contracts|python/orus_contracts|tools)[/:]",
+        "//tests/build/...",
+        "//tests/contracts/...",
+    ]
+    subprocess.run(command, cwd=workspace, check=True)
+    after = source_snapshot_sha256(workspace, expected_sources)
+    if before != after:
+        raise ValueError("coverage sources changed while LCOV was being produced")
+    write_coverage_provenance(locate_lcov(workspace), workspace, expected_sources, command)
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--threshold", required=True, type=float)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--threshold", type=float)
+    mode.add_argument("--run-coverage", action="store_true")
     arguments = parser.parse_args()
     workspace = Path(os.environ.get("BUILD_WORKSPACE_DIRECTORY", Path.cwd()))
+    if arguments.run_coverage:
+        try:
+            return run_coverage(workspace)
+        except (ValueError, subprocess.CalledProcessError) as error:
+            raise SystemExit(str(error)) from error
     manifest = json.loads((workspace / "tools/coverage/packages.json").read_text(encoding="utf-8"))
     try:
         packages = validate_manifest(workspace, manifest)

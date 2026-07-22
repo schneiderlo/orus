@@ -94,6 +94,8 @@ struct ResourceLimits {
   std::optional<std::uint64_t> depth;
   std::optional<std::uint64_t> rss_bytes;
   std::optional<std::uint64_t> wall_time_ns;
+
+  friend bool operator==(const ResourceLimits&, const ResourceLimits&) = default;
 };
 
 struct ResourceUsage {
@@ -234,8 +236,36 @@ Result<std::int64_t> NearestRankPercentile(
     std::uint32_t rank_ppm,
     std::string_view schema = "M0-PERF-RESULT-v1");
 
-Result<JsonValue> ValidateGovernanceDocument(
+struct GovernanceError {
+  std::string schema{"M0-GOV-ERROR-v1"};
+  std::string code;
+  std::string contract;
+  std::string field_path;
+  std::optional<std::string> record_id;
+  std::string expected;
+  std::string observed;
+  std::optional<std::int64_t> limit;
+  std::string message;
+
+  friend bool operator==(const GovernanceError&, const GovernanceError&) = default;
+};
+
+template <typename T>
+using GovernanceResult = std::expected<T, GovernanceError>;
+
+struct ReferencedDocument {
+  std::string path;
+  std::string bytes;
+
+  friend bool operator==(const ReferencedDocument&, const ReferencedDocument&) = default;
+};
+
+GovernanceResult<JsonValue> ValidateGovernanceDocument(
     std::string_view bytes,
+    ResourceUsage usage = {});
+GovernanceResult<JsonValue> ValidateGovernanceBundle(
+    std::string_view manifest_bytes,
+    std::span<const ReferencedDocument> referenced_documents,
     ResourceUsage usage = {});
 Result<JsonValue> ValidatePerformanceDocument(
     std::string_view bytes,
@@ -249,26 +279,40 @@ Result<JsonValue> ValidateCorpusDocument(
     std::string_view bytes,
     ResourceUsage usage = {});
 
-struct ReferencedDocument {
-  std::string path;
-  std::string bytes;
-};
-
 Result<JsonValue> ValidateCorpusReliabilityBundle(
     std::string_view reliability_bytes,
     std::span<const ReferencedDocument> run_documents,
     ResourceUsage usage = {});
 
 struct ResourceContractRow {
+  std::string schema;
   std::string limit_id;
+  std::string domain;
   std::string operation;
+  std::string parser;
+  std::string input_trust;
+  std::string status;
+  std::string units;
   ResourceLimits limits;
   std::optional<ResourceLimits> alternate_limits;
+  std::string derived_allocation_memory;
+  std::string process_thread_fd;
+  std::string cpu_time;
+  std::string storage_queue_io;
+  std::string enforcement_point;
   std::string error;
+  std::string cleanup;
+  std::string tests;
+  std::string owner;
   std::string owner_requirement;
+  std::string not_applicable_rationale;
+
+  friend bool operator==(const ResourceContractRow&, const ResourceContractRow&) = default;
 };
 
 const std::vector<ResourceContractRow>& M0SharedResourceContracts();
+Result<void> ValidateM0SharedResourceContracts(
+    std::span<const ResourceContractRow> rows);
 
 }  // namespace orus::contracts
 

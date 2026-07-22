@@ -38,6 +38,7 @@ from tools.coverage.package_gate import (
     parse_lcov,
     validate_freshness,
     validate_manifest,
+    write_coverage_provenance,
 )
 from tools.format import find_violations, main as format_main
 
@@ -336,7 +337,7 @@ class CoverageGateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, self.assertRaisesRegex(ValueError, "coverage data is absent"):
             locate_lcov(Path(directory))
 
-    def test_stale_lcov_fails_and_current_snapshot_is_bound(self) -> None:
+    def test_stale_lcov_copy_or_touch_fails_revision_bound_provenance(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "tools/build/a.py"
@@ -344,12 +345,20 @@ class CoverageGateTest(unittest.TestCase):
             source.write_text("value = 1\n", encoding="utf-8")
             report = root / "coverage.dat"
             report.write_text("SF:tools/build/a.py\nDA:1,1\nend_of_record\n", encoding="utf-8")
-            source_time = source.stat().st_mtime_ns
-            os.utime(report, ns=(source_time + 1, source_time + 1))
+            write_coverage_provenance(report, root, {"tools/build/a.py"})
             snapshot = validate_freshness(report, root, {"tools/build/a.py"})
             self.assertEqual(len(snapshot), 64)
-            os.utime(report, ns=(source_time - 1, source_time - 1))
-            with self.assertRaisesRegex(ValueError, "coverage data is stale"):
+
+            source.write_text("value = 2\n", encoding="utf-8")
+            report_time = max(source.stat().st_mtime_ns, report.stat().st_mtime_ns) + 1
+            os.utime(report, ns=(report_time, report_time))
+            with self.assertRaisesRegex(ValueError, "source snapshot is stale"):
+                validate_freshness(report, root, {"tools/build/a.py"})
+
+            source.write_text("value = 1\n", encoding="utf-8")
+            copied = report.read_text(encoding="utf-8").replace("DA:1,1", "DA:1,0")
+            report.write_text(copied, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "provenance digest"):
                 validate_freshness(report, root, {"tools/build/a.py"})
 
     def test_manifest_requires_every_owned_source_or_reviewed_exclusion(self) -> None:

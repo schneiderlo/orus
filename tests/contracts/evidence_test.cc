@@ -2,9 +2,11 @@
 
 #include "tests/contracts/test_support.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <limits>
+#include <map>
 #include <set>
 #include <string>
 
@@ -32,6 +34,178 @@ void RecomputeDerived(JsonValue& value, std::string_view member, std::string_vie
   MutableMember(value, member) = JsonValue(Sha256(Canonical(JsonValue(std::move(without)), schema))->Hex());
 }
 
+struct GovernanceBundleFixture {
+  JsonValue manifest;
+  std::vector<ReferencedDocument> documents;
+};
+
+void RefreshEvidenceReference(GovernanceBundleFixture& fixture, std::string_view path) {
+  auto& rows = std::get<JsonValue::Array>(MutableMember(fixture.manifest, "evidence").value);
+  const auto document = std::find_if(
+      fixture.documents.begin(), fixture.documents.end(),
+      [&](const ReferencedDocument& candidate) { return candidate.path == path; });
+  ASSERT_NE(document, fixture.documents.end());
+  const auto row = std::find_if(rows.begin(), rows.end(), [&](JsonValue& candidate) {
+    return *FindMember(candidate, "path")->AsString() == path;
+  });
+  ASSERT_NE(row, rows.end());
+  MutableMember(*row, "byte_length") = JsonValue(static_cast<std::int64_t>(document->bytes.size()));
+  MutableMember(*row, "evidence_object_sha256") = JsonValue(Sha256(document->bytes)->Hex());
+}
+
+GovernanceBundleFixture CompleteGovernanceBundle() {
+  GovernanceBundleFixture fixture{
+      .manifest = ParseCanonicalJson(
+          test::Read("tests/contracts/fixtures/release-evidence-assembled.json"),
+          "M0-RELEASE-EVIDENCE-v1", "GOV_NONCANONICAL")
+                      .value(),
+  };
+  MutableMember(fixture.manifest, "state") = JsonValue("preapproval_validated");
+
+  const auto source_revision = *FindMember(fixture.manifest, "source_revision")->AsString();
+  const auto executable_digest = *FindMember(fixture.manifest, "orus_executable_sha256")->AsString();
+  const auto package_digest = *FindMember(fixture.manifest, "package_tree_sha256")->AsString();
+  const auto spdx_namespace =
+      std::string("https://spdx.orus.invalid/m0/") + source_revision + "/" + executable_digest;
+  const auto spdx_bytes = Canonical(
+      JsonValue::Object{
+          {"SPDXID", "SPDXRef-DOCUMENT"},
+          {"documentNamespace", spdx_namespace},
+          {"packages", JsonValue::Array{JsonValue(JsonValue::Object{{"SPDXID", "SPDXRef-Package-fixture"}})}},
+          {"relationships", JsonValue::Array{JsonValue(JsonValue::Object{{"relationshipType", "DESCRIBES"}})}},
+          {"spdxVersion", "SPDX-2.3"},
+      },
+      "SPDX-2.3");
+  const auto sbom_digest = Sha256(spdx_bytes)->Hex();
+  MutableMember(fixture.manifest, "sbom_sha256") = JsonValue(sbom_digest);
+
+  auto descriptor = ParseCanonicalJson(
+      test::Read("tests/contracts/fixtures/sbom-descriptor.json"),
+      "M0-SBOM-CONTRACT-v1", "GOV_NONCANONICAL")
+                        .value();
+  MutableMember(descriptor, "document_namespace") = JsonValue(spdx_namespace);
+  MutableMember(descriptor, "orus_executable_sha256") = JsonValue(executable_digest);
+  MutableMember(descriptor, "sbom_sha256") = JsonValue(sbom_digest);
+  const auto descriptor_bytes = Canonical(descriptor, "M0-SBOM-CONTRACT-v1");
+
+  const std::array<std::pair<std::string_view, std::string_view>, 12> evidence_contracts{{
+      {"adr_approval", "M0-ADR-APPROVAL-v1"},
+      {"build_facts", "M0-BUILD-FACTS-v1"},
+      {"canonical_commands", "M0-CANONICAL-COMMANDS-v1"},
+      {"ci_gate", "M0-CI-GATE-v1"},
+      {"claim_scan", "M0-CLAIM-SCAN-v1"},
+      {"corpus_reliability", "M0-CORPUS-RELIABILITY-v1"},
+      {"license_notice", "M0-LICENSE-NOTICE-v1"},
+      {"performance_tooling", "M0-PERFORMANCE-TOOLING-v1"},
+      {"reference_environment", "M0-REFENV-v1"},
+      {"sanitizer_fuzz", "M0-SANITIZER-FUZZ-v1"},
+      {"sbom_descriptor", "M0-SBOM-CONTRACT-v1"},
+      {"security_controls", "M0-SECURITY-CONTROLS-v1"},
+  }};
+  JsonValue::Array evidence;
+  for (const auto& [type, schema] : evidence_contracts) {
+    const std::string path = std::string("evidence/") + std::string(type) + ".json";
+    std::string bytes;
+    if (type == "sbom_descriptor") {
+      bytes = descriptor_bytes;
+    } else if (type == "security_controls") {
+      bytes = Canonical(
+          JsonValue::Object{
+              {"package_tree_sha256", package_digest},
+              {"schema", std::string(schema)},
+          },
+          schema);
+    } else {
+      bytes = Canonical(JsonValue::Object{{"schema", std::string(schema)}}, schema);
+    }
+    fixture.documents.push_back({path, bytes});
+    evidence.emplace_back(JsonValue::Object{
+        {"byte_length", static_cast<std::int64_t>(bytes.size())},
+        {"evidence_object_sha256", Sha256(bytes)->Hex()},
+        {"path", path},
+        {"producer", std::string("tool.") + std::string(type)},
+        {"producer_version", "1"},
+        {"schema", std::string(schema)},
+        {"type", std::string(type)},
+    });
+  }
+  fixture.documents.push_back({"orus.spdx.json", spdx_bytes});
+  MutableMember(fixture.manifest, "evidence") = JsonValue(std::move(evidence));
+
+  const std::array<std::string_view, 12> validator_ids{
+      "adr_protected_decisions", "build_reference", "canonical_commands", "ci_gate", "claim_scan",
+      "corpus_reliability", "dependency_sbom", "license_notice", "performance_tooling", "sanitizer_fuzz",
+      "security_controls", "subject_identity"};
+  JsonValue::Array validators;
+  for (const auto id : validator_ids) {
+    validators.emplace_back(JsonValue::Object{
+        {"diagnostic", nullptr}, {"finding_count", 0}, {"status", "pass"},
+        {"validator_id", std::string(id)}, {"version", "1"},
+    });
+  }
+  MutableMember(fixture.manifest, "validators") = JsonValue(std::move(validators));
+
+  JsonValue::Array approvals;
+  for (const auto role : {"product_owner", "release_owner", "security_owner"}) {
+    approvals.emplace_back(JsonValue::Object{
+        {"decision", "approved"}, {"identity", std::string(role) + ".fixture"}, {"role", role},
+        {"time", "2026-07-22T12:00:00Z"},
+    });
+  }
+  MutableMember(fixture.manifest, "approvals") = JsonValue(std::move(approvals));
+  return fixture;
+}
+
+std::string ComparisonSeed(std::string_view baseline, std::string_view candidate) {
+  const auto baseline_digest = Sha256Digest::ParseHex(baseline).value();
+  const auto candidate_digest = Sha256Digest::ParseHex(candidate).value();
+  constexpr std::string_view prefix = "M0-PAIRED-BOOTSTRAP-v1\n";
+  std::vector<std::byte> input;
+  for (const char character : prefix) {
+    input.push_back(static_cast<std::byte>(static_cast<unsigned char>(character)));
+  }
+  input.insert(input.end(), baseline_digest.Bytes().begin(), baseline_digest.Bytes().end());
+  input.insert(input.end(), candidate_digest.Bytes().begin(), candidate_digest.Bytes().end());
+  return Sha256(std::span<const std::byte>(input))->Hex();
+}
+
+JsonValue StatisticalComparison(
+    std::string_view authority,
+    std::int64_t lower_bound,
+    std::string_view state,
+    std::string_view reason,
+    std::string_view action) {
+  auto comparison = ParseCanonicalJson(
+      test::Read("tests/contracts/fixtures/perf-comparison.json"),
+      "M0-PERF-COMPARISON-v1", "PERF_NONCANONICAL")
+                        .value();
+  MutableMember(comparison, "authority") = JsonValue(std::string(authority));
+  MutableMember(comparison, "lower_bound_ppb") = JsonValue(lower_bound);
+  MutableMember(comparison, "mismatches") = JsonValue(JsonValue::Array{});
+  MutableMember(comparison, "next_action") = JsonValue(std::string(action));
+  MutableMember(comparison, "noise_state") = JsonValue("pass");
+  MutableMember(comparison, "point_estimate_ppb") = JsonValue(lower_bound);
+  MutableMember(comparison, "reason") = JsonValue(std::string(reason));
+  MutableMember(comparison, "resamples") = JsonValue(10000);
+  MutableMember(comparison, "seed_sha256") = JsonValue(ComparisonSeed(
+      *FindMember(comparison, "baseline_result_id")->AsString(),
+      *FindMember(comparison, "candidate_result_id")->AsString()));
+  const bool fired = lower_bound > 30000000;
+  MutableMember(comparison, "significance_fired") = JsonValue(fired);
+  MutableMember(comparison, "state") = JsonValue(std::string(state));
+  MutableMember(comparison, "threshold_fired") = JsonValue(fired);
+  MutableMember(comparison, "valid_pairs") = JsonValue(30);
+  RecomputeDerived(comparison, "comparison_id", "M0-PERF-COMPARISON-v1");
+  return comparison;
+}
+
+void ExpectComparisonRejected(JsonValue comparison) {
+  RecomputeDerived(comparison, "comparison_id", "M0-PERF-COMPARISON-v1");
+  auto result = ValidatePerformanceDocument(Canonical(comparison, "M0-PERF-COMPARISON-v1"));
+  ASSERT_FALSE(result);
+  EXPECT_EQ(result.error().code, "PERF_RELATIONSHIP_INVALID");
+}
+
 TEST(GovernanceContracts, AcceptsSharedFixturesAndRejectsForgedPreapproval) {
   EXPECT_TRUE(ValidateGovernanceDocument(test::Read("tests/contracts/fixtures/sbom-descriptor.json")));
   const auto assembled = test::Read("tests/contracts/fixtures/release-evidence-assembled.json");
@@ -57,6 +231,12 @@ TEST(GovernanceContracts, UnknownFieldsDigestsAndResourcesFailClosed) {
   auto over = ValidateGovernanceDocument(test::Read("tests/contracts/fixtures/sbom-descriptor.json"), {.rss_bytes = 256 * 1024 * 1024 + 1ULL});
   ASSERT_FALSE(over);
   EXPECT_EQ(over.error().code, "GOV_RESOURCE_LIMIT");
+  EXPECT_EQ(over.error().schema, "M0-GOV-ERROR-v1");
+  EXPECT_EQ(over.error().contract, "M0-SBOM-CONTRACT-v1");
+  EXPECT_EQ(over.error().record_id, std::optional<std::string>("sbom.fixture.v1"));
+  EXPECT_EQ(over.error().field_path, "$");
+  EXPECT_EQ(over.error().expected, "peak_rss_bytes");
+  EXPECT_EQ(over.error().limit, 256 * 1024 * 1024);
   EXPECT_TRUE(ValidateGovernanceDocument(
       test::Read("tests/contracts/fixtures/sbom-descriptor.json"), {.count = 200000, .depth = 32}));
   auto count_over = ValidateGovernanceDocument(
@@ -80,66 +260,93 @@ TEST(GovernanceContracts, UnknownFieldsDigestsAndResourcesFailClosed) {
 }
 
 TEST(GovernanceContracts, CompletePreapprovalAndEveryInventoryCardinalityAreExact) {
-  auto complete = ParseCanonicalJson(
-      test::Read("tests/contracts/fixtures/release-evidence-assembled.json"),
-      "M0-RELEASE-EVIDENCE-v1", "GOV_NONCANONICAL").value();
-  MutableMember(complete, "state") = JsonValue("preapproval_validated");
-
-  const std::array<std::string_view, 12> evidence_types{
-      "adr_approval", "build_facts", "canonical_commands", "ci_gate", "claim_scan", "corpus_reliability",
-      "license_notice", "performance_tooling", "reference_environment", "sanitizer_fuzz", "sbom_descriptor",
-      "security_controls"};
-  JsonValue::Array evidence;
-  for (std::size_t index = 0; index < evidence_types.size(); ++index) {
-    evidence.emplace_back(JsonValue::Object{
-        {"byte_length", 2},
-        {"evidence_object_sha256", std::string(64, "abcdef"[index % 6])},
-        {"path", std::string("evidence/") + std::string(evidence_types[index]) + ".json"},
-        {"producer", std::string("tool.") + std::string(evidence_types[index])},
-        {"producer_version", "1"},
-        {"schema", "M0-EVIDENCE-v1"},
-        {"type", std::string(evidence_types[index])},
-    });
-  }
-  MutableMember(complete, "evidence") = JsonValue(std::move(evidence));
-
-  const std::array<std::string_view, 12> validator_ids{
-      "adr_protected_decisions", "build_reference", "canonical_commands", "ci_gate", "claim_scan",
-      "corpus_reliability", "dependency_sbom", "license_notice", "performance_tooling", "sanitizer_fuzz",
-      "security_controls", "subject_identity"};
-  JsonValue::Array validators;
-  for (const auto id : validator_ids) {
-    validators.emplace_back(JsonValue::Object{
-        {"diagnostic", nullptr}, {"finding_count", 0}, {"status", "pass"},
-        {"validator_id", std::string(id)}, {"version", "1"},
-    });
-  }
-  MutableMember(complete, "validators") = JsonValue(std::move(validators));
-
-  JsonValue::Array approvals;
-  for (const auto role : {"product_owner", "release_owner", "security_owner"}) {
-    approvals.emplace_back(JsonValue::Object{
-        {"decision", "approved"}, {"identity", std::string(role) + ".fixture"}, {"role", role},
-        {"time", "2026-07-22T12:00:00Z"},
-    });
-  }
-  MutableMember(complete, "approvals") = JsonValue(std::move(approvals));
-  EXPECT_TRUE(ValidateGovernanceDocument(Canonical(complete, "M0-RELEASE-EVIDENCE-v1")));
+  auto fixture = CompleteGovernanceBundle();
+  const auto manifest_bytes = Canonical(fixture.manifest, "M0-RELEASE-EVIDENCE-v1");
+  EXPECT_TRUE(ValidateGovernanceBundle(manifest_bytes, fixture.documents));
 
   for (const auto inventory : {"evidence", "validators", "approvals"}) {
-    auto incomplete = complete;
+    auto incomplete = fixture.manifest;
     std::get<JsonValue::Array>(MutableMember(incomplete, inventory).value).pop_back();
     auto invalid = ValidateGovernanceDocument(Canonical(incomplete, "M0-RELEASE-EVIDENCE-v1"));
     ASSERT_FALSE(invalid) << inventory;
     EXPECT_EQ(invalid.error().code, "GOV_RELATIONSHIP_INVALID") << inventory;
 
-    auto over = complete;
+    auto over = fixture.manifest;
     auto& rows = std::get<JsonValue::Array>(MutableMember(over, inventory).value);
     rows.push_back(rows.front());
     auto exceeded = ValidateGovernanceDocument(Canonical(over, "M0-RELEASE-EVIDENCE-v1"));
     ASSERT_FALSE(exceeded) << inventory;
     EXPECT_EQ(exceeded.error().code, "GOV_FIELD_BOUND") << inventory;
   }
+}
+
+TEST(GovernanceContracts, BundleResolvesCanonicalBytesSchemasSubjectsAndCrossLinks) {
+  auto fixture = CompleteGovernanceBundle();
+  const auto valid = [&] {
+    return ValidateGovernanceBundle(
+        Canonical(fixture.manifest, "M0-RELEASE-EVIDENCE-v1"), fixture.documents);
+  };
+  ASSERT_TRUE(valid());
+
+  auto missing = fixture;
+  missing.documents.erase(missing.documents.begin());
+  auto rejected = ValidateGovernanceBundle(
+      Canonical(missing.manifest, "M0-RELEASE-EVIDENCE-v1"), missing.documents);
+  ASSERT_FALSE(rejected);
+  EXPECT_EQ(rejected.error().code, "GOV_REFERENCE_UNRESOLVED");
+
+  auto mutated = fixture;
+  mutated.documents.front().bytes[mutated.documents.front().bytes.find("M0-")] = 'N';
+  rejected = ValidateGovernanceBundle(
+      Canonical(mutated.manifest, "M0-RELEASE-EVIDENCE-v1"), mutated.documents);
+  ASSERT_FALSE(rejected);
+  EXPECT_EQ(rejected.error().code, "GOV_DIGEST_INVALID");
+
+  auto wrong_schema = fixture;
+  auto& schema_row = std::get<JsonValue::Array>(MutableMember(wrong_schema.manifest, "evidence").value).front();
+  MutableMember(schema_row, "schema") = JsonValue("M0-WRONG-EVIDENCE-v1");
+  rejected = ValidateGovernanceBundle(
+      Canonical(wrong_schema.manifest, "M0-RELEASE-EVIDENCE-v1"), wrong_schema.documents);
+  ASSERT_FALSE(rejected);
+  EXPECT_EQ(rejected.error().code, "GOV_REFERENCE_UNRESOLVED");
+
+  auto substituted = fixture;
+  auto& evidence = std::get<JsonValue::Array>(MutableMember(substituted.manifest, "evidence").value);
+  MutableMember(evidence.front(), "evidence_object_sha256") =
+      *FindMember(evidence[1], "evidence_object_sha256");
+  rejected = ValidateGovernanceBundle(
+      Canonical(substituted.manifest, "M0-RELEASE-EVIDENCE-v1"), substituted.documents);
+  ASSERT_FALSE(rejected);
+  EXPECT_EQ(rejected.error().code, "GOV_DIGEST_INVALID");
+
+  auto wrong_package = fixture;
+  const auto security = std::find_if(
+      wrong_package.documents.begin(), wrong_package.documents.end(),
+      [](const ReferencedDocument& document) {
+        return document.path == "evidence/security_controls.json";
+      });
+  ASSERT_NE(security, wrong_package.documents.end());
+  auto security_document = ParseCanonicalJson(
+      security->bytes, "M0-SECURITY-CONTROLS-v1", "GOV_NONCANONICAL")
+                               .value();
+  MutableMember(security_document, "package_tree_sha256") = JsonValue(std::string(64, '0'));
+  security->bytes = Canonical(security_document, "M0-SECURITY-CONTROLS-v1");
+  RefreshEvidenceReference(wrong_package, security->path);
+  rejected = ValidateGovernanceBundle(
+      Canonical(wrong_package.manifest, "M0-RELEASE-EVIDENCE-v1"), wrong_package.documents);
+  ASSERT_FALSE(rejected);
+  EXPECT_EQ(rejected.error().code, "GOV_RELATIONSHIP_INVALID");
+
+  auto wrong_sbom = fixture;
+  const auto spdx = std::find_if(
+      wrong_sbom.documents.begin(), wrong_sbom.documents.end(),
+      [](const ReferencedDocument& document) { return document.path == "orus.spdx.json"; });
+  ASSERT_NE(spdx, wrong_sbom.documents.end());
+  spdx->bytes.replace(spdx->bytes.find("DESCRIBES"), std::string("DESCRIBES").size(), "CONTAINS");
+  rejected = ValidateGovernanceBundle(
+      Canonical(wrong_sbom.manifest, "M0-RELEASE-EVIDENCE-v1"), wrong_sbom.documents);
+  ASSERT_FALSE(rejected);
+  EXPECT_EQ(rejected.error().code, "GOV_DIGEST_INVALID");
 }
 
 TEST(GovernanceContracts, SubjectAndExactSchemaDagCannotEnterReleaseEvidence) {
@@ -325,6 +532,68 @@ TEST(PerformanceContracts, NestedTypesEnumsBoundsAndConditionalFieldsFailClosed)
   MutableMember(comparison, "mismatches") = JsonValue(JsonValue::Array{});
   RecomputeDerived(comparison, "comparison_id", "M0-PERF-COMPARISON-v1");
   EXPECT_FALSE(ValidatePerformanceDocument(Canonical(comparison, "M0-PERF-COMPARISON-v1")));
+}
+
+TEST(PerformanceContracts, ComparisonAuthorityNoiseStatisticsThresholdAndPrecedenceAreExact) {
+  const auto advisory = StatisticalComparison(
+      "advisory", 30010000, "advisory_only", "PERF_ADVISORY_INPUT", "informational");
+  EXPECT_TRUE(ValidatePerformanceDocument(Canonical(advisory, "M0-PERF-COMPARISON-v1")));
+  const auto clean = StatisticalComparison(
+      "authoritative", 30000000, "no_regression_detected", "none", "none");
+  EXPECT_TRUE(ValidatePerformanceDocument(Canonical(clean, "M0-PERF-COMPARISON-v1")));
+  const auto regression = StatisticalComparison(
+      "authoritative", 30000001, "regression_requires_approval",
+      "PERF_REGRESSION_REQUIRES_APPROVAL", "approval");
+  EXPECT_TRUE(ValidatePerformanceDocument(Canonical(regression, "M0-PERF-COMPARISON-v1")));
+
+  auto missing_advisory_statistics = advisory;
+  for (const auto field : {"lower_bound_ppb", "point_estimate_ppb", "seed_sha256",
+                           "significance_fired", "threshold_fired"}) {
+    MutableMember(missing_advisory_statistics, field) = JsonValue(nullptr);
+  }
+  MutableMember(missing_advisory_statistics, "resamples") = JsonValue(0);
+  ExpectComparisonRejected(missing_advisory_statistics);
+
+  auto forged_authority = advisory;
+  MutableMember(forged_authority, "authority") = JsonValue("authoritative");
+  ExpectComparisonRejected(forged_authority);
+
+  auto noise_precedence = advisory;
+  MutableMember(noise_precedence, "noise_state") = JsonValue("failed");
+  ExpectComparisonRejected(noise_precedence);
+
+  auto noise_reason = ParseCanonicalJson(
+      test::Read("tests/contracts/fixtures/perf-comparison.json"),
+      "M0-PERF-COMPARISON-v1", "PERF_NONCANONICAL")
+                          .value();
+  MutableMember(noise_reason, "mismatches") = JsonValue(JsonValue::Array{});
+  MutableMember(noise_reason, "noise_state") = JsonValue("failed");
+  MutableMember(noise_reason, "state") = JsonValue("inconclusive");
+  MutableMember(noise_reason, "reason") = JsonValue("PERF_SAMPLE_FAILED");
+  ExpectComparisonRejected(noise_reason);
+  MutableMember(noise_reason, "reason") = JsonValue("PERF_NOISE_POLICY_FAILED");
+  RecomputeDerived(noise_reason, "comparison_id", "M0-PERF-COMPARISON-v1");
+  EXPECT_TRUE(ValidatePerformanceDocument(Canonical(noise_reason, "M0-PERF-COMPARISON-v1")));
+
+  auto wrong_threshold_state = regression;
+  MutableMember(wrong_threshold_state, "state") = JsonValue("no_regression_detected");
+  MutableMember(wrong_threshold_state, "reason") = JsonValue("none");
+  MutableMember(wrong_threshold_state, "next_action") = JsonValue("none");
+  ExpectComparisonRejected(wrong_threshold_state);
+
+  auto wrong_flags = clean;
+  MutableMember(wrong_flags, "threshold_fired") = JsonValue(true);
+  ExpectComparisonRejected(wrong_flags);
+
+  auto wrong_seed = advisory;
+  MutableMember(wrong_seed, "seed_sha256") = JsonValue(std::string(64, '0'));
+  ExpectComparisonRejected(wrong_seed);
+
+  auto comparison_with_mismatch = advisory;
+  MutableMember(comparison_with_mismatch, "mismatches") = JsonValue(JsonValue::Array{
+      JsonValue(JsonValue::Object{{"baseline", "a"}, {"candidate", "b"}, {"path", "host.cpu"}}),
+  });
+  ExpectComparisonRejected(comparison_with_mismatch);
 }
 
 TEST(PerformanceStatistics, NegativeTieMedianMadPercentileAndOverflowAreExact) {
@@ -516,13 +785,29 @@ TEST(CorpusContracts, FaultEnumsAndReliabilityRowsAreFiniteAndReconciled) {
 TEST(SecurityResourceContracts, OwnedRowsAreFiniteUniqueAndLiteral) {
   const auto& rows = M0SharedResourceContracts();
   ASSERT_EQ(rows.size(), 7);
+  EXPECT_TRUE(ValidateM0SharedResourceContracts(rows));
   std::set<std::string> identifiers;
   std::set<std::string> operations;
   for (const auto& row : rows) {
+    EXPECT_EQ(row.schema, "M0-RESOURCE-LIMIT-v1");
+    EXPECT_EQ(row.status, "applicable");
     EXPECT_TRUE(identifiers.insert(row.limit_id).second);
     EXPECT_TRUE(operations.insert(row.operation).second);
+    EXPECT_FALSE(row.domain.empty());
+    EXPECT_FALSE(row.parser.empty());
+    EXPECT_FALSE(row.input_trust.empty());
+    EXPECT_FALSE(row.units.empty());
+    EXPECT_FALSE(row.derived_allocation_memory.empty());
+    EXPECT_FALSE(row.process_thread_fd.empty());
+    EXPECT_FALSE(row.cpu_time.empty());
+    EXPECT_FALSE(row.storage_queue_io.empty());
+    EXPECT_FALSE(row.enforcement_point.empty());
     EXPECT_FALSE(row.error.empty());
+    EXPECT_FALSE(row.cleanup.empty());
+    EXPECT_FALSE(row.tests.empty());
+    EXPECT_FALSE(row.owner.empty());
     EXPECT_FALSE(row.owner_requirement.empty());
+    EXPECT_FALSE(row.not_applicable_rationale.empty());
 
     ResourceUsage exact;
     if (row.limits.input_bytes) exact.input_bytes = *row.limits.input_bytes;
@@ -573,6 +858,28 @@ TEST(SecurityResourceContracts, OwnedRowsAreFiniteUniqueAndLiteral) {
   EXPECT_EQ(identifiers, (std::set<std::string>{
                              "SEC-LIM-10-02", "SEC-LIM-10-03", "SEC-LIM-11-03", "SEC-LIM-11-04",
                              "SEC-LIM-14-01", "SEC-LIM-14-02", "SEC-LIM-15-03"}));
+
+  for (const auto mutate : {"missing", "numeric", "error", "late", "cleanup", "trust", "rationale"}) {
+    auto drifted = rows;
+    if (mutate == std::string_view("missing")) {
+      drifted.pop_back();
+    } else if (mutate == std::string_view("numeric")) {
+      ++*drifted.front().limits.input_bytes;
+    } else if (mutate == std::string_view("error")) {
+      drifted[2].error = "GOV_FIELD_BOUND";
+    } else if (mutate == std::string_view("late")) {
+      drifted[3].enforcement_point = "after_final_marker";
+    } else if (mutate == std::string_view("cleanup")) {
+      drifted[3].cleanup.clear();
+    } else if (mutate == std::string_view("trust")) {
+      drifted[3].input_trust.clear();
+    } else {
+      drifted[3].not_applicable_rationale.clear();
+    }
+    auto invalid = ValidateM0SharedResourceContracts(drifted);
+    ASSERT_FALSE(invalid) << mutate;
+    EXPECT_EQ(invalid.error().code, "SEC_RESOURCE_LIMIT") << mutate;
+  }
 }
 
 }  // namespace
