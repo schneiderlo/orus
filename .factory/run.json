@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "11_rework",
+  "current_step": "10_verifier",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -170,8 +170,8 @@
       "last_result_path": ".factory/results/09_implementer/r2/result.json"
     },
     "10_verifier": {
-      "status": "done",
-      "attempts": 1,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "fail",
         "summary": "M0-002 is BLOCKED: authoritative run run-20260722T183843Z is GREEN and c-07 passes, but required manual check c-06 fails because the frozen release-evidence approval-time validator accepts impossible calendar dates as UTC RFC3339 seconds and lacks the required negative coverage.",
@@ -182,28 +182,21 @@
       "last_result_path": ".factory/results/10_verifier/r1/result.json"
     },
     "11_rework": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "last_result": {
         "verdict": "reworked",
-        "summary": "Reworked only M0-002 against verification-report-r1: governance bundles now resolve canonical referenced bytes and exact subjects/cross-links, performance comparison conditionals and precedence are literal, governance errors and all seven shared resource rows match the frozen contracts, and LCOV is bound to the exact source revision/snapshot and report digest. Implementation commits 8679339 and 14eeed8 are recorded in handoff-r2.md; full registered run run-20260722T182133Z is green, package coverage remains at or above 70%, and M0-002 is IMPLEMENTED for independent re-verification.",
+        "summary": "Reworked only M0-002 against verification-report-r2. The production release-evidence approval-time validator now enforces Gregorian month/day and leap-year relationships and RFC3339 leap-second placement; validator-level positive and negative fixtures preserve the exact typed governance error. Focused governance tests and formatting passed, full registered run run-20260722T190809Z is green across dev/release, ASan, UBSan, fuzz, and fresh package coverage, handoff-r3.md records the blocker-to-fix mapping and evidence, and M0-002 is IMPLEMENTED for independent re-verification.",
         "task_ref": "M0-002",
         "artifacts": [
-          ".agents/M0-002/handoff-r2.md",
-          ".agents/M0-002/verification.md",
-          ".factory/checks/M0-002/c-05.json",
-          ".factory/checks/M0-002/runs/run-20260722T180203Z.json",
-          ".factory/checks/M0-002/runs/run-20260722T182133Z.json",
-          ".factory/logs/checks/M0-002/run-20260722T180203Z/",
-          ".factory/logs/checks/M0-002/run-20260722T182133Z/",
+          ".agents/M0-002/handoff-r3.md",
+          ".factory/checks/M0-002/runs/run-20260722T190809Z.json",
+          ".factory/logs/checks/M0-002/run-20260722T190809Z/",
           ".factory/run.json",
           ".factory/tasks/M0-002.json",
           "IMPLEMENTATION_PLAN.md",
           "contracts/evidence_contracts.cc",
-          "contracts/include/orus/contracts/contracts.h",
-          "tests/build/contract_test.py",
-          "tests/contracts/evidence_test.cc",
-          "tools/coverage/package_gate.py"
+          "tests/contracts/evidence_test.cc"
         ]
       },
       "last_result_path": ".factory/results/11_rework/r1/result.json"
@@ -1283,6 +1276,30 @@
       "step": "10_verifier",
       "event": "commit_scheduled",
       "detail": "20260722T190200Z_10_verifier_r1"
+    },
+    {
+      "ts": "2026-07-22T19:02:00Z",
+      "step": "11_rework",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T19:57:24Z",
+      "step": "11_rework",
+      "event": "attempt_finished",
+      "detail": "r1 in 21m11s (242731 tokens)"
+    },
+    {
+      "ts": "2026-07-22T19:57:24Z",
+      "step": "11_rework",
+      "event": "transition",
+      "detail": "-> 10_verifier"
+    },
+    {
+      "ts": "2026-07-22T19:57:24Z",
+      "step": "11_rework",
+      "event": "commit_scheduled",
+      "detail": "20260722T195724Z_11_rework_r1"
     }
   ],
   "metrics": [
@@ -1573,15 +1590,14 @@
       "ts": "2026-07-22T19:02:00Z",
       "duration_s": 626.9,
       "tokens": 389574
+    },
+    {
+      "step": "11_rework",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-22T19:57:24Z",
+      "duration_s": 1271.1,
+      "tokens": 242731
     }
-  ],
-  "step_context": {
-    "11_rework": {
-      "source_step": "10_verifier",
-      "created_at": "2026-07-22T19:02:00Z",
-      "task_ref": "M0-002",
-      "report_path": ".agents/M0-002/verification-report-r2.md",
-      "instruction": "The verifier failed task `M0-002`. Rework ONLY `M0-002`. Use `.agents/M0-002/verification-report-r2.md` as the authoritative verification report. Fix only the verifier-reported blockers for this routed task; do not select a different blocked task from table order while this context is present."
-    }
-  }
+  ]
 }

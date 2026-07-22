@@ -94,10 +94,24 @@ bool IsRfc3339Seconds(std::string_view value) {
   const auto number = [&](std::size_t offset) {
     return static_cast<unsigned>((value[offset] - '0') * 10 + (value[offset + 1] - '0'));
   };
+  const unsigned year = static_cast<unsigned>(value[0] - '0') * 1000U +
+                        static_cast<unsigned>(value[1] - '0') * 100U +
+                        static_cast<unsigned>(value[2] - '0') * 10U +
+                        static_cast<unsigned>(value[3] - '0');
   const unsigned month = number(5);
   const unsigned day = number(8);
-  return month >= 1 && month <= 12 && day >= 1 && day <= 31 && number(11) <= 23 &&
-         number(14) <= 59 && number(17) <= 59;
+  const unsigned hour = number(11);
+  const unsigned minute = number(14);
+  const unsigned second = number(17);
+  if (month < 1 || month > 12 || hour > 23 || minute > 59 || second > 60) {
+    return false;
+  }
+  constexpr std::array<unsigned, 12> kDaysPerMonth{
+      31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  const bool leap_year = year % 4U == 0U && (year % 100U != 0U || year % 400U == 0U);
+  const unsigned maximum_day = kDaysPerMonth[month - 1] + (month == 2 && leap_year ? 1U : 0U);
+  if (day < 1 || day > maximum_day) return false;
+  return second < 60 || (hour == 23 && minute == 59 && day == maximum_day);
 }
 
 bool IsEnum(std::string_view value, std::initializer_list<std::string_view> allowed) {

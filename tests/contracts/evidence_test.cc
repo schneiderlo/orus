@@ -280,6 +280,50 @@ TEST(GovernanceContracts, CompletePreapprovalAndEveryInventoryCardinalityAreExac
   }
 }
 
+TEST(GovernanceContracts, ApprovalTimesEnforceUtcRfc3339CalendarAndLeapSeconds) {
+  const auto validate = [](std::string_view time) {
+    auto fixture = CompleteGovernanceBundle();
+    auto& approvals = std::get<JsonValue::Array>(MutableMember(fixture.manifest, "approvals").value);
+    MutableMember(approvals.front(), "time") = JsonValue(std::string(time));
+    return ValidateGovernanceDocument(Canonical(fixture.manifest, "M0-RELEASE-EVIDENCE-v1"));
+  };
+
+  for (const auto time : {
+           "2000-02-29T00:00:00Z",
+           "2024-02-29T23:59:59Z",
+           "2026-04-30T23:59:59Z",
+           "2026-12-31T23:59:59Z",
+           "2016-12-31T23:59:60Z",
+       }) {
+    SCOPED_TRACE(time);
+    EXPECT_TRUE(validate(time));
+  }
+
+  for (const auto time : {
+           "1900-02-29T12:00:00Z",
+           "2023-02-29T12:00:00Z",
+           "2024-02-30T12:00:00Z",
+           "2026-02-31T12:00:00Z",
+           "2026-04-31T12:00:00Z",
+           "2026-00-01T12:00:00Z",
+           "2026-01-00T12:00:00Z",
+           "2026-01-01T24:00:00Z",
+           "2026-01-01T12:60:00Z",
+           "2026-01-01T12:00:61Z",
+           "2016-12-30T23:59:60Z",
+           "2016-12-31T23:58:60Z",
+       }) {
+    SCOPED_TRACE(time);
+    const auto invalid = validate(time);
+    ASSERT_FALSE(invalid);
+    EXPECT_EQ(invalid.error().schema, "M0-GOV-ERROR-v1");
+    EXPECT_EQ(invalid.error().code, "GOV_RELATIONSHIP_INVALID");
+    EXPECT_EQ(invalid.error().contract, "M0-RELEASE-EVIDENCE-v1");
+    EXPECT_EQ(invalid.error().field_path, "$.approvals[]");
+    EXPECT_EQ(invalid.error().record_id, std::optional<std::string>("orus.fixture.1"));
+  }
+}
+
 TEST(GovernanceContracts, BundleResolvesCanonicalBytesSchemasSubjectsAndCrossLinks) {
   auto fixture = CompleteGovernanceBundle();
   const auto valid = [&] {
