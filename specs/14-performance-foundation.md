@@ -61,7 +61,7 @@ and detects a positive fixture.
 |---|---|---|---|---|
 | PERF-FR-001 | Every benchmark shall be declared in `M0-PERF-WORKLOAD-v1` before its result is accepted. | Registry row defines stable workload ID/version, owner, executable/arguments, metric name/unit/direction, setup, warmup, measured operation, concurrency/data size, sample rule, timeout, applicable storage, allocation phase, and introducing requirement; unknown/mismatched workload is rejected. | PERF-TEST-001 registry schema and unknown/version-mismatch fixtures. | G-04, C-05, D-006. |
 | PERF-FR-002 | The harness shall separate setup/warmup from measured steady state and retain every raw sample. | A paired comparison runs exactly five warmup pairs (five baseline plus five candidate invocations, ten total) before at least 30 measured pairs; Section 6.4 defines initial/alternating order. Phase boundaries and every raw warmup/measured record are retained; timeout/failed samples remain typed invalid and make the attempt `inconclusive`, never silently discarded/replaced. | PERF-TEST-002 harness phase/order and raw-sample reconciliation. | SM-07, D-006; resolved `q-0006`. |
-| PERF-FR-003 | Every performance document shall validate against the five complete schemas and canonical bytes in Sections 6.2-6.3. | Workload, raw sample, result, controlled-runner, and comparison documents contain every required typed field, enum, bound, conditional field, identity, and relationship. Missing/extra/type/enum/bound/noncanonical/float/native-layout/wrong-digest fixtures each return the exact typed parse error; canonical and noncanonical byte goldens match Section 6.3. | PERF-TEST-003 five-schema canonicalization and one-negative-per-field/relationship corpus. | SM-07, R-002, R-201; resolved `q-0007` and `q-0011`. |
+| PERF-FR-003 | Every performance document shall validate against the five complete schemas and canonical bytes in Sections 6.2-6.3. | Workload, raw sample, result, controlled-runner, and comparison documents contain every required typed field, enum, bound, conditional field, identity, and relationship. The five Section 6.3 examples reproduce their literal content digests; result raw-array order/count/digest and all summary selection/rounding rules reconcile. Missing/extra/type/enum/bound/noncanonical/float/native-layout/wrong-digest fixtures each return the exact typed parse error. | PERF-TEST-003 five-schema canonicalization, fixed-digest, raw-order/statistic, and one-negative-per-field/relationship corpus. | SM-07, R-002, R-201; resolved `q-0007` and `q-0011`. |
 | PERF-FR-004 | A runner shall receive `authority=authoritative` only after `M0-CONTROLLED-RUNNER-v1` conformance succeeds for that run. | Contract verifies exact CPU/ISA, isolated affinity set, kernel/image, fixed governor/frequency policy, disabled/recorded boost policy, no CPU migration, no thermal throttling, background-load threshold, memory/NUMA policy, storage/device/filesystem/cache state when applicable, toolchain, workload, sampling, and noise policy; any unknown/failure makes result advisory or invalid, never authoritative. | PERF-TEST-004 runner conformance and one-negative-per-predicate matrix. | D-006, D-010, R-002. |
 | PERF-FR-005 | Results from shared GitHub-hosted runners shall always be advisory. | Producer sets `runner_class=github_hosted_shared` and `authority=advisory`; comparator may describe delta but cannot return blocking regression; a forged authoritative label is rejected. | PERF-TEST-005 authority fixtures including simulated 10% delta. | SM-12, D-010, R-002. |
 | PERF-FR-006 | The comparator shall reject inputs that are not semantically and environmentally comparable. | Schema/workload/metric/unit/direction, artifact role, runner contract/identity, CPU/ISA, affinity, kernel/image, toolchain except the intended candidate change, optimization, storage policy, sampling method, and declared comparison-key fields must match; each mismatch returns `PERF_INCOMPARABLE` naming all discovered mismatches and no regression verdict. | PERF-TEST-006 pairwise mismatch matrix. | SM-08, R-002. |
@@ -93,15 +93,28 @@ mapped by PERF-FR-013.
 
 ### 6.1 Workload registry
 
-`M0-PERF-WORKLOAD-v1` is a committed finite table. Initial rows are:
+`M0-PERF-WORKLOAD-v1` is a committed finite table. The following are the five
+complete normative M0 records; every string and array is literal. All records
+have `schema=M0-PERF-WORKLOAD-v1`, `workload_version=1`,
+`storage_applicable=false`, and the common
+`registry_sha256=17949ac8fe9d6d2e303a95e5881cc6d4574fb99203bb1c845b06461cbfc134cc`.
 
-| Workload ID | Purpose | Metric / direction | Required measurement |
-|---|---|---|---|
-| `m0_harness_reference_v1` | Prove phase/sample/result plumbing with deterministic synthetic work. | `duration_ns`, lower is better. | Five warmup pairs; at least 30 measured pairs; no allocation assertion. |
-| `m0_noalloc_reference_v1` | Prove zero steady-state allocation counting. | `allocation_calls` and `allocated_bytes`, exact zero. | Startup excluded; at least 30 measured iterations. |
-| `m0_positive_alloc_reference_v1` | Positive control for allocation counter. | Calls/bytes, positive detection. | At least one allocation per measured iteration. |
-| `m0_comparator_boundary_v1` | Deterministic lower/higher, 3.0%, >3%, noise, authority fixtures. | Synthetic declared units/directions. | Exact checked-in raw sample corpus. |
-| `m0_concurrent_native_v1` | Register native concurrent corpus measurements without asserting a product budget. | `duration_ns`, lower is better. | Added/owned by `specs/15-concurrent-corpus.md`; advisory on shared CI. |
+| Workload ID / owner | Executable / literal arguments | Metric | Dataset / setup / measured operation | Concurrency / data size | Sampling / timeout | Allocation / introducing requirement |
+|---|---|---|---|---|---|---|
+| `m0_harness_reference_v1` / `performance.owner` | `//tests/benchmarks:m0_harness_reference` / `["--iterations=1000000"]` | `{name:duration_ns,unit:ns,direction:lower_is_better}` | `1000000 sequential uint64 additions; data_size unit is iterations` / `parse fixed arguments and initialize the result sink before timing` / `set the accumulator to zero, add integers 1 through 1000000 in order, and publish the uint64 sum to the result sink` | 1 / 1000000 | `{mode:paired,warmup_pairs:5,minimum_measured_pairs:30,resamples:10000}` / 60000 ms | `none` / `PERF-FR-002` |
+| `m0_noalloc_reference_v1` / `performance.owner` | `//tests/benchmarks:m0_noalloc_reference` / `["--iterations=1000000"]` | `{name:allocation_calls,unit:count,direction:exact}` | `1000000 calls to the registered no-allocation fixture; data_size unit is calls` / `install the allocation counter and construct fixture state before entering steady state` / `invoke the fixture exactly 1000000 times inside the designated steady-state allocation region` | 1 / 1000000 | `{mode:single,warmup_pairs:0,minimum_measured_pairs:30,resamples:0}` / 60000 ms | `steady_state` / `PERF-FR-009` |
+| `m0_positive_alloc_reference_v1` / `performance.owner` | `//tests/benchmarks:m0_positive_alloc_reference` / `["--allocations=1","--bytes=64"]` | `{name:allocation_calls,unit:count,direction:exact}` | `one 64-byte allocation and release per measured iteration; data_size unit is allocations` / `install the allocation counter before entering steady state` / `allocate one 64-byte block, observe non-null success, and release it inside the designated steady-state allocation region` | 1 / 1 | `{mode:single,warmup_pairs:0,minimum_measured_pairs:30,resamples:0}` / 60000 ms | `steady_state` / `PERF-FR-009` |
+| `m0_comparator_boundary_v1` / `performance.owner` | `//tests/performance:emit_fixture_result` / `["--fixture=lower_boundary"]` | `{name:synthetic_value,unit:count,direction:lower_is_better}` | `checked-in 30-pair integer boundary corpus; data_size unit is pairs` / `load and schema-validate the checked-in boundary corpus before timing` / `emit the next declared integer sample without transformation` | 1 / 30 | `{mode:paired,warmup_pairs:5,minimum_measured_pairs:30,resamples:10000}` / 10000 ms | `none` / `PERF-FR-007` |
+| `m0_concurrent_native_v1` / `corpus.owner` | `//tests/concurrent:corpus_parent` / `[]` | `{name:duration_ns,unit:ns,direction:lower_is_better}` | `one complete native parent plus exec-child corpus run; data_size unit is runs` / `prepare the process group, socketpair, absolute deadline, and report sink before parent launch` / `measure parent launch through validated joins, child wait, logical result, descriptor closure, and cleanup proof` | 7 / 1 | `{mode:single,warmup_pairs:0,minimum_measured_pairs:30,resamples:0}` / 10000 ms | `none` / `CORP-FR-012` |
+
+The registry digest is SHA-256 of the canonical object
+`{schema:"M0-PERF-WORKLOAD-REGISTRY-v1",workloads:[...]}` where `workloads`
+contains the five table records in table order with `registry_sha256` omitted
+from each. Inserting or changing a record changes the computed digest; each
+materialized record then carries that same digest. PERF-TEST-001 reconstructs
+the object and must obtain the literal digest above. Higher-is-better comparator
+tests use a separately identified test-only schema fixture; they do not mutate
+these five production registry rows.
 
 Registry changes require owner, introducing requirement, schema validation,
 and review. Workload identity changes whenever measured semantics, dataset,
@@ -132,7 +145,7 @@ is `lower_is_better|higher_is_better|exact`.
 | `timeout_ms` | uint32 1-600000 | Per invocation. |
 | `storage_applicable` | boolean | Governs storage fields in sample/result. |
 | `allocation_phase` | `none|startup|steady_state` | Governs allocation fields. |
-| `introducing_requirement`, `registry_sha256` | `id`, `hex64` | Requirement resolves; digest identifies canonical registry excluding its own digest field. |
+| `introducing_requirement`, `registry_sha256` | requirement token `[A-Z][A-Z0-9]*-(?:FR|NFR)-[0-9]{3}`; `hex64` | Requirement resolves; digest identifies canonical registry excluding every row's own digest field. |
 
 #### 6.2.2 `M0-PERF-RAW-SAMPLE-v1`
 
@@ -158,11 +171,49 @@ is `lower_is_better|higher_is_better|exact`.
 | `runner` | object | Exactly `runner_id:id`, `runner_class:controlled|github_hosted_shared|other`, `contract_sha256:hex64`, `conformance:pass|fail|unknown`, `authority:authoritative|advisory|invalid`; authoritative iff controlled/pass. |
 | `host` | object | Exactly `cpu:string`, `isa:string[1..128]`, `affinity:uint32[1..1024]` sorted/unique, `numa:string`, `kernel:string`, `image_sha256:hex64`, `governor:string`, `frequency_khz:non-negative int64`, `boost:enabled|disabled|unknown`. |
 | `storage` | `null` or object | Null iff not applicable; otherwise sample storage identity plus `sequential_reference_bytes_per_second:non-negative int64`. |
-| `sampling` | object | Exactly warmup/measured method strings, `warmup_pairs`, `measured_pairs`, `valid_pairs`, `invalid_pairs`, `timeout_ms`; counts reconcile raw samples and workload. |
+| `sampling` | object | Exactly `mode:single|paired`, `warmup_pairs_required:uint32`, `warmup_pairs_completed:uint32`, `minimum_measured_pairs:uint32>=1`, `measured_pairs_attempted:uint32`, `valid_pairs:uint32`, `invalid_pairs:uint32`, `resamples:uint32`, and `timeout_ms:uint32[1..600000]`; equations are below. |
 | `noise_state` | `pass|failed` | Failed if any preflight/measured predicate or sample fails. |
-| `raw_samples` | object | Exactly `storage:embedded|external`, `path:relpath|null`, `byte_length:non-negative int64`, `sha256:hex64`, `count:uint32<=100000`; external requires path, embedded requires null; digest covers canonical ordered raw-sample array. |
-| `statistics` | object | Exactly signed-int64 `minimum`, `maximum`, `median`, `median_absolute_deviation`, and `percentiles` array 0-32 of `{rank_ppm:uint32[1..999999],value:int64}` sorted unique; all from valid measured primary values. |
+| `raw_samples` | object | Exactly `storage:embedded|external`, `path:relpath|null`, `byte_length:non-negative int64`, `sha256:hex64`, `count:uint32<=100000`; external requires path, embedded requires null; digest covers the exact canonical array order below. |
+| `statistics` | object | Exactly signed-int64 `minimum`, `maximum`, `median`, `median_absolute_deviation`, and `percentiles` array 0-32 of `{rank_ppm:uint32[1..999999],value:int64}` sorted unique; derivation is exact below. |
 | `tool_version`, `attempt_id`, `validation_state` | string 1-128; `id`; `schema_valid|invalid` | Accepted result is schema_valid. |
+
+Sampling relationships are normative. Every result copies `mode`,
+`warmup_pairs_required`, `minimum_measured_pairs`, `resamples`, and `timeout_ms`
+from its workload (`warmup_pairs` maps to `warmup_pairs_required`). In paired
+mode, accepted results require required/completed warmups = 5,
+`measured_pairs_attempted >= minimum_measured_pairs >= 30`,
+`valid_pairs + invalid_pairs = measured_pairs_attempted`, and
+`resamples=10000`; baseline and candidate results have identical counts and one
+sample per role for every pair index. In single mode, required/completed
+warmups are 0, `measured_pairs_attempted >= minimum_measured_pairs`,
+`valid_pairs + invalid_pairs = measured_pairs_attempted`, `resamples=0`, and
+`role=standalone`. A result's raw array contains exactly
+`warmup_pairs_completed + measured_pairs_attempted` objects; its warmup indices
+are contiguous `0..completed-1`, measured indices are contiguous
+`0..attempted-1`, and `raw_samples.count` equals that sum. A valid pair is one
+whose baseline and candidate raw objects are both valid; both results report
+the same resulting pair counts. Any count, role, index, or workload mismatch is
+`PERF_RELATIONSHIP_INVALID`.
+
+The raw-sample array order is fixed: all `phase=warmup` rows in increasing
+`pair_index`, then all `phase=measured` rows in increasing `pair_index`. For a
+result document there is only its declared role's row at each index. Across a
+paired run, the `order` value at an index is identical in the two result arrays
+and follows Section 6.4. The identified raw bytes are the
+`M0-CANONICAL-JSON-v1` serialization of that array with no terminal LF; every
+embedded/external representation must have the declared length and SHA-256.
+
+Statistics use only valid measured primary `metric.value` integers from that
+ordered array. Sort a copy ascending. `minimum`/`maximum` select the first/last.
+Median uses the Section 6.4 odd/even selection and half-away-from-zero rule.
+For MAD, compute `abs(value-median)` in checked >=128-bit arithmetic for every
+selected value, sort those integer deviations, and apply the same median rule.
+For percentile `rank_ppm`, select the one-based nearest-rank element
+`ceil(rank_ppm*N/1000000)`, implemented as checked integer
+`(rank_ppm*N + 999999) / 1000000` and clamped to 1..N; no interpolation occurs.
+The emitted percentile `value` is that selected original metric integer. Empty
+valid measured populations cannot emit a result; overflow is
+`PERF_INTEGER_OVERFLOW`.
 
 #### 6.2.4 `M0-CONTROLLED-RUNNER-v1`
 
@@ -234,21 +285,58 @@ No comparison document is emitted for these parse/identity failures.
 
 #### 6.3.2 Fixed byte goldens
 
-This valid canonical raw-sample fixture has SHA-256
-`1b7985810a5d2bb210facfce8fa54c4e78ca8271617060a32e251e2933103054`:
+This valid canonical raw-sample fixture has content SHA-256
+`be68aca7cc59414f245daaf3dca7bfa22b6463d97e33e80771655a6bd58d8b78`.
+The one-element canonical raw array containing it is 420 bytes with SHA-256
+`0a3055e4061248fec8f1fb2ee50ded4668e2b08515a5ebc956b1b60e76c1c9e1`:
 
 ```json
-{"allocation":null,"background_utilization_ppm":0,"cpu":2,"duration_ns":100,"end_ns":200,"invalid_reason":"none","metric":{"name":"duration_ns","unit":"ns","value":100},"migration_count":0,"order":"baseline_first","pair_index":0,"phase":"measured","run_id":"run.fixture","schema":"M0-PERF-RAW-SAMPLE-v1","start_ns":100,"storage":null,"throttled":false,"valid":true,"workload_id":"m0_harness_reference_v1","workload_version":1}
+{"allocation":null,"background_utilization_ppm":0,"cpu":2,"duration_ns":100,"end_ns":200,"invalid_reason":"none","metric":{"name":"duration_ns","unit":"ns","value":100},"migration_count":0,"order":"standalone","pair_index":0,"phase":"measured","run_id":"run.fixture","schema":"M0-PERF-RAW-SAMPLE-v1","start_ns":100,"storage":null,"throttled":false,"valid":true,"workload_id":"fixture_duration_v1","workload_version":1}
 ```
 
-These deliberately noncanonical but logically equal bytes have SHA-256
-`b9b37d2418123f9f08d9105d40ba2a5f8e593742c536b81e65d3d13ba309acb5`
-but are rejected as `PERF_NONCANONICAL`; a validator never normalizes and
-accepts those input bytes silently.
+The complete canonical workload example has registry SHA-256
+`3e6b1322718c773227c66926a57ebc5e473cf6892bd43707e7af37bac15d12bb`
+and content SHA-256
+`6ae68e519f47866d9aca4574dbda964e3557b9536bb0819a6314d564aed745d0`.
+For this test-only example, the registry digest uses the Section 6.1 algorithm
+over a one-row `workloads` array containing this fixture with its
+`registry_sha256` member omitted:
 
 ```json
-{ "schema": "M0-PERF-RAW-SAMPLE-v1", "run_id": "run.fixture", "workload_id": "m0_harness_reference_v1", "workload_version": 1, "phase": "measured", "pair_index": 0, "order": "baseline_first", "start_ns": 100, "end_ns": 200, "duration_ns": 100, "metric": { "name": "duration_ns", "unit": "ns", "value": 100 }, "valid": true, "invalid_reason": "none", "allocation": null, "cpu": 2, "migration_count": 0, "throttled": false, "background_utilization_ppm": 0, "storage": null }
+{"allocation_phase":"none","arguments":[],"concurrency":1,"data_size":1,"dataset":"one fixture operation; data_size unit is operations","executable":"//tests/performance:fixture_duration","introducing_requirement":"PERF-FR-003","measured_operation":"execute one fixture operation","metric":{"direction":"lower_is_better","name":"duration_ns","unit":"ns"},"owner":"performance.owner","registry_sha256":"3e6b1322718c773227c66926a57ebc5e473cf6892bd43707e7af37bac15d12bb","sampling":{"minimum_measured_pairs":1,"mode":"single","resamples":0,"warmup_pairs":0},"schema":"M0-PERF-WORKLOAD-v1","setup":"initialize fixture state before timing","storage_applicable":false,"timeout_ms":1000,"workload_id":"fixture_duration_v1","workload_version":1}
 ```
+
+The complete canonical shared-runner example has
+`contract_sha256=1cbc14832a9639dd2a811c95639692d3582da41499baae3e58ad09401be61f90`
+and content SHA-256
+`29751cbe816b7edad016dddef96f5dbd28a9e5290e5c4b664e5f5effae1f3e62`:
+
+```json
+{"authority":"advisory","conformance":"unknown","contract_id":"runner.fixture.contract","contract_sha256":"1cbc14832a9639dd2a811c95639692d3582da41499baae3e58ad09401be61f90","measurement":{"affinity":[2],"clock":"monotonic_raw","max_background_utilization_ppm":0,"migration_count":0,"preflight_ms":5000,"storage_applicable":false,"throttle_events":0},"predicates":[{"expected":"github_hosted_shared","observed":"github_hosted_shared","operator":"eq","path":"runner.class","status":"pass"}],"run_id":"run.fixture","runner_class":"github_hosted_shared","runner_id":"runner.fixture","schema":"M0-CONTROLLED-RUNNER-v1"}
+```
+
+The complete canonical result example resolves the raw-array and runner
+digests above. Its derived
+`result_id=0c7dc602e1a6cf701f6d9cb818b9b5189c783d4649b3627c7ccde2161eb65a4e`
+and full content SHA-256 is
+`53bf9f36b775d084120636acbc80490257e8f32d3e9e662de3fd0dae3a751f4b`:
+
+```json
+{"artifact_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","artifact_subject":"benchmark_fixture","attempt_id":"attempt.fixture","build_id":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","compiler":"fixture-compiler-1","concurrency":1,"configuration":"dev","dataset":"one fixture operation; data_size unit is operations","host":{"affinity":[2],"boost":"unknown","cpu":"fixture-cpu","frequency_khz":0,"governor":"unknown","image_sha256":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","isa":"sse2","kernel":"fixture-kernel","numa":"node0"},"metric":{"direction":"lower_is_better","name":"duration_ns","unit":"ns"},"noise_state":"pass","optimization":"O0","raw_samples":{"byte_length":420,"count":1,"path":"samples/fixture.json","sha256":"0a3055e4061248fec8f1fb2ee50ded4668e2b08515a5ebc956b1b60e76c1c9e1","storage":"external"},"result_id":"0c7dc602e1a6cf701f6d9cb818b9b5189c783d4649b3627c7ccde2161eb65a4e","role":"standalone","run_id":"run.fixture","runner":{"authority":"advisory","conformance":"unknown","contract_sha256":"1cbc14832a9639dd2a811c95639692d3582da41499baae3e58ad09401be61f90","runner_class":"github_hosted_shared","runner_id":"runner.fixture"},"sampling":{"invalid_pairs":0,"measured_pairs_attempted":1,"minimum_measured_pairs":1,"mode":"single","resamples":0,"timeout_ms":1000,"valid_pairs":1,"warmup_pairs_completed":0,"warmup_pairs_required":0},"schema":"M0-PERF-RESULT-v1","source_revision":"0123456789abcdef0123456789abcdef01234567","statistics":{"maximum":100,"median":100,"median_absolute_deviation":0,"minimum":100,"percentiles":[{"rank_ppm":500000,"value":100}]},"storage":null,"tool_version":"fixture-1","validation_state":"schema_valid","workload_id":"fixture_duration_v1","workload_version":1}
+```
+
+The complete canonical incomparable comparison example has derived
+`comparison_id=381537010c45b765b28b9dfcb2dfa34bdc0e080e4b9644a60aad33b58b594b4b`
+and full content SHA-256
+`8aede2e8179c52f9d6c96618510ebe6e4311030b6d91f292a58bca4d7a4c94c6`:
+
+```json
+{"authority":"advisory","baseline_result_id":"1111111111111111111111111111111111111111111111111111111111111111","candidate_result_id":"2222222222222222222222222222222222222222222222222222222222222222","comparator_version":"M0-PAIRED-BOOTSTRAP-v1","comparison_id":"381537010c45b765b28b9dfcb2dfa34bdc0e080e4b9644a60aad33b58b594b4b","golden_corpus_sha256":"3333333333333333333333333333333333333333333333333333333333333333","lower_bound_ppb":null,"mismatches":[{"baseline":"fixture-a","candidate":"fixture-b","path":"host.cpu"}],"next_action":"rerun","noise_state":"unknown","point_estimate_ppb":null,"reason":"PERF_INCOMPARABLE","resamples":0,"schema":"M0-PERF-COMPARISON-v1","seed_sha256":null,"significance_fired":null,"state":"incomparable","threshold_fired":null,"threshold_ppb":30000000,"valid_pairs":0}
+```
+
+Whitespace/member-reordered versions of each example are deliberately
+noncanonical and return `PERF_NONCANONICAL`; PERF-TEST-003 retains their exact
+byte hashes and never normalizes them into acceptance.
 
 ### 6.4 Statistical comparison contract
 
@@ -263,9 +351,10 @@ accepts those input bytes silently.
    stops before measurement; any measured invalid sample makes the attempt
    inconclusive, with no replacement/trimming.
 2. **Pair degradation.** Inputs and denominators are positive signed-64-bit
-   integer base units. Lower-is-better numerator is `candidate-baseline` and
-   denominator `baseline`; higher-is-better uses `baseline-candidate` over
-   `candidate`. Compute the mathematical integer numerator times
+   integer base units. Lower-is-better numerator is `candidate-baseline`;
+   higher-is-better numerator is `baseline-candidate`. Both directions use the
+   positive `baseline` as denominator, so the percentage is always relative to
+   baseline. Compute the mathematical integer numerator times
    `1,000,000,000` using unbounded or checked >=128-bit intermediates, divide
    by the positive denominator, and round to signed `ratio_ppb` with ties away
    from zero. Specifically truncate quotient toward zero; if
@@ -305,6 +394,10 @@ bytes, both seed digests, all pair ppb values, first 16 accepted indices for
 resamples 0/1/9999, those resample medians, sorted position 99, point/bound,
 flags, and state. The fixture directory's canonical manifest SHA-256 populates
 `golden_corpus_sha256`; any intermediate disagreement fails PERF-TEST-007.
+Its higher-is-better boundary contains baseline 100000/candidate 97000 and must
+produce exactly 30000000 ppb. The adjacent first-above integer case is baseline
+100000/candidate 96999 and produces 30010000 ppb before bootstrap aggregation;
+the corpus asserts both pair values and terminal strict-bound behavior.
 
 ### 6.5 Design choice: regression method
 
@@ -423,13 +516,13 @@ nix develop --command bazel test --config=fuzz //tests/fuzz:performance_result_p
 
 | Requirement ID | Test/benchmark/review ID | Level | Fixture/workload and environment | Pass criterion | Evidence artifact |
 |---|---|---|---|---|---|
-| PERF-FR-001 | PERF-TEST-001 | Schema/unit | Initial registry plus unknown, version-mismatch, missing-field, duplicate-ID fixtures. | Valid inventory passes; every invalid fixture fails. | `workload-registry-tests.xml`. |
+| PERF-FR-001 | PERF-TEST-001 | Schema/unit/golden | The five complete Section 6.1 records plus unknown, version-mismatch, missing invocation/dataset/concurrency/sampling field, digest, and duplicate-ID fixtures. | Reconstructed registry digest equals `17949ac8fe9d6d2e303a95e5881cc6d4574fb99203bb1c845b06461cbfc134cc`; every field equals the normative table and every invalid fixture fails. | `workload-registry-tests.xml`, canonical registry golden. |
 | PERF-FR-002, PERF-NFR-003, PERF-NFR-006 | PERF-TEST-002 | Integration/cancellation | Five-warmup-pair + 30-measured-pair fixture, timeout/failure/cancel attempts. | Ten warmup invocations and phase/order/count exact; every sample retained; invalid makes comparison inconclusive. | `harness-phase-report.json`, raw samples. |
-| PERF-FR-003, PERF-NFR-003 | PERF-TEST-003 | Schema/negative/golden | All five valid examples/schemas; canonical/noncanonical hash goldens; one missing/extra/type/enum/bound/conditional/relationship/digest mutation per field. | Every valid document passes exact bytes; every mutation returns its exact typed error; raw/result references reconcile without a cycle. | `performance-schema-coverage.json`, canonical byte goldens. |
+| PERF-FR-003, PERF-NFR-003 | PERF-TEST-003 | Schema/negative/golden | All five Section 6.3 valid examples and literal content digests; canonical/noncanonical byte goldens; raw arrays reordered/duplicated/gapped; every sampling count equation; odd/even negative/tie median and MAD; nearest-rank percentiles; one missing/extra/type/enum/bound/conditional/relationship/digest mutation per field. | Every valid document reproduces its stated digest; every mutation returns its exact typed error; raw/result references, order, counts, and statistics reconcile without a cycle or implementation-defined rounding. | `performance-schema-coverage.json`, canonical byte/statistic goldens. |
 | PERF-FR-004, PERF-NFR-004 | PERF-TEST-004 | Integration/negative | Conforming runner simulation and one failed/unknown predicate each. | Only fully conforming simulation can be authoritative. | `runner-conformance-matrix.json`. |
 | PERF-FR-005 | PERF-TEST-005 | Integration | Shared-runner provenance, forged authority, simulated 10% delta. | Valid result advisory; forged rejected; no delta-only block. | `shared-runner-authority.json`. |
 | PERF-FR-006 | PERF-TEST-006 | Unit/boundary | One fixture per comparison key mismatch and multiple mismatch. | `PERF_INCOMPARABLE`; complete bounded mismatch identity; no verdict. | `comparability-matrix.json`. |
-| PERF-FR-007, PERF-NFR-001 | PERF-TEST-007 | Statistical/intermediate-golden | Checked-in Section 6.4 corpus: exact 30,000,000 ppb, above-bound, improvement, both directions, odd/even/tie rounding, rejection sampling, overflow. | Schedule/seed bytes, first indices, pair/resample medians, index-99 bound, flags and state equal goldens 100/100 and in an independent reference implementation. | `comparator-boundaries.json`, `intermediates.json`. |
+| PERF-FR-007, PERF-NFR-001 | PERF-TEST-007 | Statistical/intermediate-golden | Checked-in Section 6.4 corpus: exact 30,000,000 ppb, above-bound, improvement, both directions including higher-is-better 100000/97000 and adjacent 96999, odd/even/tie rounding, rejection sampling, overflow. | Both directions use baseline denominator; 97000 yields exactly 30000000 and does not flag, 96999 yields 30010000 before aggregation; schedule/seed bytes, first indices, pair/resample medians, index-99 bound, flags and state equal goldens 100/100 and in an independent reference implementation. | `comparator-boundaries.json`, `intermediates.json`. |
 | PERF-FR-008, PERF-NFR-004 | PERF-TEST-008 | Unit | Authority cross-product and mixed authority. | Blocking dispositions only when both inputs authoritative. | `authority-cross-product.json`. |
 | PERF-FR-009, PERF-NFR-002 | PERF-TEST-009 | Integration/benchmark | Zero/positive controls in dev/release, reentrancy and overflow injection. | Exact zero and positive targets met; error fixtures invalidate. | `allocation-counter-report.json`. |
 | PERF-FR-010 | PERF-TEST-010 | Integration/fault/state | Migration, throttle, >=10,000-ppm background load, outlier, timeout/process-failure, insufficient-pair, and advisory-with-noise fixtures. | Every noise/sample failure has state `inconclusive` and exact reason before authority handling; outlier retained; no conflicting terminal vocabulary. | `noise-policy-fixtures.json`. |

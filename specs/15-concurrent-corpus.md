@@ -68,10 +68,10 @@ child/process-group member, plus teardown evidence for each fault mode.
 | CORP-FR-007 | Both process main threads shall execute the exact time/randomness observation pair in Section 6.3 once after START and before worker computation is released. | Parent main and child main each call `clock_gettime(CLOCK_REALTIME, &timespec)` exactly once and `getrandom(buf, 32, 0)` exactly once. Clock returns 0 with `0<=tv_nsec<1000000000`; getrandom returns exactly 32; EINTR, short read, or any other return is failure with no retry. Four operation rows/counts and the mapped success bits appear in evidence. Raw clock/random values cannot affect partition/result/branching and, if retained, appear only as SHA-256 diagnostic digests. | CORP-TEST-007 call-count/argument/return, failure, and value-mutation test. | Roadmap `15` purpose; D-005, R-003, R-006. |
 | CORP-FR-008 | Every normal run shall join all worker threads, close owned descriptors, wait for the exec child, and validate statuses before success. | Both child workers and all three parent workers join exactly once; child exits 0 after ACK; parent wait observes that exact exit; parent exits 0 only after all cleanup; no zombie/open IPC endpoint remains. | CORP-TEST-008 lifecycle/resource inspection. | G-05, DOD-09, R-006. |
 | CORP-FR-009 | The harness shall enforce one 10-second absolute per-run deadline and tear down the owned process group on failure, timeout, or cancellation. | The deadline starts at parent launch and includes cleanup; graceful teardown may consume at most 2 seconds of the then-remaining deadline before forced kill, and is skipped when no time remains; harness reaps every owned child and proves process-group absence before terminal result; timeout/cancellation never reports success. | CORP-TEST-009 timeout/cancellation/ignore-termination/deadline-boundary tests. | DOD-09, R-006; resolved `q-0009`. |
-| CORP-FR-010 | The corpus shall expose finite, deterministic fault modes without external mutation. | `exec_failure`, `parent_worker_failure`, `child_worker_failure`, `child_exit_before_ready`, `malformed_ipc`, `ipc_close`, and `hang_until_timeout` each trigger at the named earliest point, return expected typed failure/non-zero status, and leave zero process/resource leak. | CORP-TEST-010 fault-injection matrix. | DOD-08, DOD-09, R-006. |
+| CORP-FR-010 | The corpus shall expose finite, deterministic fault modes without external mutation. | `exec_failure`, `parent_worker_failure`, `child_worker_failure`, `child_exit_before_ready`, `malformed_ipc`, `ipc_close`, and `hang_until_timeout` each trigger at the named earliest point, emit exactly the Section 6.4 fault-mode/terminal pair, return non-zero, and leave zero process/resource leak. | CORP-TEST-010 fault-injection and report-mapping matrix. | DOD-08, DOD-09, R-006. |
 | CORP-FR-011 | The native reliability gate shall run 100 fresh normal subprocess instances. | Runs are sequentially indexed 1-100; each creates a new process tree, meets topology/protocol/result/status/cleanup requirements, and is recorded; any failed/missing/duplicate run makes the report fail. | CORP-TEST-011 100-run end-to-end gate. | G-05, SM-05, R-003, R-006. |
 | CORP-FR-012 | The corpus shall register as `m0_concurrent_native_v1` in the performance foundation without claiming an M0 product budget. | Workload declares equivalent topology, build/config, deadline, result predicate, raw duration/allocation fields, and authority; shared CI result is advisory; logical correctness remains blocking independent of measured duration. | CORP-TEST-012 registry/result schema integration. | G-04, D-006, D-010. |
-| CORP-FR-013 | The corpus shall produce the normative `M0-CORPUS-RUN-v1` and `M0-CORPUS-RELIABILITY-v1` documents in Section 6.4. | Every required field/type/enum/bound/relationship and success/cleanup invariant validates. Reports are canonical JSON, at most 1 MiB/run and 16 MiB/aggregate, with a typed terminal outcome; missing/extra/type/enum/bound/digest/invariant mutations and forged success are rejected with the exact error code. | CORP-TEST-013 valid-example, one-negative-per-field/relationship, bound, and forged-report tests. | SM-05, R-008, R-201. |
+| CORP-FR-013 | The corpus shall produce the normative `M0-CORPUS-RUN-v1` and `M0-CORPUS-RELIABILITY-v1` documents in Section 6.4. | Every required field/type/enum/bound/relationship, PID/TID ownership, distinct child image, fault mapping, failure-count type/order, and aggregate count equation validates. Reports are canonical JSON, at most depth 16 and 1 MiB/run or 16 MiB/aggregate, with a typed terminal outcome; missing/extra/type/enum/bound/digest/invariant mutations and forged success are rejected with the exact error code. | CORP-TEST-013 valid-example, one-negative-per-field/relationship, byte/depth bound, topology/fault/aggregate-forgery tests. | SM-05, R-008, R-201. |
 
 ## 5. Non-Functional Requirements
 
@@ -198,7 +198,7 @@ The document is at most 1 MiB and has exactly:
 | `source_revision`, `environment_id`, `parent_artifact_sha256`, `child_artifact_sha256` | 40/64 lower hex; three `hex64` | Exact build/environment/artifact identities. |
 | `fault_mode` | `none|exec_failure|parent_worker_failure|child_worker_failure|child_exit_before_ready|malformed_ipc|ipc_close|hang_until_timeout` | Success requires `none`. |
 | `terminal` | `success|thread_lifecycle_failed|exec_failed|child_identity_mismatch|ipc_protocol_error|result_mismatch|observation_failed|timeout|cancelled|cleanup_failed` | `passed=true` iff `success`. |
-| `topology` | object | Exactly `process_count:uint8`, `thread_count:uint8`, `parent_worker_count:uint8`, `child_worker_count:uint8`, and seven unique role rows. A role row is `{role,parent_main|P0|P1|P2|child_main|C0|C1; host_pid:uint32; host_tid:uint32; final_state:exited|joined}`. Success counts are 2/7/3/2; mains exited, workers joined. |
+| `topology` | object | Exactly `process_count:uint8`, `thread_count:uint8`, `parent_worker_count:uint8`, `child_worker_count:uint8`, and seven unique role rows. A role row is `{role,parent_main|P0|P1|P2|child_main|C0|C1; host_pid:uint32>=1; host_tid:uint32>=1; final_state:exited|joined}`. Success counts are 2/7/3/2; mains exited, workers joined; all parent roles share the parent-main PID, all child roles share one different child-main PID, and the distinct-PID count equals 2. Each main has `host_tid=host_pid`; all seven TIDs are unique; P0-P2 TIDs differ from parent main and C0-C1 differ from child main. |
 | `ipc` | array 0-5 | Row exactly `direction:child_to_parent|parent_to_child`, `type` enum, `sequence:uint32`, `wire_bytes:uint16`, `status:accepted|rejected`; success is four accepted rows with sequences 1-4 and sizes 56/56/40/32. |
 | `partitions` | array 0-5 | Row exactly `role:P0|P1|P2|C0|C1`, `first:uint32`, `last:uint32`, `sum:non-negative int64`; success has the Section 6.1 five rows/sums. |
 | `observations` | array 0-4 | Row exactly `process:parent|child`, `operation:clock_gettime_realtime|getrandom_32`, `call_count:uint8`, `success:boolean`, `value_sha256:hex64|null`; success has all four unique rows, count 1, true. |
@@ -209,6 +209,31 @@ The document is at most 1 MiB and has exactly:
 | `logical_result` | non-negative int64 | Success exactly 12502500 and equals combined. |
 | `diagnostics` | array 0-32 strings | Each <=4 KiB; empty on ordinary success; no raw random bytes. |
 | `passed` | boolean | True iff every success invariant above holds. |
+
+For every success report, `parent_artifact_sha256` and
+`child_artifact_sha256` are unequal, proving the exec child image is distinct.
+The parent role set is exactly `parent_main,P0,P1,P2`; the child role set is
+exactly `child_main,C0,C1`; no host PID/TID may supply role ownership contrary
+to those sets. Scalar counts never override these row-level equations.
+
+Injected fault reports use this exact mapping after cleanup succeeds:
+
+| `fault_mode` | Required `terminal` |
+|---|---|
+| `exec_failure` | `exec_failed` |
+| `parent_worker_failure` | `thread_lifecycle_failed` |
+| `child_worker_failure` | `thread_lifecycle_failed` |
+| `child_exit_before_ready` | `thread_lifecycle_failed` |
+| `malformed_ipc` | `ipc_protocol_error` |
+| `ipc_close` | `ipc_protocol_error` |
+| `hang_until_timeout` | `timeout` |
+
+An injected-fault report with another terminal is
+`CORP_REPORT_RELATIONSHIP_INVALID`. `cleanup_failed` supersedes the mapped
+terminal only when a cleanup boolean is false, and that report is never the
+expected passing fault-fixture result. With `fault_mode=none`, `success` is
+permitted only when every success invariant holds; naturally detected
+non-injected failures use their detected terminal and remain non-pass.
 
 Canonical valid success example (fixture identities/PIDs are diagnostic):
 
@@ -221,14 +246,27 @@ Canonical valid success example (fixture identities/PIDs are diagnostic):
 The aggregate is at most 16 MiB. It has exactly `schema`, `gate_profile`
 (`unit_fixture|m0_release`), `source_revision`, `build_id:hex64`,
 `environment_id:hex64`, `required_runs:uint8`, `attempted_runs:uint8`,
-`passed_runs:uint8`, `failure_counts` (0-16 sorted `{terminal,count}` rows),
+`passed_runs:uint8`, `failure_counts` (0-9 rows),
 `run_reports` (1-100 sorted rows with exactly `run_index:uint8`,
 `path:relpath`, `byte_length:non-negative int64`, `sha256:hex64`), `aggregate` (exact
 booleans `indices_unique`, `topology_exact`, `result_exact`, `zero_timeout`,
 `cleanup_complete`, `digests_valid`), and `passed:boolean`.
 `m0_release` requires all three counts exactly 100, indices 1-100, no failure
 row, all aggregate booleans true, and 100 run reports; `unit_fixture` permits
-1-100 but otherwise uses the same reconciliation. This schema-valid unit
+1-100 but otherwise uses the same reconciliation.
+
+Each `failure_counts` row has exactly `terminal` from the nine non-success
+`M0-CORPUS-RUN-v1` terminal values and `count:uint8` in 1-100. Rows are unique
+and sorted by terminal's ASCII bytes; zero-count rows are forbidden. For both
+profiles, `attempted_runs=run_reports.length`, `passed_runs` equals the number
+of referenced run documents with `passed=true` and `terminal=success`, and
+`sum(failure_counts.count)=attempted_runs-passed_runs`. For every non-success
+terminal, its count equals the number of digest-valid referenced run documents
+with that terminal; an unlisted terminal therefore has count zero. Every
+referenced run's index/path/digest/length, source revision, and environment ID
+must equal its aggregate row/context. `passed=true` iff
+`attempted_runs=required_runs`, `passed_runs=required_runs`, the failure sum is
+zero, and every aggregate boolean is true. This schema-valid unit
 example does not substitute for the M0 gate:
 
 ```json
@@ -381,10 +419,10 @@ nix develop --command bazel test --config=benchmark //tests/benchmarks:m0_concur
 | CORP-FR-007 | CORP-TEST-007 | Integration/syscall/mutation | Both process mains; exact clock/getrandom calls; return 0/32, EINTR, short/random, invalid-timespec, extra-call, and substituted-value fixtures. | Exactly four operations/count 1/arguments exact; any nonexact return fails/no retry before compute; value substitutions preserve logical result. | `corpus-observations.json`. |
 | CORP-FR-008, CORP-NFR-002 | CORP-TEST-008 | Integration/resource | Normal and child non-zero paths under descriptor/process observation. | All joins/wait/status exact; resource baseline restored. | `corpus-lifecycle-cleanup.json`. |
 | CORP-FR-009 | CORP-TEST-009 | Cancellation/timeout | Harness cancel, hang, ignored graceful termination. | Non-success; bounded escalation; zero group member/resource. | `corpus-timeout-cancel.json`. |
-| CORP-FR-010 | CORP-TEST-010 | Fault injection | All seven finite fault modes. | Expected earliest typed failure/non-zero and zero leak for each. | `corpus-fault-matrix.json`. |
+| CORP-FR-010 | CORP-TEST-010 | Fault injection/schema | All seven finite fault modes plus one wrong-terminal report per mode. | Expected earliest typed failure/non-zero, exact Section 6.4 mapping, and zero leak for each; every wrong mapping is rejected. | `corpus-fault-matrix.json`. |
 | CORP-FR-011, CORP-NFR-001, CORP-NFR-003, CORP-NFR-004 | CORP-TEST-011 | End-to-end/reliability | 100 fresh sequential runs in reference environment. | 100/100 exact topology/result/status/cleanup; 0 timeout/leak. | `m0-corpus-reliability-v1.json`, 100 run reports. |
 | CORP-FR-012 | CORP-TEST-012 | Schema/benchmark | Workload registry and shared-runner benchmark result. | Registry valid; correctness blocking; measured delta advisory. | `m0-concurrent-native-result.json`. |
-| CORP-FR-013 | CORP-TEST-013 | Schema/security/resource | Both Section 6.4 valid examples; one missing/extra/type/enum/bound/relationship/digest mutation per field; 1-MiB/16-MiB edges; forged-success/cleanup/count/profile fixtures. | Valid examples parse; release profile accepts only exact 100; every invalid returns exact report code before aggregate pass. | `corpus-evidence-schema.json`. |
+| CORP-FR-013 | CORP-TEST-013 | Schema/security/resource | Both Section 6.4 valid examples; one missing/extra/type/enum/bound/relationship/digest mutation per field; 1-MiB/16-MiB edges; forged scalar-correct reports with split parent PIDs, reused/cross-owned TIDs, equal parent/child image digests, wrong fault terminal, zero/duplicate/unsorted failure row, and mismatched attempted/passed/failure sums. | Valid examples parse; release profile accepts only exact 100; every topology, fault, aggregate, and other invalid mutation returns exact report code before aggregate pass. | `corpus-evidence-schema.json`, `corpus-report-forgery-matrix.json`. |
 
 ## 12. Open Questions
 

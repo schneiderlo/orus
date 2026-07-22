@@ -60,7 +60,7 @@ inventory-to-test reconciliation proving there are no undocumented checks.
 | CLI-FR-007 | M0 commands shall be read-only, local, deterministic for identical facts, and non-privileged. | System-call/file-access test finds no network, process launch, ptrace, privilege change, persistent write, or host repair; repeated runs over identical fixture facts are byte-identical after excluding no fields (M0 output has no current-time field). | CLI-TEST-007 syscall/access-policy and repeatability test. | D-001, C-11. |
 | CLI-FR-008 | Error and successful documents plus compiled CLI strings shall make no future-capability or broad-support claim. | Approved-claims scan finds zero record/replay availability, deterministic-execution, or broad Linux support statement; mismatch output uses `unvalidated`; there is no help document or advertised help operation to scan. | CLI-TEST-008 golden/string-table/claim-scan corpus. | G-07, SM-11, R-004, R-009. |
 | CLI-FR-009 | Unsupported argument combinations shall fail before diagnostic evaluation. | No arguments, `--help`, unknown option/subcommand, `--version` plus another operation, or extra `doctor` operands return the Section 6.3.3 JSON usage error and exit 2, identify at most the first 128 raw token bytes as <=256 lowercase hex characters with explicit truncation, and perform zero host checks. | CLI-TEST-009 argument/document boundary tests. | DOD-08. |
-| CLI-FR-010 | Diagnostic collection shall enforce input/output bounds before allocation or rendering. | Contract/inventory bounds in Section 6 are checked first; strings over 4 KiB, inventory over 64 rows, duplicate IDs, observed values over 4 KiB, or a document that would exceed 256 KiB produces the exact exit-4 error on stderr with no partial stdout. | CLI-TEST-010 resource-bound, stream, and malformed-contract tests. | C-09, R-008, R-201 policy precursor. |
+| CLI-FR-010 | Diagnostic collection shall enforce input/output bounds before allocation or rendering. | Contract/inventory bounds in Section 6 are checked first; input depth over 16, strings over 4 KiB, inventory over 64 rows, duplicate IDs, observed values over 4 KiB, a document that would exceed 256 KiB, process allocation over 16 MiB RSS, or evaluation over 10 seconds produces the exact exit-4 error on stderr with no partial stdout. | CLI-TEST-010 resource-bound, deadline, stream, and malformed-contract tests. | C-09, R-008, R-201 policy precursor. |
 
 ## 5. Non-Functional Requirements
 
@@ -69,7 +69,7 @@ inventory-to-test reconciliation proving there are no undocumented checks.
 | CLI-NFR-001 | Version completeness: 5/5 required fields, all non-empty and exact. | Dev and release binaries for the current revision. | 100% schema/golden agreement; every missing/wrong-field fixture fails. | CLI-TEST-001 `version-contract.json`. |
 | CLI-NFR-002 | Doctor coverage: 7/7 inventory rows in every evaluable invocation and 100% negative-row coverage. | Reference fixture, one negative fixture per mandatory row, and multi-failure fixture. | Positive result has 7 passes; each row has a dedicated failing test and exit 3; inventory/test reconciliation is exact. | CLI-TEST-002/003 `doctor-coverage.json`. |
 | CLI-NFR-003 | Truthfulness: 0 unknown-as-pass and 0 unapproved capability/support claims. | All outputs/help plus unknown-source and claim corpus. | Unknown mandatory facts fail; claim scanner has zero real findings and detects all injected findings. | CLI-TEST-004/008 reports. |
-| CLI-NFR-004 | Resource bound: at most 64 inventory rows, 4 KiB per JSON string value, and 256 KiB total UTF-8 JSON output. | Malformed and maximum-sized fixture contracts. | Limits reject before excess allocation; maximum valid fixture completes as one JSON document of at most 256 KiB. | CLI-TEST-010 allocation/size report. |
+| CLI-NFR-004 | Resource bound: input depth 16, at most 64 inventory rows, 4 KiB per JSON string value, 256 KiB total UTF-8 JSON output, 16 MiB process RSS, and 10 seconds wall time. | Malformed and maximum-sized fixture contracts in one process with no child or descriptor growth. | Limits reject before excess allocation/partial output; maximum valid fixture completes within every bound as one JSON document of at most 256 KiB. | CLI-TEST-010 allocation/size/depth/deadline report. |
 | CLI-NFR-005 | Repeatability: 100/100 identical-fixture invocations are byte-identical and leak no resource. | Pinned reference fixture; fresh subprocess per invocation. | 100 equal outputs/statuses; zero child process, persistent file, or open-descriptor growth after each process exits. | CLI-TEST-007 repetition report. |
 
 The Charter's future local pause/cancel p99 target is not applicable: M0
@@ -129,11 +129,22 @@ five are strings copied without transformation from `M0-BUILD-FACTS-v1`.
 
 The object has exactly `schema`, `inventory=M0-DOCTOR-v1`,
 `environment_id:hex64`, `overall_status:pass|fail`, and `checks`. `checks` has
-exactly seven rows in inventory order. Each row has exactly `id`, `name`,
-`mandatory=true`, `status:pass|fail`, `fact_paths` (1-4 exact Section 6.2
-paths), `outcomes` (1-4 ordered `M0-REFENV-VALIDATION-v1` outcome objects, or
-one build-fact outcome), `code`, and `message`. A pass row uses `code=OK`; a
-failed row uses its inventory code. `overall_status=pass` iff all rows pass.
+exactly seven rows in inventory order. Every row has exactly the common fields
+`variant`, `id`, `name`, `mandatory=true`, `status:pass|fail`, `code`, and
+`message` (NFC UTF-8, 0-4 KiB). A pass row uses `code=OK`; a failed row uses its
+inventory code. Rows then form this closed discriminated union; fields from
+another variant are forbidden:
+
+| `variant` / inventory rows | Variant-only fields and exact relationship |
+|---|---|
+| `build_facts` / `M0-DOC-001` | `fact_paths` is exactly the ordered six-string array `schema`, `product_version`, `source_revision`, `configuration`, `compiler`, `target_platform`, each prefixed `M0-BUILD-FACTS-v1.`. `build_fact_outcome` has exactly `schema=M0-BUILD-FACTS-CHECK-v1`, `status:pass|invalid`, and `violations` (0-6 rows sorted in `fact_paths` order). A violation has exactly `path` from that array, `code:BUILD_FACT_FIELD_MISSING|BUILD_FACT_FIELD_TYPE|BUILD_FACT_FIELD_BOUND|BUILD_FACT_FIELD_VALUE`, `expected` (1-256 bytes), and redacted `observed` (0-256 bytes). Row pass iff outcome pass and violations empty; row fail/code `DOCTOR_BUILD_FACTS_INVALID` otherwise. |
+| `component` / `M0-DOC-002` through `M0-DOC-006` | `fact_paths` and `outcomes` are ordered arrays copied from the one authoritative `M0-REFENV-VALIDATION-v1`: path/outcome counts are exactly 1/1/1/4/2 for rows 002/003/004/005/006. Paths and outcomes are respectively `host.os_family`; `host.architecture`; `host.kernel_release`; `host.cpu_vendor,host.cpu_family,host.cpu_model,host.required_isa`; and `host.libc_name,host.libc_version`, in that order. Every outcome is copied byte-for-byte without changing its typed expected/observed/status/code. Row pass iff all copied outcomes have `status=pass`. |
+| `aggregate` / `M0-DOC-007` | `fact_paths` is exactly ten ordered paths: `M0-REFENV-OBSERVED-v1.embedded_environment_id` followed by the nine `M0-REFENV-v1.host.*` paths in spec-`10` order. `reference_validation` is the complete, unmodified `M0-REFENV-VALIDATION-v1` object with all nine ordered outcomes. Row pass iff its recomputed contract ID equals `environment_id`, its embedded ID equals that value, and `reference_validation.overall=validated_reference`; otherwise it fails with `DOCTOR_REFENV_MISMATCH`. |
+
+`overall_status=pass` iff all seven rows pass. The component rows and aggregate
+row reference one validation object; they may not recollect, reorder, omit, or
+summarize its nine outcomes. Thus the aggregate carries nine outcomes without
+violating component cardinalities.
 No current time, hostname, username, path, raw environment block, secret,
 prose, or second JSON value is emitted.
 
@@ -185,7 +196,7 @@ defines help.
 | Build facts | Embedded `M0-BUILD-FACTS-v1`. | Immutable; validation precedes rendering. |
 | Reference contract | Embedded/packaged `M0-REFENV-v1` and content ID. | Immutable for binary; exactly one contract accepted. |
 | Observed fact | Check ID, source, bounded typed/string value or unavailable. | Read once per invocation; never persisted; unavailable is not pass. |
-| Check result | Inventory ID, expected, observed, status, code, message. | Exactly one per inventory row when contract is valid. |
+| Check result | Inventory ID plus exactly one build-facts, component, or aggregate variant. | Exactly one per inventory row when contract is valid; variant and path/outcome cardinality are fixed by Section 6.3.2. |
 | Doctor result | Inventory version, ordered check results, aggregate status. | Pass iff every mandatory row passes; order is inventory order. |
 
 Expected contract data is authoritative for the M0 support claim. Observed host
@@ -253,15 +264,15 @@ nix develop --command bazel run //tools/governance:claim_scan -- --scope=cli
 | Requirement ID | Test/benchmark/review ID | Level | Fixture/workload and environment | Pass criterion | Evidence artifact |
 |---|---|---|---|---|---|
 | CLI-FR-001, CLI-NFR-001 | CLI-TEST-001 | Unit/golden/integration | Dev/release build facts and one missing/wrong fixture per field. | 5/5 exact on valid; every invalid fixture exits 4. | `version-contract.json`, golden outputs. |
-| CLI-FR-002, CLI-NFR-002 | CLI-TEST-002 | Unit/analysis | Inventory, result, and registered negative tests. | Exactly seven unique rows/results/tests. | `doctor-inventory-reconciliation.json`. |
+| CLI-FR-002, CLI-NFR-002 | CLI-TEST-002 | Unit/analysis/golden | Inventory, all three row variants, build-facts and aggregate canonical goldens, and registered negative tests. | Exactly seven unique rows/results/tests; variant sequence is build_facts, five component, aggregate; fixed path/outcome cardinalities and golden bytes match. | `doctor-inventory-reconciliation.json`, row goldens. |
 | CLI-FR-003 | CLI-TEST-003 | Integration | Reference and dedicated negative fixture for each of seven rows. | Reference exits 0; each negative reports intended failures and exits 3. | `doctor-fixture-matrix.json`. |
-| CLI-FR-004 | CLI-TEST-004 | Schema/negative/stream | Pass/fail/unavailable; every error code; missing/enum/oversize/renderer faults; extra bytes/LF/stream fixtures. | Every invocation has exactly its schema and stream placement; recoverable faults emit one error; no partial/mixed/prose output. | `cli-document-contract.xml`. |
+| CLI-FR-004 | CLI-TEST-004 | Schema/negative/golden/stream | Pass/fail/unavailable; build-fact zero/multiple violations; aggregate with exactly nine and with 8/10/reordered outcomes; wrong variant fields; every error code; missing/enum/oversize/renderer faults; extra bytes/LF/stream fixtures. | Build-facts and aggregate goldens match exactly; every invocation has exactly its schema and stream placement; wrong union/cardinality/order fails; recoverable faults emit one error; no partial/mixed/prose output. | `cli-document-contract.xml`, build-fact/aggregate goldens. |
 | CLI-FR-005 | CLI-TEST-005 | Integration | Every documented exit/document/stream path. | Only 0/2/3/4 with the exact stdout/stderr contract. | `cli-exit-codes.json`. |
 | CLI-FR-006 | CLI-TEST-006 | Integration | Multi-mismatch, invalid-build-facts, and invalid doctor inventory/reference-schema fixtures. | Mismatch/build-facts failure renders all seven rows/exit 3; invalid doctor contract renders no success/exit 4. | `doctor-completion-policy.json`. |
 | CLI-FR-007, CLI-NFR-005 | CLI-TEST-007 | End-to-end/security/reliability | 100 reference invocations under syscall/file-access observation. | Byte-identical output/status; zero forbidden capability or leaked resource. | `cli-repeatability.json`, access report. |
 | CLI-FR-008, CLI-NFR-003 | CLI-TEST-008 | Static/golden/negative | Compiled strings and output/error corpus plus injected claims; assertion that no help operation is advertised. | Zero real findings/help contract; all prohibited fixtures detected; unknown never pass. | `cli-claims.sarif`. |
 | CLI-FR-009 | CLI-TEST-009 | Boundary/integration | Empty, `--help`, unknown, combined, extra-operand, and overlong/invalid-UTF-8 token invocations. | Exact JSON usage error/exit 2/stderr, token bound/truncation, zero check evaluation. | `cli-argument-boundaries.json`. |
-| CLI-FR-010, CLI-NFR-004 | CLI-TEST-010 | Resource/security | Maximum-valid and over-limit contract/string/row fixtures under allocation instrumentation. | Max valid stays within 256 KiB output; over-limit rejects before excess allocation. | `cli-resource-limits.json`. |
+| CLI-FR-010, CLI-NFR-004 | CLI-TEST-010 | Resource/security | Maximum-valid and exact-over contract/string/row/output fixtures under allocation instrumentation, plus 16-MiB+1 allocation and synthetic 10-second+1-tick evaluation. | Max valid stays within 256 KiB output, 16 MiB RSS, and 10 seconds; each over-limit rejects before excess allocation or partial output. | `cli-resource-limits.json`. |
 
 ## 12. Open Questions
 
