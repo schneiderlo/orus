@@ -61,7 +61,7 @@ control is presented as available.
 | ID | Requirement | Acceptance criteria | Verification method | Traceability |
 |---|---|---|---|---|
 | SEC-FR-001 | The repository shall maintain `M0-SECURITY-BOUNDARIES-v1` covering every M0 and named future trust boundary in Section 6.1. | Each row identifies trusted/untrusted side, assets, entry format/capability, threat classes, M0 control/state, future owner, validation, residual risk, and claim wording; no row is omitted from roadmap-owner reconciliation. | SEC-TEST-001 schema and roadmap boundary audit. | C-09, D-013, R-201 through R-205, R-302/303. |
-| SEC-FR-002 | Every byte source and every raw path/source-identity string in the finite pull-request and release populations of Section 6.5 shall contain zero unallowlisted secret/credential. | Gitleaks v8.30.1 is pinned by exact version/artifact digest and runs offline with committed rules plus bounded supplemental byte rules. Before each final scan, `M0-SECRET-SCAN-METADATA-v1` freezes every raw `logical_path` and `source_identity`, includes its own tuple, and is scanned as an ordinary generated/evidence entry. The excluded `M0-SECRET-SCAN-MANIFEST-v1` binds that metadata document by SHA-256 and contains only per-string SHA-256 identities plus fixed digest-only display values, never raw unmatched strings. Both contracts reconcile 100% of the named history/tree/generated/package-closure/log/artifact/cache/evidence sets; token/key/password/private-key fixtures, including canaries present only in filenames or source identities, are detected. The committed Gitleaks/supplemental fixture corpus has <=10,000 fixtures, <=1 MiB each, <=1 GiB total, and its scan job uses <=256 MiB RSS/300 seconds. Unavailable, unsupported, truncated, unmanifested, over-limit, unredacted, or metadata-unbound input fails the gate rather than shrinking the population. Allowlisting requires exact digest/path/rule, non-secret proof, owner, and review gate. | SEC-TEST-002 both profile metadata/manifests, scanner identity, raw-string/population reconciliation, fixture-corpus resource limits, incompleteness/bound/redaction, and fixture matrix. | C-11, R-005, R-202; resolved `q-0010`. |
+| SEC-FR-002 | Every byte source and every raw path/source-identity string in the finite pull-request and release populations of Section 6.5 shall contain zero unallowlisted secret/credential. | Gitleaks v8.30.1 is pinned by exact version/artifact digest and runs offline with committed rules plus bounded supplemental byte rules. Before each final scan, `M0-SECRET-SCAN-METADATA-v1` freezes every raw `logical_path` and `source_identity`, includes its own tuple, and is scanned as an ordinary generated/evidence entry. In addition to scanning the canonical document bytes, the scanner receives every decoded metadata field as one length-delimited byte-preserving scan unit: exactly the field's original NFC UTF-8 value bytes, without JSON quoting, escaping, delimiters, normalization, or terminator. Every result is bound to the canonical metadata digest, a deterministic tuple locator, and the exact field enum. The excluded `M0-SECRET-SCAN-MANIFEST-v1` binds that metadata document by SHA-256 and contains only per-string SHA-256 identities plus fixed digest-only display values, never raw unmatched strings. Both contracts reconcile 100% of the named history/tree/generated/package-closure/log/artifact/cache/evidence sets; token/key/password/private-key fixtures, including canaries present only in filenames or source identities, are detected and attributable to one tuple and field. The committed Gitleaks/supplemental fixture corpus has <=10,000 fixtures, <=1 MiB each, <=1 GiB total, and its scan job uses <=256 MiB RSS/300 seconds. Unavailable, unsupported, truncated, unmanifested, over-limit, unredacted, or metadata-unbound input fails the gate rather than shrinking the population. Allowlisting requires exact digest/path/rule, non-secret proof, owner, and review gate. | SEC-TEST-002 both profile metadata/manifests, scanner identity, byte-preserving decoded-field/population reconciliation, finding attribution, fixture-corpus resource limits, incompleteness/bound/redaction, and fixture matrix. | C-11, R-005, R-202; resolved `q-0010`. |
 | SEC-FR-003 | M0 CI/build shall use the exact least-privilege acquisition/build split and no protected secret on untrusted changes. | Pull-request and protected build/test/package jobs have read-only contents, no write/OIDC/package/publish/credential/privileged-cache/network capability. Only `m0_input_acquisition` has `network.client`; its profile ID is byte-identical to the workflow job/profile and spec-`10` ID, it fetches admitted hash-pinned inputs as data, executes no repository action, and has no credential. Canary, profile-alias, and network-boundary simulations report zero exposure/escape. | SEC-TEST-003 workflow capability/profile-identity/canary/acquisition-boundary test. | C-11, D-010, R-001, R-005. |
 | SEC-FR-004 | Every acquired build/dependency input shall be immutable, hash-verified, admitted, and represented in release evidence. | Nix/Bzlmod locks include immutable identity/hash; 100% resolved dependencies reconcile to admission/SBOM; hash mismatch, mutable reference, network fetch during action, or unadmitted dependency fails before artifact approval. | SEC-TEST-004 supply-chain reconciliation/fault matrix. | G-02, SM-10, R-001, R-005. |
 | SEC-FR-005 | Release objects shall use the subject-named lowercase SHA-256 identities and exact bytes from spec `10` Section 6.4. | Digest records use `algorithm=sha256`, `subject=orus_executable|package_tree|sbom|evidence_object`, and 64 lowercase hex digits. Raw executable, canonical package manifest (including/excluding exact metadata), completed external SBOM, and exact canonical evidence bytes are never interchangeable. Byte/metadata mutation, subject substitution, missing/mixed/malformed/alternate algorithm, self-reference, or cross-link mismatch fails; digest is never called a signature. | SEC-TEST-005 encoding, metadata, tamper, self-reference, and subject-substitution matrix. | DOD-03, R-005, R-008; resolved `q-0011`. |
@@ -79,7 +79,7 @@ control is presented as available.
 
 | ID | Quality attribute and target | Conditions / workload | Acceptance criteria | Verification method and evidence |
 |---|---|---|---|---|
-| SEC-NFR-001 | Secret exposure: 0 unallowlisted secrets across 100% of both Section 6.5 scan profiles, including retained metadata and excluded final control-pair fields. | Gitleaks v8.30.1 offline rules plus supplemental bytes rules; exact PR range/tree/run outputs and release reachable-history/tree/generated/package-closure/log/artifact/cache/evidence populations; frozen pre-scan raw-string metadata. | Scanner/rules identities exact; every metadata/population entry scans once; final manifest binds the scanned metadata digest and contains zero raw path/source string; zero unavailable/truncated/unmanifested/over-limit set; real count zero; 100% content/filename/source-identity fixtures detected and final-pair displays remain digest-only. | SEC-TEST-002/003 `secret-scan-report.json`, metadata, manifests. |
+| SEC-NFR-001 | Secret exposure: 0 unallowlisted secrets across 100% of both Section 6.5 scan profiles, including retained metadata and excluded final control-pair fields. | Gitleaks v8.30.1 offline rules plus supplemental bytes rules; exact PR range/tree/run outputs and release reachable-history/tree/generated/package-closure/log/artifact/cache/evidence populations; frozen pre-scan raw-string metadata and its byte-preserving decoded-field scan units. | Scanner/rules identities exact; every population entry and canonical metadata document scans once, every metadata row yields exactly two decoded-field scan units, and every metadata result maps to one tuple locator and field enum. The final manifest binds the scanned metadata digest and contains zero raw path/source string; unavailable/truncated/unmanifested/over-limit count is zero; real finding count is zero; 100% content/filename/source-identity fixtures are detected and final-pair displays remain digest-only. | SEC-TEST-002/003 `secret-scan-report.json`, metadata, manifests. |
 | SEC-NFR-002 | Supply-chain completeness: 100% resolved build/runtime components are hash-pinned, admitted, and SBOM-reconciled. | Release configuration dependency graph. | Zero mutable, unverified, unadmitted, or unreconciled component. | SEC-TEST-004 supply-chain report. |
 | SEC-NFR-003 | Artifact integrity: 100% subject-named release references verify and 100% byte/included-metadata/substitution mutations are detected. | Executable, package tree, SBOM, license/notices, CI/corpus/performance/security evidence. | Zero missing/malformed/mismatch/generic subject; every mutation/substitution/alternate-algorithm/self-reference fixture blocks. | SEC-TEST-005 tamper matrix. |
 | SEC-NFR-004 | Capability least privilege: exactly 1 scoped M0 `network.client` profile and 0 forbidden grants elsewhere. | Complete Section 6.2 component/job profile inventory. | `m0_input_acquisition` is the sole network grant and cannot execute repository code/read credential; target control, trace/replay, repository write, model, privileged cache, credential, and publication grant counts are zero; every mutation fails. | SEC-TEST-006 capability report. |
@@ -173,10 +173,10 @@ security row may not weaken it.
 | `SEC-LIM-11-04` | Release evidence | <=16 MiB/depth 16, <=12 evidence refs, <=12 validators, <=3 approvals, <=4 KiB diagnostic, validator <=256 MiB/120 s | Bounds/identity before final scan/marker; encoded field/count/depth excess is `GOV_FIELD_BOUND`, RSS/deadline first-over is exactly `GOV_RESOURCE_LIMIT`; remove temporary index | Spec `11` GOV-FR-008/-010 and 6.1.3/6.1.5; GOV-TEST-008/-010 |
 | `SEC-LIM-11-05` | Approved claims | <=1 MiB/depth 16, <=4,096 rules, <=64 paths/rule, pattern <=1 KiB, scanner report <=1,000 findings | Validate schema/RE2 before scan; Section 6.1.5 error; candidate blocked | Spec `11` 6.1.4; GOV-TEST-009 |
 | `SEC-LIM-12-01` | Embedded build/reference/observed CLI inputs | build strings <=4 KiB, reference limits from `SEC-LIM-10-02`, inventory <=64 rows, input depth <=16, allocation <=16 MiB, one process/no child/FD growth, <=10 s | Validate before observation/allocation; `CLI_CONTRACT_INVALID`; process-local memory released | Spec `12` CLI-FR-006/-010 and 6.3; CLI-TEST-006/-010 |
-| `SEC-LIM-12-02` | CLI result/error output | <=4 KiB/string, argument token <=256 bytes, seven doctor rows (absolute schema cap 64), document <=256 KiB, exactly one LF, one process <=10 s | Bound before atomic stream commit; `CLI_RENDER_ERROR`/exit 4; no partial output | Spec `12` 6.1/6.3; CLI-TEST-004/-009/-010 |
+| `SEC-LIM-12-02` | CLI result/error output | <=4 KiB/string, argument token <=256 bytes, seven doctor rows (absolute schema cap 64), document <=256 KiB, exactly one LF, render-stage peak RSS <=16 MiB, one process with render/atomic-write time <=10 s | Bound before atomic stream commit; exactly 16 MiB render RSS is permitted and 16 MiB + 1 byte is exactly `CLI_RENDER_ERROR`/exit 4 under CLI-TEST-010; no partial output and process-local memory/handles are released | Spec `12` 6.1/6.3; CLI-TEST-004/-009/-010 exact-16-MiB and 16-MiB-plus-one-byte render fixtures |
 | `SEC-LIM-13-01` | CI applicability/warning manifests | each <=4 MiB/depth 16, <=100,000 expanded target cells, <=100,000 warning entries, strings <=4 KiB, parser <=256 MiB/120 s | Validate before matrix/job generation; applicability excess is exactly `CI_APPLICABILITY_INVALID`; warning input/allowlist or warning-parser RSS/deadline excess is exactly `CI_WARNING_BLOCKED`; no jobs generated | Spec `13` CI-FR-003/-007 and 6.1/6.2; CI-TEST-003/-007 |
 | `SEC-LIM-13-02` | CI typed report/diagnostic/findings | report <=8 MiB, diagnostic <=4 KiB, details <=1,000, limit doc <=64 KiB | Producer limit before upload; `CI_EVIDENCE_LIMIT`; blocking job fails | Spec `13` 6.3; CI-TEST-011 |
-| `SEC-LIM-13-03` | CI retained log/evidence bundle | log <=32 MiB retained as 16-MiB head+tail, bundle <=64 MiB uncompressed; one job process group and provider timeout <=120 min | Bound before upload; truncate/reject exactly per 6.3; known provider timeout first-over is exactly `CI_EVIDENCE_LIMIT` with terminal job state `failed`; terminate group/remove staged upload | Spec `13` CI-FR-011/6.3; CI-TEST-010/-011 |
+| `SEC-LIM-13-03` | CI retained log/evidence bundle | log <=32 MiB retained as 16-MiB head+tail, bundle <=64 MiB uncompressed; one job process group and provider timeout <=120 min | Bound before upload; truncate/reject exactly per 6.3. A blocking bundle at 64 MiB + 1 byte is exactly `CI_EVIDENCE_LIMIT`/`failed`; an advisory bundle at 64 MiB + 1 byte is exactly `CI_EVIDENCE_LIMIT`/`incomplete`; known provider timeout first-over is exactly `CI_EVIDENCE_LIMIT`/`failed`. Terminate the timed-out group and remove rejected staged upload | Spec `13` CI-FR-011/6.3; CI-TEST-010/-011 exact-bound/first-over blocking/advisory bundle and provider-timeout fixtures |
 | `SEC-LIM-14-01` | Any performance JSON/document bundle | <=16 MiB/document/depth 16, <=100,000 samples/result, <=1,024 workloads/bundle, <=256 mismatches, string <=4 KiB | Byte/depth/count before proportional allocation; `M0-PERF-ERROR-v1`; no result/comparison | Spec `14` PERF-FR-003/-012, 6.2/6.3; PERF-TEST-003/-012 |
 | `SEC-LIM-14-02` | Performance comparator | exactly 10,000 resamples, <=100,000 pairs, <=256 MiB RSS, <=120 s, one owned worker process group, no network/FD growth | Checked arithmetic/work counter/deadline before commit; `PERF_INTEGER_OVERFLOW|PERF_RESOURCE_LIMIT`; terminate/release buffers | Spec `14` PERF-FR-007/-012; PERF-TEST-007/-012 |
 | `SEC-LIM-15-01` | Corpus IPC | datagram <=256 bytes; fixed success 56/56/40/32, CANCEL 24; <=5 frames; parser fixed stack buffer <=256 bytes | Header length before payload; exact `CORP_IPC_*`; close endpoint/teardown | Spec `15` 6.2/CORP-FR-005; CORP-TEST-005 |
@@ -233,6 +233,44 @@ release metadata document belongs only to `release_evidence`, and a PR metadata
 document belongs only to `pr_generated`, even if an upload/output inventory
 would otherwise list the same bytes again.
 
+Canonical-document scanning does not substitute for raw-value scanning. After
+canonical validation and JSON decoding, the scanner performs exactly two
+additional field scans for every sorted metadata row, including the self row:
+one with `field=logical_path` and one with `field=source_identity`. For each
+scan, the scanner input buffer is exactly the decoded field's NFC UTF-8 bytes
+and its explicit byte length. It contains no JSON quote, escape, separator,
+length prefix, domain tag, trailing LF, or NUL terminator, and no normalization
+or re-encoding occurs after JSON decoding. Scanner/log labels contain only the
+digest locator and field enum defined below. Thus a quote is one byte `0x22`, a
+backslash is one byte `0x5c`, LF is one byte `0x0a`, and an escaped control is
+the original decoded control byte rather than its JSON escape spelling.
+
+Let `metadata_sha256_bytes` be the raw 32 digest bytes of the frozen canonical
+metadata document, and let `row_index` be the zero-based index in its required
+sort order. For each row, derive the deterministic non-secret locator:
+
+```text
+tuple_locator_sha256 = SHA256(
+  ASCII("M0-SECRET-SCAN-TUPLE-v1") || 0x00 ||
+  metadata_sha256_bytes || BE32(row_index) ||
+  BE32(len(set_utf8)) || set_utf8 ||
+  BE32(len(logical_path_utf8)) || logical_path_utf8 ||
+  BE32(len(source_identity_utf8)) || source_identity_utf8)
+```
+
+`BE32` is an unsigned 32-bit big-endian length/integer and every `len` is a byte
+length. The tuple locator is rendered as 64 lowercase hexadecimal digits. The
+field-scan identity is the pair `(tuple_locator_sha256, metadata_field)`, where
+`metadata_field` is exactly `logical_path|source_identity`; the out-of-band
+in-process scan-unit descriptor also carries the field byte length and the
+frozen `metadata_sha256`; it is not persisted as a separate file or artifact.
+Every row must produce exactly these two units, every unit must produce one
+terminal detector result, and each result must reconcile to that row and its
+one manifest entry. These semantic field scans are required coverage within the
+single metadata population entry: they do not create new population/manifest
+entries or alter entry/scanned counts, but they remain inside the scanner RSS
+and deadline bounds.
+
 The excluded final `M0-SECRET-SCAN-MANIFEST-v1` is canonical JSON with exactly
 `schema`, `profile`, `revision`, `base_revision`, `rules_sha256:hex64`,
 `scanner_artifact_sha256:hex64`, `metadata`, `entries`, and `summary`.
@@ -259,15 +297,20 @@ forbidden anywhere in the final manifest. The tuple
 sorted by its unsigned ASCII bytes. Manifest validation reads the scanned
 metadata bytes, recomputes every string digest, requires a one-to-one mapping
 between metadata and manifest entries, and requires the top-level `metadata`
-object to equal that entry's locator/length/content digest. `summary` contains
+object to equal that entry's locator/length/content digest. It also recomputes
+each `tuple_locator_sha256`, proves locator uniqueness, and binds that locator
+to the same manifest entry selected by
+`(set,logical_path_sha256,source_identity_sha256)`. `summary` contains
 total entries/bytes and counts per set/status. Archives and package containers
 are expanded recursively to depth 8; symlinks are recorded and resolved only
 when their target stays inside the owning tree/closure. Special files, escaping
 links, encrypted/opaque archives, unsupported bytes, or a non-`scanned` status
 fail. Gitleaks processes every supported text/binary stream with redaction; the
 committed supplemental scanner covers byte streams Gitleaks cannot interpret.
-The two engines' manifests are disjoint and their union must equal the metadata
-and population.
+The two engines' entry manifests are disjoint and their union must equal the
+metadata and population. Their decoded-field result sets are also disjoint and
+their union must equal the expected set of every
+`(tuple_locator_sha256,metadata_field)` pair.
 
 #### Pull-request profile
 
@@ -331,10 +374,18 @@ and has exactly `schema=M0-SECRET-SCAN-REPORT-v1`,
 `rules_sha256:hex64`, `entry_count:uint32`, `scanned_count:uint32`,
 `finding_count:uint32`, `findings_truncated:boolean`,
 `status:pass|fail|incomplete`, and `findings` (0-1,000 rows). Each finding has
-exactly `rule_id:id`, `set` from its profile, `logical_path_sha256:hex64`,
-`logical_path_display` copied from the matching manifest entry,
-`content_sha256:hex64`, and `redacted_preview` as 0-256 NFC bytes; it contains
-no raw path, source identity, source bytes, match, or credential. A raw
+exactly `rule_id:id`, `origin:content|metadata`, `set` from its profile,
+`logical_path_sha256:hex64`, `logical_path_display` copied from the matching
+manifest entry, `content_sha256:hex64`,
+`metadata_tuple_locator_sha256:hex64|null`,
+`metadata_field:logical_path|source_identity|null`, and `redacted_preview` as
+0-256 NFC bytes. A content finding uses `origin=content`, the scanned population
+entry's set/path/content digest, and null metadata fields. A decoded-field
+finding uses `origin=metadata`, the original metadata row's set/path and
+matching manifest display, SHA-256 of the exact decoded field scan bytes as
+`content_sha256`, the row's non-null tuple locator, and the exact non-null field
+enum. It contains no raw path, source identity, source bytes, match, or
+credential. A raw
 `logical_path` or `source_identity` key is forbidden. `finding_count` is the
 full count even when details stop at 1,000. Findings are sorted by the unsigned
 canonical bytes of the complete row; `findings.length=min(finding_count,1000)`,
@@ -342,6 +393,14 @@ and `findings_truncated` is true exactly when `finding_count>1000`. A truncated
 report cannot pass. Counts and digests reconcile to the manifest; `pass`
 requires all entries `scanned`, equal entry/scanned counts,
 `findings_truncated=false`, and zero unallowlisted findings.
+For every metadata-origin finding, report validation recomputes all locators
+from the bound metadata document and requires exactly one matching metadata row
+and exactly one matching manifest entry; a missing, colliding, or ambiguous
+locator is incomplete. Recovery tooling accepts the retained
+`(manifest_sha256,metadata_tuple_locator_sha256,metadata_field)`, recomputes the
+unique row mapping from the scanned metadata, and identifies the exact original
+field for authorized removal/review without adding its raw value to the final
+control pair.
 The scan job's normalized log and uploaded scan artifact are byte-for-byte the
 report document (with at most the provider's terminal LF) rather than a second
 variable diagnostic format. Thus excluding the current pair excludes every
@@ -355,23 +414,28 @@ included; only the currently executing final scan pair is excluded. Gate order
 is exact: scan any cache before consumption; run network-denied jobs; enumerate
 and freeze every declared output/log/artifact/evidence byte and the pre-approval
 release manifest when applicable; freeze the raw-string metadata document with
-its self tuple; scan the complete population including that metadata document;
+its self tuple; scan the complete population including that metadata document
+and every byte-preserving decoded field unit;
 construct the digest/redaction-only final manifest and report; validate their
-one-to-one metadata binding, redaction, completeness, and passing status; then,
+one-to-one metadata/locator/field binding, redaction, completeness, and passing
+status; then,
 for release only, create the approval marker last. A metadata/manifest entry
 that depends on its own content digest, the current report/manifest result, or
 the future marker is `SEC_SECRET_SCAN_INCOMPLETE`.
 
 The only standing raw-byte exclusion is `.git/` object/storage bytes because
 its logical history is scanned by `*_history`. No raw logical path or source
-identity is excluded: all appear in the scanned metadata document. The current
+identity is excluded: all appear in the scanned metadata document and are
+separately presented to the detector as their original decoded value bytes.
+The current
 scan control pair is a temporal self-output exclusion and the final marker does
 not yet exist; neither permits excluding another generated/evidence path.
 Compiler scratch that is neither an input, declared output, cache, log,
 package/closure member, artifact, nor evidence is not retained and therefore is
 outside the release population. Secret fixtures are not excluded: their exact
-raw metadata strings and content bytes are scanned, and their digest/rule
-findings are then matched to narrow non-secret allowlist records. There is no
+raw metadata strings and content bytes are scanned, and their
+tuple-locator/field/digest/rule findings are then matched to narrow non-secret
+allowlist records. There is no
 wildcard, generated-directory, binary, dependency-closure, metadata-string, or
 old-history exclusion.
 
@@ -380,7 +444,8 @@ and manifest entries, <=64 MiB per expanded entry (including the metadata
 document), <=16 GiB total, depth 8, <=1 GiB scanner RSS, and <=1,800 seconds.
 Hitting a bound yields `SEC_SECRET_SCAN_LIMIT`; missing provider
 log/artifact/cache/closure/history/metadata bytes, provider-side truncation,
-metadata/manifest mapping or digest drift, forbidden raw final-pair fields,
+metadata/manifest mapping or digest drift, a missing decoded-field unit/result,
+a decoded-field input-digest mismatch, forbidden raw final-pair fields,
 scan-engine skip, or status other than `scanned` yields
 `SEC_SECRET_SCAN_INCOMPLETE`. Either code blocks the gate with zero approval;
 it is never converted to zero findings.
@@ -428,14 +493,15 @@ migration or hot-path BLAKE3 use requires an accepted ADR. This implements
 
 | Alternative | Pros | Cons |
 |---|---|---|
-| Scan a frozen raw-string metadata document, then retain only digest-derived displays in the excluded control pair (selected) | Raw attacker-derived names are scanned; final pair is acyclic and cannot retain an unscanned name; one-to-one digest mapping is mechanical. | Adds one pre-scan document and reconciliation step; digest-only displays require the scanned metadata for human lookup. |
+| Scan a frozen raw-string metadata document plus each decoded field's exact value bytes, then retain only digest-derived displays and tuple/field attribution in the excluded control pair (selected) | Raw attacker-derived names reach the detector without JSON transformation; final pair is acyclic and cannot retain an unscanned name; one-to-one digest/locator mapping is mechanical and actionable. | Adds pre-scan decoded-field units and reconciliation; digest-only displays require controlled lookup against the scanned metadata. |
 | Retain raw paths/source identities in the excluded manifest | Most readable standalone manifest. | The excluded bytes can contain a secret that no scan covered; violates SEC-FR-002 and R-202 mitigation. |
 | Recursively rescan each newly rendered manifest until stable | Could retain readable names while scanning prior generations. | No finite fixed point is guaranteed because each manifest digest changes; complicates the release DAG and failure evidence. |
 
-**Recommendation:** Use the selected pre-scan metadata contract and exact
-digest-only displays from Section 6.5. The metadata is ordinary scanned input;
-the final pair is safe to exclude from its own population only after its schema,
-mapping, and redaction validate.
+**Recommendation:** Use the selected pre-scan metadata contract, byte-preserving
+decoded-field scan units, and exact digest-only displays/locators from Section
+6.5. The metadata is ordinary scanned input; the final pair is safe to exclude
+from its own population only after its schema, field coverage, unique mapping,
+and redaction validate.
 
 ## 7. Data Model
 
@@ -449,7 +515,7 @@ mapping, and redaction validate.
 | Structured input | Format/schema/trust/parser/owner. | Maps to limits and verification; native untrusted parser maps to fuzzer. |
 | Security exception | Stable ID and exact scope/expiry review milestone. | `proposed -> approved -> expired|closed`; expired never matches. |
 | Security finding | Stable control/rule, bounded context SHA-256 digest, severity, affected identity. | Secret values redacted; blocks according to owning requirement; retained as evidence. |
-| Secret scan metadata | Profile/revision/base plus the complete sorted raw `(set,logical_path,source_identity)` tuples, including its own tuple. | Frozen before scanning; contains no content/result digest; scanned as one ordinary population entry; immutable until the next attempt. |
+| Secret scan metadata | Profile/revision/base plus the complete sorted raw `(set,logical_path,source_identity)` tuples, including its own tuple; each row has a derived digest-only tuple locator and exactly two field-scan identities. | Frozen before scanning; contains no content/result digest; canonical bytes scan as one ordinary population entry and every decoded field scans as its exact length-delimited UTF-8 value; immutable until the next attempt. |
 | Secret scan manifest | Profile/revision/base, scanner/rules identities, scanned metadata locator/digest, digest/redaction-only entry identities, byte digests, and statuses. | One-to-one with scanned metadata; contains no raw path/source identity; any unavailable/truncated/unsupported/over-limit/unbound/unredacted state blocks. |
 
 Recorded subject-named lowercase hexadecimal SHA-256 digests and validator reports are
@@ -464,8 +530,10 @@ provenance label.
    profile verifies admitted locked inputs; network-denied sandboxed actions
    run; cache pre-use scans and all non-scan checks pass; the gate freezes every
    variable output/evidence byte and the pre-approval manifest; it freezes and
-   scans the complete raw path/source metadata document as ordinary input; the
-   final digest/redaction-only control pair binds that metadata and excludes
+   scans the complete raw path/source metadata document as ordinary input and
+   scans every decoded metadata field as its original byte sequence; the final
+   digest/redaction-only control pair binds that metadata and attributes any
+   metadata finding by tuple locator and field while excluding
    only itself and the future marker; the pair validates complete/pass; the
    release gate creates the bound marker last.
 2. **Structured input admission (SEC-FR-007 through SEC-FR-009).** Domain
@@ -489,7 +557,7 @@ provenance label.
 
 | ID | Trigger | Required detection point | Typed outcome / diagnostic fields | Side effects and cleanup | Retry / recovery | Verifying requirements/tests |
 |---|---|---|---|---|---|---|
-| SEC-FAIL-001 | Scanner finds a secret/canary, or a Section 6.5 population entry is missing/unsupported/truncated/over-limit. [R-202] | Manifest reconciliation and offline scan before cache use/upload/release approval. | `SEC_SECRET_DETECTED`, `SEC_SECRET_SCAN_INCOMPLETE`, or `SEC_SECRET_SCAN_LIMIT`; profile/set, scanner/rule, content digest, redacted path/preview, status/count/limit; never raw secret. | Gate fails; cache/artifact/evidence not consumed/approved; expansion temp deleted; real secret requires owner incident response/rotation. | Restore complete bounded population, remove/rotate, and rerun entire profile; never scan a subset. | SEC-FR-002, -012 / SEC-TEST-002, -012. |
+| SEC-FAIL-001 | Scanner finds a secret/canary, or a Section 6.5 population entry/decoded-field unit is missing, unsupported, truncated, or over-limit. [R-202] | Manifest/field-unit reconciliation and offline scan before cache use/upload/release approval. | `SEC_SECRET_DETECTED`, `SEC_SECRET_SCAN_INCOMPLETE`, or `SEC_SECRET_SCAN_LIMIT`; profile/set, scanner/rule, origin, content digest, redacted path/preview, status/count/limit; a metadata finding also has the exact tuple locator and `logical_path|source_identity` field, never the raw name or secret. | Gate fails; cache/artifact/evidence not consumed/approved; expansion temp deleted; real secret requires owner incident response/rotation. | Restore the complete bounded population; for metadata origin, resolve the unique locator against the bound scanned metadata, remove/review the named field, rotate when applicable, and rerun the entire profile; never scan a subset or add raw names to the excluded pair. | SEC-FR-002, -012 / SEC-TEST-002, -012. |
 | SEC-FAIL-002 | Mutable/unverified/unadmitted dependency, acquisition code execution/credential use, or network outside acquisition. [R-001, R-005] | Acquisition profile, store promotion, action sandbox, capability reconciliation. | `SEC_SUPPLY_CHAIN_INVALID` or `SEC_CAPABILITY_DENIED`; profile/component/action, source, hash/admission/network state. | Quarantine deleted; build/release stops; no trusted artifact. | Pin/admit/remove and rerun; no build-network exception. | SEC-FR-003, -004, -006 / SEC-TEST-003, -004, -006. |
 | SEC-FAIL-003 | Subject digest is missing/malformed/mixed/alternate/mismatched/self-referential or substituted across executable/package/SBOM/evidence. [R-005, R-201] | Before object consumption/approval. | `SEC_INTEGRITY_FAILED`; subject, exact byte contract, algorithm, expected/observed digest. | Input not trusted/approved; committed valid evidence unchanged. | Regenerate/retrieve correct subject; never relabel or ignore mismatch. | SEC-FR-005 / SEC-TEST-005. |
 | SEC-FAIL-010 | Primary scanner maintenance ends or a digest/scanner change is attempted without admission/ADR evidence. [R-005] | Dependency admission and governance validation before lock/schema change. | `SEC_SECURITY_PRIMITIVE_CHANGE_BLOCKED`; component/algorithm, current/proposed identity, missing evidence/approval. | Existing validated identities remain authoritative; candidate change and release gate fail. | Complete dependency admission or accepted migration ADR, then rerun full evidence. | SEC-FR-014 / SEC-TEST-014. |
@@ -499,7 +567,7 @@ provenance label.
 | SEC-FAIL-007 | Target/model/browser content attempts to grant authority or fabricate fact. [R-302] | Future typed tool/policy boundary; M0 policy fixture validation. | `SEC_UNTRUSTED_CONTENT_POLICY_ATTEMPT`; provenance, requested capability/claim, evidence state. | Content retained only as data; no grant/factual promotion. | None automatically; authorized owner may separately act. | SEC-FR-010 / SEC-TEST-010. |
 | SEC-FAIL-008 | M0 artifact claims an unimplemented sandbox/control. [R-004] | Claim scan before release approval. | `SEC_UNIMPLEMENTED_CLAIM`; surface, boundary/control, owner milestone. | Candidate blocked; no runtime capability created. | Correct to policy/future-tense or deliver in authorized future milestone. | SEC-FR-011 / SEC-TEST-011. |
 | SEC-FAIL-009 | Exception is wildcard, stale, ownerless, evidence-free, or attempts forbidden waiver. | Exception validation before matching. | `SEC_EXCEPTION_INVALID`; exception/control/scope/reason. | Exception does not match; underlying finding blocks. | Create narrow reviewed exception if permitted, or fix finding. | SEC-FR-013 / SEC-TEST-013. |
-| SEC-FAIL-011 | Pre-scan metadata is missing/unscanned/unbound, its raw tuple does not map one-to-one to the final manifest, or the excluded manifest/report contains a raw/unmatched path or source identity. [R-005, R-202] | Metadata and final control-pair validation before retaining the pair or creating approval. | `SEC_SECRET_SCAN_INCOMPLETE`; profile/set, metadata digest, hashed locator, mismatch/redaction class; never the raw suspect string. | Unsafe pair is discarded or retained only as a separately quarantined non-release test artifact; no gate pass or marker. | Re-enumerate/freeze/rescan the complete metadata and regenerate the pair; no self-output exclusion expansion. | SEC-FR-002 / SEC-TEST-002. |
+| SEC-FAIL-011 | Pre-scan metadata is missing/unscanned/unbound; a decoded field did not reach the detector as exact original value bytes; a tuple locator/field result does not map one-to-one to the metadata and manifest; or the excluded manifest/report contains a raw/unmatched path or source identity. [R-005, R-202] | Metadata, byte-preserving field-unit, and final control-pair validation before retaining the pair or creating approval. | `SEC_SECRET_SCAN_INCOMPLETE`; profile/set, metadata digest, tuple locator, field enum when known, mismatch/input-digest/redaction class; never the raw suspect string. | Unsafe pair is discarded or retained only as a separately quarantined non-release test artifact; no gate pass or marker. | Re-enumerate, freeze, decode, and rescan the complete metadata, then regenerate the pair; no serialization-only substitute and no self-output exclusion expansion. | SEC-FR-002 / SEC-TEST-002. |
 
 ## 10. Observability
 
@@ -538,12 +606,12 @@ nix develop --command bazel run //tools/governance:release_gate -- --candidate-d
 | Requirement ID | Test/benchmark/review ID | Level | Fixture/workload and environment | Pass criterion | Evidence artifact |
 |---|---|---|---|---|---|
 | SEC-FR-001 | SEC-TEST-001 | Schema/inspection | Boundary inventory against M0-M11 roadmap and one missing-owner/control fixture. | All rows complete/mapped; fixture fails. | `security-boundary-audit.json`. |
-| SEC-FR-002, SEC-NFR-001 | SEC-TEST-002 | Security/static/resource/DAG | Exact PR/release profile sets; valid raw-string metadata/manifests/reports; metadata self tuple and one-to-one digest mapping; empty-set rows; token/key/password/private-key fixtures; and missing/truncated/unsupported/digest/unbound/raw-final-field/100001-file/64-MiB+1/16-GiB+1/depth-9/history-limit mutations. For each of both profiles, add four canaries whose bytes occur only in (1) a tracked filename, (2) a generated-output path, (3) a log/artifact name, or (4) `source_identity`, with benign file content. Add 10,001-fixture, 1-MiB+1, 1-GiB+1, 256-MiB+1, and 300-second+1-nanosecond scanner-corpus/job fixtures. Include forged cycles from `pr_generated`, `pr_logs_artifacts`, and `release_evidence` to the current pair/marker, plus a trace proving cache pre-scan -> jobs -> frozen raw metadata -> complete scan -> digest/redaction-only final pair -> marker. | 100% frozen variable entries and the metadata document scan once with zero real finding. Each of the eight metadata-only canaries is detected in the scanned metadata; any retained failing pair contains only the exact digest displays and redacted preview, never the canary, and no marker exists. Only the current fixed pair/future marker are absent; raw/unmatched final-pair fields, metadata drift, and every cycle/incomplete/over-limit mutation block with the exact code, never zero. | `secret-scan-pr-metadata.json`, `secret-scan-release-metadata.json`, manifests, reports, metadata-canary matrix, `secret-scan-gate-order.json`. |
+| SEC-FR-002, SEC-NFR-001 | SEC-TEST-002 | Security/static/resource/DAG | Exact PR/release profile sets; valid raw-string metadata/manifests/reports; metadata self tuple, two decoded-field units per row, unique tuple locators, exact field enums, and one-to-one digest/locator mapping; empty-set rows; token/key/password/private-key fixtures; and missing/truncated/unsupported/digest/unbound/raw-final-field/100001-file/64-MiB+1/16-GiB+1/depth-9/history-limit mutations. For each profile, retain the four canaries whose bytes occur only in a tracked filename, generated-output path, log/artifact name, or `source_identity`, with benign content. For both `logical_path` filename and `source_identity`, add canary fixtures containing a quote, backslash, U+0001, and LF (U+000A) at detector-pattern boundaries; retain only the detector input length/SHA-256 and prove it equals the decoded original value bytes and differs from the canonical JSON token bytes where escaping changes them. Add a fixture with the same quote-containing escape-sensitive rule/canary in two different metadata rows, so its raw bytes do not occur in the canonical JSON document, plus 10,001-fixture, 1-MiB+1, 1-GiB+1, 256-MiB+1, and 300-second+1-nanosecond scanner-corpus/job fixtures. Include forged cycles from `pr_generated`, `pr_logs_artifacts`, and `release_evidence` to the current pair/marker, plus a trace proving cache pre-scan -> jobs -> frozen raw metadata -> canonical-document and decoded-field scans -> digest/redaction-only final pair -> marker. | 100% frozen variable entries and the canonical metadata document scan once with zero real finding; every row has exactly two terminal decoded-field results. Every metadata-only/escape canary produces the existing `SEC_SECRET_DETECTED` outcome from the original value bytes with the exact tuple locator and field enum. The duplicate-canary fixture has exactly two metadata-origin findings, zero content-origin finding, two distinct locators, exact total `finding_count=2`, one manifest/recoverable-field mapping per locator, and no raw name/canary/secret in the final pair. Any retained failing pair contains only exact digest displays, locators, field enums, and redacted previews; no marker exists. Only the current fixed pair/future marker are absent; serialization-only scanning, locator collision/ambiguity, raw/unmatched final-pair fields, metadata drift, and every cycle/incomplete/over-limit mutation block with the exact code, never zero. | `secret-scan-pr-metadata.json`, `secret-scan-release-metadata.json`, manifests, reports, `metadata-field-byte-preservation.json`, `metadata-finding-attribution.json`, metadata-canary matrix, `secret-scan-gate-order.json`. |
 | SEC-FR-003, SEC-NFR-001 | SEC-TEST-003 | Security/integration | Untrusted PR/protected builds with canary; sole acquisition network; case/alias/byte-different acquisition IDs; unadmitted lock, acquisition code-exec/credential, and build-network mutations. | Zero canary/forbidden permission; workflow job and all profile IDs are byte-identical `m0_input_acquisition`; only that admitted acquisition fetches; every alias, escape, or extra grant fails. | `ci-least-privilege.json`, `acquisition-capability.json`. |
 | SEC-FR-004, SEC-NFR-002 | SEC-TEST-004 | Integration/security | Resolved graph plus mutable/hash-mismatch/unadmitted/network fixtures. | 100% valid reconciliation; all faults block before trusted artifact. | `supply-chain-report.json`. |
 | SEC-FR-005, SEC-NFR-003 | SEC-TEST-005 | Security/integration | Complete subject-named bundle; raw-byte and package mtime/mode/path/symlink/content changes; self-digest, cross-subject substitution, missing/mixed/alternate algorithm. | Exact included/excluded metadata behavior; 100% valid subjects; every invalid mutation/substitution detected. | `artifact-integrity-matrix.json`. |
 | SEC-FR-006, SEC-NFR-004 | SEC-TEST-006 | Schema/security | Exact Section 6.2 profiles plus unknown/implicit/forbidden/overbroad grants, zero/two network profile, acquisition repository-code/credential fixtures. | Exactly one scoped network profile; zero forbidden grants; every fixture denied. | `capability-audit.json`. |
-| SEC-FR-007 | SEC-TEST-007 | Schema/inspection/resource | Finite SEC-LIM table against every owner requirement/operation plus missing/duplicate/numeric-drift/error-drift/state-drift/unbounded/late-enforcement and N/A-rationale mutations. Dedicated owner exact-bound/first-over fixtures cover spec-`10` reference 64 MiB/10 seconds -> `BUILD_REFENV_RESOURCE_LIMIT` and package 1,200 seconds -> `BUILD_PACKAGE_IDENTITY_INVALID`; spec-`11` admission 64 MiB/30 seconds, SBOM 256 MiB/120 seconds, and release 256 MiB/120 seconds -> `GOV_RESOURCE_LIMIT`; spec-`12` collection 16 MiB/10 seconds -> `CLI_CONTRACT_INVALID` and rendering 16 MiB/10 seconds -> `CLI_RENDER_ERROR`; spec-`13` warning parser 256 MiB/120 seconds -> `CI_WARNING_BLOCKED` and provider 120 minutes + 1 nanosecond -> `CI_EVIDENCE_LIMIT`/`failed`; and release inventory counts 12/12/3. | Every applicable operation maps exactly once with byte-identical number, exact error and terminal state, cleanup, and owner test. Each owner test proves the exact bound succeeds and first-over returns the stated literal; every numeric/error/state mutation blocks Ready. | `resource-limit-reconciliation.json`, cross-domain matrix. |
+| SEC-FR-007 | SEC-TEST-007 | Schema/inspection/resource | Finite SEC-LIM table against every owner requirement/operation plus missing/duplicate/numeric-drift/error-drift/state-drift/unbounded/late-enforcement and N/A-rationale mutations. Dedicated owner exact-bound/first-over fixtures cover spec-`10` reference 64 MiB/10 seconds -> `BUILD_REFENV_RESOURCE_LIMIT` and package 1,200 seconds -> `BUILD_PACKAGE_IDENTITY_INVALID`; spec-`11` admission 64 MiB/30 seconds, SBOM 256 MiB/120 seconds, and release 256 MiB/120 seconds -> `GOV_RESOURCE_LIMIT`; spec-`12` collection 16 MiB/10 seconds -> `CLI_CONTRACT_INVALID` and rendering 16 MiB/10 seconds -> `CLI_RENDER_ERROR`; spec-`13` warning parser 256 MiB/120 seconds -> `CI_WARNING_BLOCKED`, blocking/advisory bundles admitted at exactly 64 MiB and rejected at 64 MiB + 1 byte as `CI_EVIDENCE_LIMIT` with `failed`/`incomplete` respectively, and provider 120 minutes + 1 nanosecond -> `CI_EVIDENCE_LIMIT`/`failed`; and release inventory counts 12/12/3. | Every applicable operation maps exactly once with byte-identical number, exact error and terminal state, cleanup, and owner test. Each owner test proves the exact bound succeeds and first-over returns the stated literal; specifically, CLI render RSS at exactly 16 MiB succeeds while 16 MiB + 1 byte is `CLI_RENDER_ERROR`/exit 4, blocking bundle first-over is `failed`, and advisory bundle first-over is `incomplete`. Every numeric/error/state mutation blocks Ready. | `resource-limit-reconciliation.json`, cross-domain matrix. |
 | SEC-FR-008, SEC-NFR-005 | SEC-TEST-008 | Schema/analysis | Parser query against input/fuzz/limit inventory plus unmapped/zero-execution fixture. | Exact mapping and positive smoke count; fixtures block. | `structured-input-coverage.json`. |
 | SEC-FR-009, SEC-NFR-005 | SEC-TEST-009 | Fuzz/sanitizer/resource | Performance document and corpus frame seed/malformed corpora under fuzz config. | >0 executions/target; 0 crash, timeout, OOM, ASan/UBSan finding. | Fuzz reports and minimized regression corpus index. |
 | SEC-FR-010 | SEC-TEST-010 | Policy/security | Future boundary records and adversarial content that requests capability/fabricates evidence. | Content remains data; zero grant/factual promotion; owner mappings complete. | `untrusted-content-policy.json`. |
