@@ -33,6 +33,7 @@ from tools.build.hermeticity_audit import (
 )
 from tools.build.prohibited_path_scan import main as prohibited_path_main
 from tools.coverage.package_gate import (
+    coverage_provenance_path,
     evaluate,
     locate_lcov,
     parse_lcov,
@@ -359,6 +360,13 @@ class CoverageGateTest(unittest.TestCase):
             copied = report.read_text(encoding="utf-8").replace("DA:1,1", "DA:1,0")
             report.write_text(copied, encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "provenance digest"):
+                validate_freshness(report, root, {"tools/build/a.py"})
+
+            coverage_provenance_path(root).unlink()
+            with self.assertRaisesRegex(ValueError, "provenance is absent"):
+                validate_freshness(report, root, {"tools/build/a.py"})
+            coverage_provenance_path(root).write_text("not-json\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "provenance is invalid"):
                 validate_freshness(report, root, {"tools/build/a.py"})
 
     def test_manifest_requires_every_owned_source_or_reviewed_exclusion(self) -> None:
