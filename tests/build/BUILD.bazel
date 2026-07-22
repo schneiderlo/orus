@@ -22,11 +22,15 @@ py_test(
         "//third_party:admissions",
         "//toolchains:bin/orus-clang",
         "//toolchains:bin/orus-gcc",
-        "//tools/build:prohibited_path_scan",
+        "//tools/build:coverage_sources",
+        "//tools/coverage:coverage_sources",
         "//tests/build/fixtures/prohibited:fixtures",
     ],
     deps = [
+        "//tools:format_lib",
         "//tools/build:build_contract",
+        "//tools/build:hermeticity_audit_lib",
+        "//tools/build:prohibited_path_scan_lib",
         "//tools/coverage:package_gate_lib",
     ],
 )

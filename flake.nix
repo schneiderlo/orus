@@ -58,6 +58,8 @@
       pinnedPath = pkgs.lib.makeBinPath shellPackages;
       environment = {
         ORUS_BAZEL = "${pkgs.bazel_8}/bin/bazel";
+        ORUS_BCR_DISTDIR = "${bcrDistdir}";
+        ORUS_BCR_REGISTRY = "${bcrRegistry}";
         ORUS_CLANG = "${llvm.clang}/bin/clang";
         ORUS_CLANGXX = "${llvm.clang}/bin/clang++";
         ORUS_GCC = "${pkgs.gcc15}/bin/gcc";
@@ -65,6 +67,7 @@
         ORUS_GXX = "${pkgs.gcc15}/bin/g++";
         ORUS_LLD = "${llvm.lld}/bin/ld.lld";
         ORUS_LLVM = "${llvm.llvm}";
+        ORUS_NIXPKGS_SRC = "${nixpkgs}";
         ORUS_PYTHON = "${python}/bin/python3";
         ORUS_OPENSSL = "${pkgs.openssl.out}";
         ORUS_OPENSSL_DEV = "${pkgs.openssl.dev}";
@@ -81,31 +84,54 @@
         pkgs.lib.mapAttrsToList (name: value: "export ${name}=${pkgs.lib.escapeShellArg value}") environment
       );
       bcrManifest = builtins.fromJSON (builtins.readFile ./config/bcr-distdir.json);
+      acquisitionManifest = builtins.fromJSON (builtins.readFile ./config/input-acquisition.json);
+      fetchCurlOptions = [
+        "--max-filesize"
+        (toString acquisitionManifest.limits.per_blob_bytes)
+        "--max-time"
+        (toString acquisitionManifest.limits.wall_seconds)
+      ];
+      boundedFetchurl = archive: pkgs.fetchurl {
+        inherit (archive) url;
+        hash = archive.integrity;
+        curlOptsList = fetchCurlOptions;
+      };
       bcrRegistry = pkgs.fetchzip {
         url = bcrManifest.registry.url;
         hash = bcrManifest.registry.integrity;
+        curlOptsList = fetchCurlOptions;
       };
       rulesCcArchive = builtins.head (
         builtins.filter (archive: builtins.match ".*/rules_cc-0.2.22.tar.gz" archive.url != null) bcrManifest.archives
       );
       rulesCcSource = pkgs.runCommand "orus-rules_cc-0.2.22-source" { } ''
         mkdir "$out"
-        tar -xzf ${pkgs.fetchurl {
-          inherit (rulesCcArchive) url;
-          hash = rulesCcArchive.integrity;
-        }} --strip-components=1 -C "$out"
+        tar -xzf ${boundedFetchurl rulesCcArchive} --strip-components=1 -C "$out"
         chmod -R u+w "$out"
         patchShebangs "$out"
       '';
-      bcrDistdir = pkgs.linkFarm "orus-m0-bcr-distdir" (
-        map (archive: {
-          name = builtins.baseNameOf archive.url;
-          path = pkgs.fetchurl {
-            inherit (archive) url;
-            hash = archive.integrity;
-          };
-        }) bcrManifest.archives
-      );
+      bcrArchives = map (archive: archive // { path = boundedFetchurl archive; }) bcrManifest.archives;
+      bcrDistdir =
+        assert builtins.length bcrArchives + 1 <= acquisitionManifest.limits.coordinates;
+        pkgs.runCommand "orus-m0-bounded-bcr-distdir" {
+          archivePaths = map (archive: archive.path) bcrArchives;
+        } ''
+          total=0
+          for archive in $archivePaths; do
+            size="$(${pkgs.coreutils}/bin/stat -c %s "$archive")"
+            if [ "$size" -gt ${toString acquisitionManifest.limits.per_blob_bytes} ]; then
+              echo "BUILD_ACQUISITION_DENIED: BCR archive exceeds per-blob limit" >&2
+              exit 1
+            fi
+            total=$((total + size))
+            if [ "$total" -gt ${toString acquisitionManifest.limits.total_bytes} ]; then
+              echo "BUILD_ACQUISITION_DENIED: BCR archives exceed total limit" >&2
+              exit 1
+            fi
+          done
+          mkdir "$out"
+          ${pkgs.lib.concatMapStringsSep "\n" (archive: "ln -s ${archive.path} \"$out/${builtins.baseNameOf archive.url}\"") bcrArchives}
+        '';
     in
     {
       devShells.${system}.default = pkgs.mkShell (

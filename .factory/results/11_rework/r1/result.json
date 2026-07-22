@@ -1,0 +1,31 @@
+{
+  "verdict": "reworked",
+  "summary": "Reworked only M0-001. F-01 is closed by one-to-one admission of the complete selected Bzlmod/distdir population plus bounded, hash-verified, read-only Nix materialization and live graph reconciliation. F-02 is closed by a finite source/exclusion coverage manifest, source-complete LCOV enforcement, independent 70% package gates, and omission/exclusion negative tests. Full Factory run run-20260722T114834Z passed c-01 through c-11; handoff-r1.md records the blocker mapping and evidence. M0-001 is IMPLEMENTED for independent re-verification.",
+  "task_ref": "M0-001",
+  "artifacts": [
+    ".bazelrc",
+    ".agents/M0-001/handoff-r1.md",
+    ".factory/checks/M0-001/runs/run-20260722T114834Z.json",
+    ".factory/logs/checks/M0-001/run-20260722T114834Z/",
+    ".factory/results/11_rework/r1/result.json",
+    ".factory/run.json",
+    ".factory/tasks/M0-001.json",
+    "IMPLEMENTATION_PLAN.md",
+    "config/BUILD.bazel",
+    "config/bcr-distdir.json",
+    "config/dependency-inventory.json",
+    "config/input-acquisition.json",
+    "flake.nix",
+    "tests/build/BUILD.bazel",
+    "tests/build/contract_test.py",
+    "third_party/bootstrap-admissions.json",
+    "tools/BUILD.bazel",
+    "tools/build/BUILD.bazel",
+    "tools/build/build_contract.py",
+    "tools/build/hermeticity_audit.py",
+    "tools/coverage/BUILD.bazel",
+    "tools/coverage/package_gate.py",
+    "tools/coverage/packages.json",
+    "tools/format.py"
+  ]
+}

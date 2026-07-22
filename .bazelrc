@@ -19,6 +19,8 @@ build --action_env=LANG
 build --action_env=LC_ALL
 build --action_env=SOURCE_DATE_EPOCH
 build --action_env=ORUS_BAZEL
+build --action_env=ORUS_BCR_DISTDIR
+build --action_env=ORUS_BCR_REGISTRY
 build --action_env=ORUS_CLANG
 build --action_env=ORUS_CLANGXX
 build --action_env=ORUS_GCC
@@ -40,6 +42,8 @@ test --test_env=LANG
 test --test_env=LC_ALL
 test --test_env=SOURCE_DATE_EPOCH
 test --test_env=ORUS_BAZEL
+test --test_env=ORUS_BCR_DISTDIR
+test --test_env=ORUS_BCR_REGISTRY
 test --test_env=ORUS_CLANG
 test --test_env=ORUS_CLANGXX
 test --test_env=ORUS_GCC
@@ -57,7 +61,7 @@ common:dev --repo_env=CC=orus-clang
 build:dev --compilation_mode=dbg
 build:dev --copt=-DORUS_EXPECT_CLANG=1
 build:dev --cxxopt=-DORUS_EXPECT_CLANG=1
-coverage:dev --instrumentation_filter=^//tools/build[/:]
+coverage:dev --instrumentation_filter=^//tools[/:]
 
 common:release --repo_env=CC=orus-clang
 build:release --compilation_mode=opt

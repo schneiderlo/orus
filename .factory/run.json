@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "11_rework",
+  "current_step": "10_verifier",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -172,8 +172,8 @@
       "last_result_path": ".factory/results/09_implementer/r2/result.json"
     },
     "10_verifier": {
-      "status": "done",
-      "attempts": 1,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "fail",
         "summary": "M0-001 is BLOCKED despite authoritative green run run-20260722T112100Z: the resolved/fetched Bzlmod population is not fully inventoried or admitted and the named acquisition boundary is simulated rather than enforced; the 70% coverage gate also omits task-owned logic and cannot detect missing source/package coverage.",
@@ -184,8 +184,40 @@
       "last_result_path": ".factory/results/10_verifier/r1/result.json"
     },
     "11_rework": {
-      "status": "pending",
-      "attempts": 0
+      "status": "done",
+      "attempts": 1,
+      "last_result": {
+        "verdict": "reworked",
+        "summary": "Reworked only M0-001. F-01 is closed by one-to-one admission of the complete selected Bzlmod/distdir population plus bounded, hash-verified, read-only Nix materialization and live graph reconciliation. F-02 is closed by a finite source/exclusion coverage manifest, source-complete LCOV enforcement, independent 70% package gates, and omission/exclusion negative tests. Full Factory run run-20260722T114834Z passed c-01 through c-11; handoff-r1.md records the blocker mapping and evidence. M0-001 is IMPLEMENTED for independent re-verification.",
+        "task_ref": "M0-001",
+        "artifacts": [
+          ".bazelrc",
+          ".agents/M0-001/handoff-r1.md",
+          ".factory/checks/M0-001/runs/run-20260722T114834Z.json",
+          ".factory/logs/checks/M0-001/run-20260722T114834Z/",
+          ".factory/results/11_rework/r1/result.json",
+          ".factory/run.json",
+          ".factory/tasks/M0-001.json",
+          "IMPLEMENTATION_PLAN.md",
+          "config/BUILD.bazel",
+          "config/bcr-distdir.json",
+          "config/dependency-inventory.json",
+          "config/input-acquisition.json",
+          "flake.nix",
+          "tests/build/BUILD.bazel",
+          "tests/build/contract_test.py",
+          "third_party/bootstrap-admissions.json",
+          "tools/BUILD.bazel",
+          "tools/build/BUILD.bazel",
+          "tools/build/build_contract.py",
+          "tools/build/hermeticity_audit.py",
+          "tools/coverage/BUILD.bazel",
+          "tools/coverage/package_gate.py",
+          "tools/coverage/packages.json",
+          "tools/format.py"
+        ]
+      },
+      "last_result_path": ".factory/results/11_rework/r1/result.json"
     }
   },
   "history": [
@@ -932,6 +964,30 @@
       "step": "10_verifier",
       "event": "commit_scheduled",
       "detail": "20260722T112918Z_10_verifier_r1"
+    },
+    {
+      "ts": "2026-07-22T11:29:18Z",
+      "step": "11_rework",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T11:52:38Z",
+      "step": "11_rework",
+      "event": "attempt_finished",
+      "detail": "r1 in 23m20s (264138 tokens)"
+    },
+    {
+      "ts": "2026-07-22T11:52:38Z",
+      "step": "11_rework",
+      "event": "transition",
+      "detail": "-> 10_verifier"
+    },
+    {
+      "ts": "2026-07-22T11:52:38Z",
+      "step": "11_rework",
+      "event": "commit_scheduled",
+      "detail": "20260722T115238Z_11_rework_r1"
     }
   ],
   "metrics": [
@@ -1134,15 +1190,14 @@
       "ts": "2026-07-22T11:29:18Z",
       "duration_s": 581.8,
       "tokens": 193275
+    },
+    {
+      "step": "11_rework",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-22T11:52:38Z",
+      "duration_s": 1400.0,
+      "tokens": 264138
     }
-  ],
-  "step_context": {
-    "11_rework": {
-      "source_step": "10_verifier",
-      "created_at": "2026-07-22T11:29:18Z",
-      "task_ref": "M0-001",
-      "report_path": ".agents/M0-001/verification-report.md",
-      "instruction": "The verifier failed task `M0-001`. Rework ONLY `M0-001`. Use `.agents/M0-001/verification-report.md` as the authoritative verification report. Fix only the verifier-reported blockers for this routed task; do not select a different blocked task from table order while this context is present."
-    }
-  }
+  ]
 }

@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import unicodedata
+from base64 import b64decode
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
@@ -408,12 +409,129 @@ def validate_acquisition_manifest(path: Path) -> dict[str, Any]:
         raise ContractError("BUILD_ACQUISITION_DENIED", "acquisition limits differ from the contract")
     if manifest.get("capabilities") != ["network.client"] or manifest.get("credentials") is not False:
         raise ContractError("BUILD_ACQUISITION_DENIED", "acquisition capabilities are too broad")
-    for entry in manifest.get("admitted_inputs", []):
+    entries = manifest.get("admitted_inputs", [])
+    if not isinstance(entries, list) or not entries:
+        raise ContractError("BUILD_ACQUISITION_DENIED", "admitted input population is empty")
+    coordinates = [entry.get("coordinate") for entry in entries if isinstance(entry, dict)]
+    if coordinates != sorted(coordinates) or len(coordinates) != len(set(coordinates)):
+        raise ContractError("BUILD_ACQUISITION_DENIED", "admitted input coordinates must be sorted and unique")
+    if len(coordinates) > expected_limits["coordinates"]:
+        raise ContractError("BUILD_ACQUISITION_DENIED", "admitted input population exceeds the coordinate limit")
+    for entry in entries:
         if set(entry) != {"coordinate", "sha256", "store_mode"} or entry["store_mode"] != "read_only":
             raise ContractError("BUILD_ACQUISITION_DENIED", "invalid admitted input")
         if not HEX64.fullmatch(str(entry["sha256"])):
             raise ContractError("BUILD_ACQUISITION_DENIED", "invalid admitted digest")
     return manifest
+
+
+def _integrity_sha256(integrity: object) -> str:
+    if not isinstance(integrity, str) or not integrity.startswith("sha256-"):
+        raise ContractError("BUILD_LOCK_INVALID", "BCR integrity must use sha256 SRI")
+    try:
+        digest = b64decode(integrity.removeprefix("sha256-"), validate=True).hex()
+    except ValueError as error:
+        raise ContractError("BUILD_LOCK_INVALID", "BCR integrity is malformed") from error
+    if not HEX64.fullmatch(digest):
+        raise ContractError("BUILD_LOCK_INVALID", "BCR integrity is not a SHA-256 digest")
+    return digest
+
+
+def parse_module_graph(output: str) -> set[str]:
+    """Return the complete selected non-root module population."""
+
+    selected: set[str] = set()
+    for line in output.splitlines():
+        match = re.search(r"───([A-Za-z0-9_.+-]+@[^\s]+)", line)
+        if match:
+            selected.add(f"bcr:{match.group(1)}")
+    if not selected:
+        raise ContractError("BUILD_LOCK_INVALID", "selected Bzlmod graph is empty or malformed")
+    return selected
+
+
+def validate_resolved_input_population(
+    root: Path,
+    *,
+    selected_modules: set[str] | None = None,
+) -> dict[str, Any]:
+    """Reconcile inventory, acquisition, admissions, and the fetched BCR set."""
+
+    inventory = validate_dependency_inventory(root / "config/dependency-inventory.json")
+    acquisition = validate_acquisition_manifest(root / "config/input-acquisition.json")
+    inventory_by_name = {entry["name"]: entry for entry in inventory["dependencies"]}
+    inventory_by_coordinate = {entry["coordinate"]: entry for entry in inventory["dependencies"]}
+    acquisition_by_coordinate = {entry["coordinate"]: entry for entry in acquisition["admitted_inputs"]}
+    if set(inventory_by_coordinate) != set(acquisition_by_coordinate):
+        raise ContractError("BUILD_LOCK_INVALID", "inventory and acquisition populations differ")
+    for coordinate, entry in inventory_by_coordinate.items():
+        if acquisition_by_coordinate[coordinate]["sha256"] != entry["sha256"]:
+            raise ContractError("BUILD_LOCK_INVALID", f"inventory/acquisition digest differs for {coordinate}")
+
+    flake_lock = json.loads((root / "flake.lock").read_text(encoding="utf-8"))
+    flake_root = flake_lock.get("nodes", {}).get(flake_lock.get("root"), {})
+    locked_reference_names = set(flake_root.get("inputs", {}))
+    if locked_reference_names != set(inventory["reference_inputs"]):
+        raise ContractError("BUILD_LOCK_INVALID", "flake inputs and reference input inventory differ")
+    for name, node_name in flake_root["inputs"].items():
+        locked = flake_lock["nodes"][node_name]["locked"]
+        coordinate = f"github:{locked['owner']}/{locked['repo']}/{locked['rev']}"
+        entry = inventory_by_name[name]
+        if entry["coordinate"] != coordinate or entry["sha256"] != _integrity_sha256(locked["narHash"]):
+            raise ContractError("BUILD_LOCK_INVALID", f"flake lock identity differs for {name}")
+
+    distdir = load_canonical_json(root / "config/bcr-distdir.json")
+    if distdir.get("schema") != "M0-BCR-DISTDIR-v1":
+        raise ContractError("BUILD_LOCK_INVALID", "unknown BCR distdir schema")
+    registry = distdir.get("registry")
+    archives = distdir.get("archives")
+    if not isinstance(registry, dict) or not isinstance(archives, list) or not archives:
+        raise ContractError("BUILD_LOCK_INVALID", "BCR materialization manifest is incomplete")
+    rows = [registry, *archives]
+    names = [row.get("name") for row in rows]
+    if len(names) != len(set(names)):
+        raise ContractError("BUILD_LOCK_INVALID", "BCR materialization names are not unique")
+    archive_names = [row.get("name") for row in archives]
+    archive_urls = [row.get("url") for row in archives]
+    if archive_names != sorted(archive_names) or len(archive_urls) != len(set(archive_urls)):
+        raise ContractError("BUILD_LOCK_INVALID", "BCR archives must be sorted by unique name and URL")
+
+    module_coordinates: set[str] = set()
+    materialized_names: set[str] = set()
+    for row in rows:
+        required = {"coordinate", "integrity", "name", "role", "url"}
+        if row is registry:
+            required.add("revision")
+        if set(row) != required or row["role"] not in {"asset", "module", "registry"}:
+            raise ContractError("BUILD_LOCK_INVALID", f"invalid BCR materialization row {row.get('name')!r}")
+        name = row["name"]
+        entry = inventory_by_name.get(name)
+        expected_owner = f"bzlmod_{row['role']}"
+        if entry is None or entry["owner"] != expected_owner:
+            raise ContractError("BUILD_LOCK_INVALID", f"BCR materialization {name!r} is not inventoried")
+        digest = _integrity_sha256(row["integrity"])
+        if entry["coordinate"] != row["coordinate"] or entry["sha256"] != digest:
+            raise ContractError("BUILD_LOCK_INVALID", f"BCR materialization identity differs for {name!r}")
+        materialized_names.add(name)
+        if row["role"] == "module":
+            module_coordinates.add(row["coordinate"])
+
+    expected_materialized = {
+        entry["name"] for entry in inventory["dependencies"] if str(entry["owner"]).startswith("bzlmod_")
+    }
+    if materialized_names != expected_materialized:
+        raise ContractError("BUILD_LOCK_INVALID", "BCR distdir and inventoried materialization populations differ")
+    if selected_modules is not None and module_coordinates != selected_modules:
+        missing = sorted(selected_modules - module_coordinates)
+        extra = sorted(module_coordinates - selected_modules)
+        raise ContractError("BUILD_LOCK_INVALID", f"selected Bzlmod graph mismatch; missing={missing}, extra={extra}")
+    return {
+        "acquisition": acquisition,
+        "archives": archives,
+        "inventory": inventory,
+        "module_coordinates": module_coordinates,
+        "registry": registry,
+    }
 
 
 def validate_nix_environment(environment: Mapping[str, str]) -> None:
@@ -462,7 +580,7 @@ def validate_repository(root: Path) -> None:
     validate_wrapper_map(root / "config/wrapper-map.json", root)
     expected_inputs = inventory["reference_inputs"]
     validate_reference_bootstrap(root / "config/m0-reference-environment.json", expected_inputs)
-    validate_acquisition_manifest(root / "config/input-acquisition.json")
+    validate_resolved_input_population(root)
     findings = scan_prohibited(root, exclude_fixtures=True)
     if findings:
         raise ContractError("BUILD_PROHIBITED_PATH", "; ".join(f"{item.path}:{item.rule}" for item in findings))

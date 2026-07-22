@@ -2,6 +2,11 @@ load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 
 package(default_visibility = ["//visibility:public"])
 
+filegroup(
+    name = "coverage_sources",
+    srcs = glob(["*.py"]),
+)
+
 py_library(
     name = "build_contract",
     srcs = ["build_contract.py"],
@@ -13,8 +18,20 @@ py_binary(
     deps = [":build_contract"],
 )
 
+py_library(
+    name = "hermeticity_audit_lib",
+    srcs = ["hermeticity_audit.py"],
+    deps = [":build_contract"],
+)
+
 py_binary(
     name = "prohibited_path_scan",
+    srcs = ["prohibited_path_scan.py"],
+    deps = [":build_contract"],
+)
+
+py_library(
+    name = "prohibited_path_scan_lib",
     srcs = ["prohibited_path_scan.py"],
     deps = [":build_contract"],
 )

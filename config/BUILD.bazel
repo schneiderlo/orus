@@ -3,6 +3,7 @@ package(default_visibility = ["//visibility:public"])
 filegroup(
     name = "contract_data",
     srcs = [
+        "bcr-distdir.json",
         "build-applicability.json",
         "dependency-inventory.json",
         "input-acquisition.json",

@@ -5,15 +5,19 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from hashlib import sha256
 from pathlib import Path
+from urllib.parse import urlparse
 
 from tools.build.build_contract import (
     ContractError,
     acquisition_outcome,
     command_version,
+    parse_module_graph,
     validate_acquisition_manifest,
     validate_nix_environment,
     validate_repository,
+    validate_resolved_input_population,
     workspace_root,
 )
 
@@ -78,11 +82,129 @@ def audit_actions(root: Path) -> dict[str, object]:
     }
 
 
+def selected_module_graph(root: Path) -> set[str]:
+    process = subprocess.run(
+        [os.environ["ORUS_BAZEL"], "mod", "graph"],
+        cwd=root,
+        env=os.environ,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if process.returncode:
+        raise ContractError("BUILD_LOCK_INVALID", f"module graph failed: {process.stderr.strip()[-1000:]}")
+    return parse_module_graph(process.stdout)
+
+
+def _sha256_file(path: Path) -> str:
+    digest = sha256()
+    with path.open("rb") as source:
+        while chunk := source.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _require_read_only(path: Path) -> None:
+    resolved = path.resolve()
+    if resolved.stat().st_mode & 0o222:
+        raise ContractError("BUILD_ACQUISITION_DENIED", f"materialized input is writable: {resolved}")
+
+
+def audit_bcr_materialization(root: Path, selected_modules: set[str]) -> dict[str, object]:
+    population = validate_resolved_input_population(root, selected_modules=selected_modules)
+    manifest = population["acquisition"]
+    limits = manifest["limits"]
+    distdir = Path(os.environ.get("ORUS_BCR_DISTDIR", ""))
+    registry = Path(os.environ.get("ORUS_BCR_REGISTRY", ""))
+    if not str(distdir).startswith("/nix/store/") or not str(registry).startswith("/nix/store/"):
+        raise ContractError("BUILD_UNDECLARED_INPUT", "BCR inputs are not materialized through Nix")
+    if not distdir.is_dir() or not registry.is_dir():
+        raise ContractError("BUILD_ACQUISITION_DENIED", "BCR Nix materialization is absent")
+
+    inventory_by_name = {entry["name"]: entry for entry in population["inventory"]["dependencies"]}
+    archive_bytes = 0
+    for row in population["archives"]:
+        archive = distdir / Path(urlparse(row["url"]).path).name
+        if not archive.is_file():
+            raise ContractError("BUILD_ACQUISITION_DENIED", f"materialized archive is absent: {row['name']}")
+        size = archive.stat().st_size
+        archive_bytes += size
+        if size > limits["per_blob_bytes"]:
+            raise ContractError("BUILD_ACQUISITION_DENIED", f"materialized archive exceeds blob limit: {row['name']}")
+        if _sha256_file(archive) != inventory_by_name[row["name"]]["sha256"]:
+            raise ContractError("BUILD_ACQUISITION_DENIED", f"materialized archive digest differs: {row['name']}")
+        _require_read_only(archive)
+    if archive_bytes > limits["total_bytes"]:
+        raise ContractError("BUILD_ACQUISITION_DENIED", "materialized archive population exceeds total limit")
+
+    lock = json.loads((root / "MODULE.bazel.lock").read_text(encoding="utf-8"))
+    locked_registry_files = {
+        url.removeprefix("https://bcr.bazel.build/"): digest
+        for url, digest in lock.get("registryFileHashes", {}).items()
+        if url.startswith("https://bcr.bazel.build/")
+    }
+    if not locked_registry_files:
+        raise ContractError("BUILD_LOCK_INVALID", "locked BCR metadata population is empty")
+    for relative, digest in locked_registry_files.items():
+        path = registry / relative
+        if not path.is_file() or _sha256_file(path) != digest:
+            raise ContractError("BUILD_LOCK_INVALID", f"materialized BCR metadata differs: {relative}")
+        _require_read_only(path)
+    _require_read_only(registry)
+
+    return {
+        "archive_bytes": archive_bytes,
+        "archive_count": len(population["archives"]),
+        "coordinate_count": len(manifest["admitted_inputs"]),
+        "module_count": len(selected_modules),
+        "registry_file_count": len(locked_registry_files),
+        "store_mode": "read_only",
+        "wall_limit_seconds": limits["wall_seconds"],
+    }
+
+
+def audit_nix_materialization(population: dict[str, object]) -> dict[str, object]:
+    environment_by_name = {
+        "bazel": "ORUS_BAZEL",
+        "clang": "ORUS_CLANG",
+        "gcc": "ORUS_GCC",
+        "glaze": "ORUS_GLAZE_SRC",
+        "google_benchmark": "ORUS_BENCHMARK_SRC",
+        "googletest": "ORUS_GOOGLETEST_SRC",
+        "lld": "ORUS_LLD",
+        "llvm": "ORUS_LLVM",
+        "nixpkgs": "ORUS_NIXPKGS_SRC",
+        "openssl": "ORUS_OPENSSL",
+        "openssl_dev": "ORUS_OPENSSL_DEV",
+        "python": "ORUS_PYTHON",
+        "utf8proc": "ORUS_UTF8PROC",
+    }
+    inventory = population["inventory"]
+    nix_names = {
+        entry["name"]
+        for entry in inventory["dependencies"]
+        if not str(entry["owner"]).startswith("bzlmod_")
+    }
+    if nix_names != set(environment_by_name):
+        raise ContractError("BUILD_LOCK_INVALID", "Nix materialization map and inventory differ")
+    for name, variable in environment_by_name.items():
+        path = Path(os.environ.get(variable, ""))
+        if not str(path).startswith("/nix/store/") or not path.exists():
+            raise ContractError("BUILD_UNDECLARED_INPUT", f"{name} is not an actual Nix-store materialization")
+        _require_read_only(path)
+    return {"path_count": len(environment_by_name), "store_mode": "read_only"}
+
+
 def main() -> int:
     try:
         root = workspace_root()
         validate_repository(root)
         validate_nix_environment(os.environ)
+        selected_modules = selected_module_graph(root)
+        materialization_audit = audit_bcr_materialization(root, selected_modules)
+        population = validate_resolved_input_population(root, selected_modules=selected_modules)
+        nix_materialization_audit = audit_nix_materialization(population)
         manifest = validate_acquisition_manifest(root / "config/input-acquisition.json")
         first = manifest["admitted_inputs"][0]
         digest = first["sha256"]
@@ -162,6 +284,8 @@ def main() -> int:
         report = {
             "schema": "M0-HERMETICITY-REPORT-v1",
             "acquisition_boundary": boundary_matrix,
+            "acquisition_materialization": materialization_audit,
+            "nix_materialization": nix_materialization_audit,
             "action_audit": action_audit,
             "capability_profile": "network_denied_build_actions",
             "tool_versions": versions,

@@ -11,8 +11,7 @@ TEXT_SUFFIXES = {".bzl", ".cc", ".h", ".json", ".md", ".nix", ".py", ".txt"}
 TEXT_FILENAMES = {".bazelrc", ".bazelversion", "BUILD.bazel", "MODULE.bazel", "orus-clang", "orus-gcc"}
 
 
-def main() -> int:
-    root = Path(os.environ.get("BUILD_WORKSPACE_DIRECTORY", Path.cwd()))
+def find_violations(root: Path) -> list[str]:
     bad: list[str] = []
     excluded = {".git", ".factory", ".agents", "bazel-bin", "bazel-out", "bazel-testlogs", "bazel-orus"}
     for path in sorted(root.rglob("*")):
@@ -46,6 +45,12 @@ def main() -> int:
             or any(line.endswith((b" ", b"\t")) for line in data.splitlines())
         ):
             bad.append(str(relative))
+    return bad
+
+
+def main() -> int:
+    root = Path(os.environ.get("BUILD_WORKSPACE_DIRECTORY", Path.cwd()))
+    bad = find_violations(root)
     if bad:
         print("format violations: " + ", ".join(bad), file=os.sys.stderr)
         return 1
