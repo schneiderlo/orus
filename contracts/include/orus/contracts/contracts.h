@@ -90,6 +90,7 @@ bool IsValidNfc(std::string_view utf8);
 struct ResourceLimits {
   std::optional<std::uint64_t> input_bytes;
   std::optional<std::uint64_t> count;
+  std::optional<std::uint64_t> work_units;
   std::optional<std::uint64_t> depth;
   std::optional<std::uint64_t> rss_bytes;
   std::optional<std::uint64_t> wall_time_ns;
@@ -98,6 +99,7 @@ struct ResourceLimits {
 struct ResourceUsage {
   std::uint64_t input_bytes{};
   std::uint64_t count{};
+  std::uint64_t work_units{};
   std::uint64_t depth{};
   std::uint64_t rss_bytes{};
   std::uint64_t wall_time_ns{};
@@ -174,6 +176,7 @@ struct BuildFacts {
 };
 
 Result<JsonValue> MakeBuildFacts(const BuildFacts& facts, bool release);
+Result<JsonValue> EmbeddedBuildFacts();
 
 struct ReferenceOutcome {
   std::string path;
@@ -237,14 +240,30 @@ Result<JsonValue> ValidateGovernanceDocument(
 Result<JsonValue> ValidatePerformanceDocument(
     std::string_view bytes,
     ResourceUsage usage = {});
+Result<JsonValue> ValidatePerformanceResultBundle(
+    std::string_view workload_bytes,
+    std::string_view raw_samples_bytes,
+    std::string_view result_bytes,
+    ResourceUsage usage = {});
 Result<JsonValue> ValidateCorpusDocument(
     std::string_view bytes,
+    ResourceUsage usage = {});
+
+struct ReferencedDocument {
+  std::string path;
+  std::string bytes;
+};
+
+Result<JsonValue> ValidateCorpusReliabilityBundle(
+    std::string_view reliability_bytes,
+    std::span<const ReferencedDocument> run_documents,
     ResourceUsage usage = {});
 
 struct ResourceContractRow {
   std::string limit_id;
   std::string operation;
   ResourceLimits limits;
+  std::optional<ResourceLimits> alternate_limits;
   std::string error;
   std::string owner_requirement;
 };

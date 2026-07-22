@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -124,6 +125,24 @@ def locate_lcov(workspace: Path) -> Path:
     raise ValueError("coverage data is absent")
 
 
+def validate_freshness(report: Path, workspace: Path, expected_sources: set[str]) -> str:
+    report_mtime = report.stat().st_mtime_ns
+    digest = hashlib.sha256()
+    for source in sorted(expected_sources):
+        path = workspace / source
+        if not path.is_file():
+            raise ValueError(f"coverage source is absent: {source}")
+        if path.stat().st_mtime_ns > report_mtime:
+            raise ValueError(f"coverage data is stale relative to {source}")
+        payload = path.read_bytes()
+        digest.update(source.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(str(len(payload)).encode("ascii"))
+        digest.update(b"\0")
+        digest.update(payload)
+    return digest.hexdigest()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--threshold", required=True, type=float)
@@ -132,11 +151,22 @@ def main() -> int:
     manifest = json.loads((workspace / "tools/coverage/packages.json").read_text(encoding="utf-8"))
     try:
         packages = validate_manifest(workspace, manifest)
-        coverage = parse_lcov(locate_lcov(workspace), {source for sources in packages.values() for source in sources})
+        expected_sources = {source for sources in packages.values() for source in sources}
+        report_path = locate_lcov(workspace)
+        source_snapshot = validate_freshness(report_path, workspace, expected_sources)
+        coverage = parse_lcov(report_path, expected_sources)
         report = evaluate(coverage, packages, arguments.threshold)
     except ValueError as error:
         raise SystemExit(str(error)) from error
-    print(json.dumps({"schema": "M0-PACKAGE-COVERAGE-v1", "packages": report}, separators=(",", ":"), sort_keys=True))
+    print(json.dumps(
+        {
+            "packages": report,
+            "schema": "M0-PACKAGE-COVERAGE-v1",
+            "source_snapshot_sha256": source_snapshot,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    ))
     return 0
 
 

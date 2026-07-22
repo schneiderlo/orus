@@ -47,4 +47,5 @@ py_test(
         "//tests/fuzz:canonical_corpus",
         "//tests/fuzz:canonical_json_parser_fuzz.cc",
     ],
+    deps = ["//tests/fuzz:fuzz_smoke_verifier"],
 )

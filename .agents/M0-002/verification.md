@@ -32,13 +32,15 @@ Execute in this exact order.
 ### V1 — Canonical contract suite (dev)
 
 ```bash
-nix develop --command bazel test --config=dev //tests/contracts/...
+nix develop --command bazel test --config=dev //tests/contracts/... && nix develop --command bazel test --config=release //tests/contracts:build_test
 ```
 
 The suite must run the positive, malformed, relationship, cross-language,
 identity, exact-bound/first-over, and coverage-gate unit fixtures described
-below. Tests must exercise the production Orus libraries, not independent
-test-only reimplementations.
+below. The release clause must exercise the same Bazel-generated embedded
+build-facts provider under the real release configuration, accepting a clean
+full revision and rejecting an explicitly dirty revision. Tests must exercise
+the production Orus libraries, not independent test-only reimplementations.
 
 ### V2 — Canonical contract suite (ASan)
 

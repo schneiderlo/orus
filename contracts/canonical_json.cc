@@ -461,7 +461,8 @@ Result<JsonValue> ParseCanonicalJson(
   // API and accepted value have already passed Orus byte, integer, NFC,
   // duplicate-name, order, and resource checks.
   glz::generic private_glaze_value{};
-  if (glz::read_json(private_glaze_value, bytes) != glz::error_code::none) {
+  std::string private_glaze_bytes(bytes);
+  if (glz::read_json(private_glaze_value, private_glaze_bytes) != glz::error_code::none) {
     return std::unexpected(MakeError(
         noncanonical_code, document_schema, "$", "Glaze parse after Orus prevalidation",
         "Glaze rejected bytes", "private parser disagreement"));

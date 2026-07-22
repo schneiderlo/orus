@@ -63,6 +63,20 @@ TEST(GovernanceContracts, UnknownFieldsDigestsAndResourcesFailClosed) {
       test::Read("tests/contracts/fixtures/sbom-descriptor.json"), {.count = 200001});
   ASSERT_FALSE(count_over);
   EXPECT_EQ(count_over.error().code, "GOV_RESOURCE_LIMIT");
+  EXPECT_TRUE(ValidateGovernanceDocument(
+      test::Read("tests/contracts/fixtures/sbom-descriptor.json"),
+      {.input_bytes = 64 * 1024}));
+  auto bytes_over = ValidateGovernanceDocument(
+      test::Read("tests/contracts/fixtures/sbom-descriptor.json"),
+      {.input_bytes = 64 * 1024 + 1ULL});
+  ASSERT_FALSE(bytes_over);
+  EXPECT_EQ(bytes_over.error().code, "GOV_RESOURCE_LIMIT");
+  const std::string oversized_descriptor =
+      "{\"padding\":\"" + std::string(64 * 1024, 'x') +
+      "\",\"schema\":\"M0-SBOM-CONTRACT-v1\"}";
+  auto encoded_over = ValidateGovernanceDocument(oversized_descriptor);
+  ASSERT_FALSE(encoded_over);
+  EXPECT_EQ(encoded_over.error().code, "GOV_FIELD_BOUND");
 }
 
 TEST(GovernanceContracts, CompletePreapprovalAndEveryInventoryCardinalityAreExact) {
@@ -128,16 +142,36 @@ TEST(GovernanceContracts, CompletePreapprovalAndEveryInventoryCardinalityAreExac
   }
 }
 
-TEST(GovernanceContracts, SubjectAndCycleNamesCannotEnterReleaseEvidence) {
+TEST(GovernanceContracts, SubjectAndExactSchemaDagCannotEnterReleaseEvidence) {
   const auto assembled = test::Read("tests/contracts/fixtures/release-evidence-assembled.json");
-  for (const auto path : {".", "../escape.json", "evidence/release-evidence.json", "evidence/current-scan.json",
-                          "evidence/final-scan.json", "evidence/final-marker.json"}) {
+  for (const auto path : {".", "../escape.json"}) {
     auto invalid_path = assembled;
     const auto start = invalid_path.find("evidence/build.json");
     invalid_path.replace(start, std::string("evidence/build.json").size(), path);
     auto invalid = ValidateGovernanceDocument(invalid_path);
     ASSERT_FALSE(invalid) << path;
     EXPECT_EQ(invalid.error().code, "GOV_RELATIONSHIP_INVALID") << path;
+  }
+  for (const auto path : {"evidence/release-evidence.json", "evidence/current-scan.json",
+                          "evidence/final-scan.json", "evidence/final-marker.json"}) {
+    auto neutral_path = assembled;
+    const auto start = neutral_path.find("evidence/build.json");
+    neutral_path.replace(start, std::string("evidence/build.json").size(), path);
+    EXPECT_TRUE(ValidateGovernanceDocument(neutral_path)) << path;
+  }
+  for (const auto forbidden_schema : {
+           "M0-RELEASE-EVIDENCE-v1",
+           "M0-SECRET-SCAN-METADATA-v1",
+           "M0-SECRET-SCAN-MANIFEST-v1",
+           "M0-SECRET-SCAN-REPORT-v1",
+           "M0-RELEASE-APPROVAL-v1",
+       }) {
+    auto forbidden = assembled;
+    const auto start = forbidden.find("M0-BUILD-FACTS-v1");
+    forbidden.replace(start, std::string("M0-BUILD-FACTS-v1").size(), forbidden_schema);
+    auto invalid = ValidateGovernanceDocument(forbidden);
+    ASSERT_FALSE(invalid) << forbidden_schema;
+    EXPECT_EQ(invalid.error().code, "GOV_RELATIONSHIP_INVALID") << forbidden_schema;
   }
 
   auto wrong_subject = assembled;
@@ -163,6 +197,53 @@ TEST(PerformanceContracts, FiveFixedDocumentsMatchIdentitiesAndSchemas) {
             "53bf9f36b775d084120636acbc80490257e8f32d3e9e662de3fd0dae3a751f4b");
   EXPECT_EQ(Sha256(test::Read("tests/contracts/fixtures/perf-comparison.json"))->Hex(),
             "8aede2e8179c52f9d6c96618510ebe6e4311030b6d91f292a58bca4d7a4c94c6");
+  const auto raw_array = "[" + test::Read("tests/contracts/fixtures/perf-raw-sample.json") + "]";
+  EXPECT_TRUE(ValidatePerformanceResultBundle(
+      test::Read("tests/contracts/fixtures/perf-workload.json"), raw_array,
+      test::Read("tests/contracts/fixtures/perf-result.json")));
+}
+
+TEST(PerformanceContracts, ResultBundleReconcilesRawBytesOrderStatisticsAndWorkload) {
+  const auto workload_bytes = test::Read("tests/contracts/fixtures/perf-workload.json");
+  const auto raw_object = test::Read("tests/contracts/fixtures/perf-raw-sample.json");
+  const auto raw_array = "[" + raw_object + "]";
+  const auto result_bytes = test::Read("tests/contracts/fixtures/perf-result.json");
+
+  auto wrong_order = ParseCanonicalJson(
+      raw_object, "M0-PERF-RAW-SAMPLE-v1", "PERF_NONCANONICAL").value();
+  MutableMember(wrong_order, "order") = JsonValue("baseline_first");
+  EXPECT_FALSE(ValidatePerformanceResultBundle(
+      workload_bytes, "[" + Canonical(wrong_order, "M0-PERF-RAW-SAMPLE-v1") + "]",
+      result_bytes));
+
+  auto wrong_statistics = ParseCanonicalJson(
+      result_bytes, "M0-PERF-RESULT-v1", "PERF_NONCANONICAL").value();
+  MutableMember(MutableMember(wrong_statistics, "statistics"), "median") = JsonValue(99);
+  RecomputeDerived(wrong_statistics, "result_id", "M0-PERF-RESULT-v1");
+  EXPECT_FALSE(ValidatePerformanceResultBundle(
+      workload_bytes, raw_array, Canonical(wrong_statistics, "M0-PERF-RESULT-v1")));
+
+  auto wrong_counts = ParseCanonicalJson(
+      result_bytes, "M0-PERF-RESULT-v1", "PERF_NONCANONICAL").value();
+  auto& sampling = MutableMember(wrong_counts, "sampling");
+  MutableMember(sampling, "valid_pairs") = JsonValue(0);
+  MutableMember(sampling, "invalid_pairs") = JsonValue(1);
+  RecomputeDerived(wrong_counts, "result_id", "M0-PERF-RESULT-v1");
+  EXPECT_FALSE(ValidatePerformanceResultBundle(
+      workload_bytes, raw_array, Canonical(wrong_counts, "M0-PERF-RESULT-v1")));
+
+  auto wrong_workload = ParseCanonicalJson(
+      workload_bytes, "M0-PERF-WORKLOAD-v1", "PERF_NONCANONICAL").value();
+  MutableMember(wrong_workload, "allocation_phase") = JsonValue("startup");
+  EXPECT_FALSE(ValidatePerformanceResultBundle(
+      Canonical(wrong_workload, "M0-PERF-WORKLOAD-v1"), raw_array, result_bytes));
+
+  auto changed_raw = raw_array;
+  changed_raw.replace(changed_raw.find("\"duration_ns\":100"),
+                      std::string("\"duration_ns\":100").size(), "\"duration_ns\":99");
+  auto digest_mismatch = ValidatePerformanceResultBundle(workload_bytes, changed_raw, result_bytes);
+  ASSERT_FALSE(digest_mismatch);
+  EXPECT_EQ(digest_mismatch.error().code, "PERF_DIGEST_INVALID");
 }
 
 TEST(PerformanceContracts, RelationshipsNoncanonicalBytesAndResourcesReject) {
@@ -180,11 +261,16 @@ TEST(PerformanceContracts, RelationshipsNoncanonicalBytesAndResourcesReject) {
   ASSERT_FALSE(over);
   EXPECT_EQ(over.error().code, "PERF_RESOURCE_LIMIT");
   EXPECT_TRUE(ValidatePerformanceDocument(
-      test::Read("tests/contracts/fixtures/perf-comparison.json"), {.count = 10000, .depth = 16}));
+      test::Read("tests/contracts/fixtures/perf-comparison.json"),
+      {.count = 100000, .work_units = 10000, .depth = 16}));
   auto count_over = ValidatePerformanceDocument(
-      test::Read("tests/contracts/fixtures/perf-comparison.json"), {.count = 10001});
+      test::Read("tests/contracts/fixtures/perf-comparison.json"), {.count = 100001});
   ASSERT_FALSE(count_over);
   EXPECT_EQ(count_over.error().code, "PERF_RESOURCE_LIMIT");
+  auto work_over = ValidatePerformanceDocument(
+      test::Read("tests/contracts/fixtures/perf-comparison.json"), {.work_units = 10001});
+  ASSERT_FALSE(work_over);
+  EXPECT_EQ(work_over.error().code, "PERF_RESOURCE_LIMIT");
 }
 
 TEST(PerformanceContracts, NestedTypesEnumsBoundsAndConditionalFieldsFailClosed) {
@@ -266,15 +352,58 @@ TEST(CorpusContracts, BothExamplesValidateAndForgedSuccessFails) {
   EXPECT_EQ(invalid.error().code, "CORP_REPORT_FORGED_SUCCESS");
 }
 
+TEST(CorpusContracts, ReliabilityBundleResolvesRunBytesAndContext) {
+  const auto run_bytes = test::Read("tests/contracts/fixtures/corpus-run.json");
+  auto reliability = ParseCanonicalJson(
+      test::Read("tests/contracts/fixtures/corpus-reliability.json"),
+      "M0-CORPUS-RELIABILITY-v1", "CORP_REPORT_NONCANONICAL").value();
+  auto& reference = std::get<JsonValue::Array>(MutableMember(reliability, "run_reports").value).front();
+  MutableMember(reference, "byte_length") = JsonValue(static_cast<std::int64_t>(run_bytes.size()));
+  MutableMember(reference, "sha256") = JsonValue(Sha256(run_bytes)->Hex());
+  const auto reliability_bytes = Canonical(reliability, "M0-CORPUS-RELIABILITY-v1");
+  const std::array<ReferencedDocument, 1> runs{{{"runs/1.json", run_bytes}}};
+  EXPECT_TRUE(ValidateCorpusReliabilityBundle(reliability_bytes, runs));
+
+  auto wrong_digest = reliability;
+  auto& wrong_reference =
+      std::get<JsonValue::Array>(MutableMember(wrong_digest, "run_reports").value).front();
+  MutableMember(wrong_reference, "sha256") = JsonValue(std::string(64, '0'));
+  EXPECT_FALSE(ValidateCorpusReliabilityBundle(
+      Canonical(wrong_digest, "M0-CORPUS-RELIABILITY-v1"), runs));
+
+  auto wrong_context = ParseCanonicalJson(
+      run_bytes, "M0-CORPUS-RUN-v1", "CORP_REPORT_NONCANONICAL").value();
+  MutableMember(wrong_context, "environment_id") = JsonValue(std::string(64, 'd'));
+  const auto wrong_run_bytes = Canonical(wrong_context, "M0-CORPUS-RUN-v1");
+  auto matching_reference = reliability;
+  auto& row = std::get<JsonValue::Array>(MutableMember(matching_reference, "run_reports").value).front();
+  MutableMember(row, "byte_length") = JsonValue(static_cast<std::int64_t>(wrong_run_bytes.size()));
+  MutableMember(row, "sha256") = JsonValue(Sha256(wrong_run_bytes)->Hex());
+  const std::array<ReferencedDocument, 1> wrong_runs{{{"runs/1.json", wrong_run_bytes}}};
+  auto rejected = ValidateCorpusReliabilityBundle(
+      Canonical(matching_reference, "M0-CORPUS-RELIABILITY-v1"), wrong_runs);
+  ASSERT_FALSE(rejected);
+  EXPECT_EQ(rejected.error().code, "CORP_REPORT_RELATIONSHIP_INVALID");
+}
+
 TEST(CorpusContracts, FaultMappingAggregateCountsAndBoundsReject) {
   auto reliability = test::Read("tests/contracts/fixtures/corpus-reliability.json");
   reliability.replace(reliability.find("\"passed_runs\":1"), std::string("\"passed_runs\":1").size(), "\"passed_runs\":0");
   auto invalid = ValidateCorpusDocument(reliability);
   ASSERT_FALSE(invalid);
   EXPECT_EQ(invalid.error().code, "CORP_REPORT_FORGED_SUCCESS");
-  auto over = ValidateCorpusDocument(test::Read("tests/contracts/fixtures/corpus-run.json"), {.input_bytes = 16 * 1024 * 1024 + 1ULL});
+  EXPECT_TRUE(ValidateCorpusDocument(
+      test::Read("tests/contracts/fixtures/corpus-run.json"), {.input_bytes = 1 * 1024 * 1024}));
+  auto over = ValidateCorpusDocument(
+      test::Read("tests/contracts/fixtures/corpus-run.json"), {.input_bytes = 1 * 1024 * 1024 + 1ULL});
   ASSERT_FALSE(over);
   EXPECT_EQ(over.error().code, "CORP_REPORT_FIELD_BOUND");
+  const std::string oversized_run =
+      "{\"padding\":\"" + std::string(1 * 1024 * 1024, 'x') +
+      "\",\"schema\":\"M0-CORPUS-RUN-v1\"}";
+  auto encoded_over = ValidateCorpusDocument(oversized_run);
+  ASSERT_FALSE(encoded_over);
+  EXPECT_EQ(encoded_over.error().code, "CORP_REPORT_FIELD_BOUND");
   EXPECT_TRUE(ValidateCorpusDocument(
       test::Read("tests/contracts/fixtures/corpus-reliability.json"), {.count = 100, .depth = 16}));
   auto count_over = ValidateCorpusDocument(
@@ -330,7 +459,31 @@ TEST(CorpusContracts, FaultEnumsAndReliabilityRowsAreFiniteAndReconciled) {
     report.replace(report.find("\"passed\":true"), std::string("\"passed\":true").size(), "\"passed\":false");
     report.replace(report.find("\"terminal\":\"success\""), std::string("\"terminal\":\"success\"").size(),
                    std::string("\"terminal\":\"") + std::string(terminal) + "\"");
+    auto success_shaped = ValidateCorpusDocument(report);
+    ASSERT_FALSE(success_shaped) << fault;
+    EXPECT_EQ(success_shaped.error().code, "CORP_REPORT_RELATIONSHIP_INVALID");
+    report.replace(report.find("\"logical_result\":12502500"),
+                   std::string("\"logical_result\":12502500").size(),
+                   "\"logical_result\":0");
     EXPECT_TRUE(ValidateCorpusDocument(report)) << fault;
+
+    auto cleanup_failure = report;
+    cleanup_failure.replace(
+        cleanup_failure.find("\"temporary_resources_removed\":true"),
+        std::string("\"temporary_resources_removed\":true").size(),
+        "\"temporary_resources_removed\":false");
+    cleanup_failure.replace(
+        cleanup_failure.find(std::string("\"terminal\":\"") + std::string(terminal) + "\""),
+        std::string("\"terminal\":\"").size() + terminal.size() + 1,
+        "\"terminal\":\"cleanup_failed\"");
+    EXPECT_TRUE(ValidateCorpusDocument(cleanup_failure)) << fault;
+
+    auto wrong_nested_type = report;
+    wrong_nested_type.replace(
+        wrong_nested_type.find("\"parent_join_count\":3"),
+        std::string("\"parent_join_count\":3").size(),
+        "\"parent_join_count\":\"three\"");
+    EXPECT_FALSE(ValidateCorpusDocument(wrong_nested_type)) << fault;
 
     report.replace(report.find(std::string("\"terminal\":\"") + std::string(terminal) + "\""),
                    std::string("\"terminal\":\"").size() + terminal.size() + 1, "\"terminal\":\"cancelled\"");
@@ -374,18 +527,21 @@ TEST(SecurityResourceContracts, OwnedRowsAreFiniteUniqueAndLiteral) {
     ResourceUsage exact;
     if (row.limits.input_bytes) exact.input_bytes = *row.limits.input_bytes;
     if (row.limits.count) exact.count = *row.limits.count;
+    if (row.limits.work_units) exact.work_units = *row.limits.work_units;
     if (row.limits.depth) exact.depth = *row.limits.depth;
     if (row.limits.rss_bytes) exact.rss_bytes = *row.limits.rss_bytes;
     if (row.limits.wall_time_ns) exact.wall_time_ns = *row.limits.wall_time_ns;
     EXPECT_TRUE(CheckResourceUsage(exact, row.limits, row.operation, row.error)) << row.limit_id;
 
-    for (const auto resource : {"input", "count", "depth", "rss", "time"}) {
+    for (const auto resource : {"input", "count", "work", "depth", "rss", "time"}) {
       auto first_over = exact;
       bool applicable = true;
       if (resource == std::string_view("input") && row.limits.input_bytes) {
         ++first_over.input_bytes;
       } else if (resource == std::string_view("count") && row.limits.count) {
         ++first_over.count;
+      } else if (resource == std::string_view("work") && row.limits.work_units) {
+        ++first_over.work_units;
       } else if (resource == std::string_view("depth") && row.limits.depth) {
         ++first_over.depth;
       } else if (resource == std::string_view("rss") && row.limits.rss_bytes) {
@@ -400,6 +556,17 @@ TEST(SecurityResourceContracts, OwnedRowsAreFiniteUniqueAndLiteral) {
         ASSERT_FALSE(rejected) << row.limit_id << ":" << resource;
         EXPECT_EQ(rejected.error().code, row.error);
       }
+    }
+    if (row.alternate_limits) {
+      ResourceUsage alternate_exact;
+      alternate_exact.input_bytes = row.alternate_limits->input_bytes.value_or(0);
+      alternate_exact.count = row.alternate_limits->count.value_or(0);
+      alternate_exact.depth = row.alternate_limits->depth.value_or(0);
+      EXPECT_TRUE(CheckResourceUsage(
+          alternate_exact, *row.alternate_limits, row.operation, row.error));
+      ++alternate_exact.input_bytes;
+      EXPECT_FALSE(CheckResourceUsage(
+          alternate_exact, *row.alternate_limits, row.operation, row.error));
     }
   }
 

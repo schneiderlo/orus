@@ -1,7 +1,7 @@
 #include "orus/contracts/contracts.h"
+#include "contracts/resource_monitor.h"
 
 #include <algorithm>
-#include <chrono>
 #include <fstream>
 #include <limits>
 #include <regex>
@@ -198,12 +198,21 @@ Result<ReferenceValidation> ValidateReferenceEnvironment(
     std::string_view contract_bytes,
     std::string_view observed_bytes,
     ResourceUsage usage) {
+  const std::uint64_t started_ns = internal::MonotonicNowNs();
   usage.input_bytes = std::max<std::uint64_t>(usage.input_bytes, contract_bytes.size() + observed_bytes.size());
-  auto resource = CheckResourceUsage(
-      usage,
-      ResourceLimits{.input_bytes = 96U * 1024U, .count = 128, .depth = 8,
-                     .rss_bytes = 64U * 1024U * 1024U, .wall_time_ns = 10000000000ULL},
-      "M0-REFENV-v1", "BUILD_REFENV_RESOURCE_LIMIT");
+  const ResourceLimits limits{
+      .input_bytes = 96U * 1024U,
+      .count = 128,
+      .depth = 8,
+      .rss_bytes = 64U * 1024U * 1024U,
+      .wall_time_ns = 10000000000ULL,
+  };
+  const auto check_resources = [&]() {
+    return CheckResourceUsage(
+        internal::ObserveResourceUsage(usage, started_ns), limits, "M0-REFENV-v1",
+        "BUILD_REFENV_RESOURCE_LIMIT");
+  };
+  auto resource = check_resources();
   if (!resource) return std::unexpected(resource.error());
 
   auto contract = ParseCanonicalJson(
@@ -212,6 +221,8 @@ Result<ReferenceValidation> ValidateReferenceEnvironment(
   auto observed = ParseCanonicalJson(
       observed_bytes, "M0-REFENV-OBSERVED-v1", "BUILD_REFENV_NONCANONICAL", {.maximum_bytes = 32U * 1024U, .maximum_depth = 8});
   if (!observed) return std::unexpected(observed.error());
+  resource = check_resources();
+  if (!resource) return std::unexpected(resource.error());
 
   if (!ExactFields(*contract, {"environment_id", "host", "inputs", "nix_system", "schema", "support_level", "target_triple", "tools"})) {
     return std::unexpected(BuildError(
@@ -297,6 +308,8 @@ Result<ReferenceValidation> ValidateReferenceEnvironment(
     }
     previous_input = std::string(*name);
   }
+  resource = check_resources();
+  if (!resource) return std::unexpected(resource.error());
 
   auto target_member = Member(*contract, "target_triple", *schema, "BUILD_REFENV_FIELD_INVALID");
   if (!target_member || !IsBoundedString(**target_member, 128)) {
@@ -328,6 +341,8 @@ Result<ReferenceValidation> ValidateReferenceEnvironment(
           "reference tool identity is invalid"));
     }
   }
+  resource = check_resources();
+  if (!resource) return std::unexpected(resource.error());
 
   auto host_member = Member(*contract, "host", *schema, "BUILD_REFENV_FIELD_INVALID");
   if (!host_member) return std::unexpected(host_member.error());
@@ -446,7 +461,11 @@ Result<ReferenceValidation> ValidateReferenceEnvironment(
         .status = status,
         .code = status == "pass" ? "none" : "BUILD_UNVALIDATED_ENVIRONMENT",
     });
+    resource = check_resources();
+    if (!resource) return std::unexpected(resource.error());
   }
+  resource = check_resources();
+  if (!resource) return std::unexpected(resource.error());
   return validation;
 }
 
@@ -454,9 +473,14 @@ Result<PackageIdentity> IdentifyPackageTree(
     const std::filesystem::path& root,
     const PackageLimits& limits,
     std::optional<ResourceUsage> injected_usage) {
-  if (injected_usage) {
-    auto status = CheckResourceUsage(
-        *injected_usage,
+  const std::uint64_t started_ns = internal::MonotonicNowNs();
+  ResourceUsage usage = injected_usage.value_or(ResourceUsage{});
+  const auto check_resources = [&](std::uint64_t regular_bytes, std::uint64_t entries) {
+    auto observed = usage;
+    observed.input_bytes = std::max(observed.input_bytes, regular_bytes);
+    observed.count = std::max(observed.count, entries);
+    return CheckResourceUsage(
+        internal::ObserveResourceUsage(observed, started_ns),
         ResourceLimits{
             .input_bytes = limits.maximum_regular_bytes,
             .count = limits.maximum_entries,
@@ -464,15 +488,15 @@ Result<PackageIdentity> IdentifyPackageTree(
             .wall_time_ns = limits.maximum_wall_time_ns,
         },
         "M0-PACKAGE-TREE-v1", "BUILD_PACKAGE_IDENTITY_INVALID");
-    if (!status) return std::unexpected(status.error());
-  }
+  };
+  auto resource = check_resources(0, 0);
+  if (!resource) return std::unexpected(resource.error());
   std::error_code filesystem_error;
   if (!std::filesystem::is_directory(root, filesystem_error) || filesystem_error) {
     return std::unexpected(BuildError(
         "BUILD_PACKAGE_IDENTITY_INVALID", "M0-PACKAGE-TREE-v1", "$", "readable package directory",
         root.string(), "package root is not a readable directory"));
   }
-  const auto started = std::chrono::steady_clock::now();
   struct Row {
     std::string path;
     JsonValue value;
@@ -483,6 +507,8 @@ Result<PackageIdentity> IdentifyPackageTree(
   for (std::filesystem::recursive_directory_iterator iterator(
            root, std::filesystem::directory_options::none, filesystem_error), end;
        iterator != end; iterator.increment(filesystem_error)) {
+    resource = check_resources(regular_bytes, rows.size());
+    if (!resource) return std::unexpected(resource.error());
     if (filesystem_error) {
       return std::unexpected(BuildError(
           "BUILD_PACKAGE_IDENTITY_INVALID", "M0-PACKAGE-TREE-v1", "$", "bounded package walk",
@@ -536,6 +562,8 @@ Result<PackageIdentity> IdentifyPackageTree(
           read_bytes += static_cast<std::uint64_t>(count);
           auto update = hasher.Update(std::span(buffer.data(), static_cast<std::size_t>(count)));
           if (!update) return std::unexpected(update.error());
+          resource = check_resources(regular_bytes - size + read_bytes, rows.size());
+          if (!resource) return std::unexpected(resource.error());
         }
       }
       if (!input.eof() || read_bytes != size) {
@@ -588,15 +616,8 @@ Result<PackageIdentity> IdentifyPackageTree(
           "regular file, directory, or symlink", "special file", "special package entries are forbidden"));
     }
 
-    const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                             std::chrono::steady_clock::now() - started)
-                             .count();
-    if (elapsed > static_cast<std::int64_t>(limits.maximum_wall_time_ns)) {
-      return std::unexpected(BuildError(
-          "BUILD_PACKAGE_IDENTITY_INVALID", "M0-PACKAGE-TREE-v1", "$", "wall_time_ns",
-          std::to_string(elapsed), "package walk deadline exceeded",
-          static_cast<std::int64_t>(limits.maximum_wall_time_ns)));
-    }
+    resource = check_resources(regular_bytes, rows.size());
+    if (!resource) return std::unexpected(resource.error());
   }
   std::sort(rows.begin(), rows.end(), [](const Row& left, const Row& right) {
     return UnsignedPathLess(left.path, right.path);
@@ -608,6 +629,8 @@ Result<PackageIdentity> IdentifyPackageTree(
   if (!bytes) return std::unexpected(bytes.error());
   auto digest = Sha256(*bytes);
   if (!digest) return std::unexpected(digest.error());
+  resource = check_resources(regular_bytes, rows.size());
+  if (!resource) return std::unexpected(resource.error());
   return PackageIdentity{
       .manifest = std::move(manifest),
       .package_tree_sha256 = *digest,

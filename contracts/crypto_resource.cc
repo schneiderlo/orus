@@ -1,8 +1,11 @@
 #include "orus/contracts/contracts.h"
+#include "contracts/resource_monitor.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <limits>
+#include <sys/resource.h>
 
 #include <openssl/evp.h>
 
@@ -65,6 +68,7 @@ Result<void> CheckResourceUsage(
   for (const auto& result : {
            CheckOne("input_bytes", usage.input_bytes, limits.input_bytes, schema, code),
            CheckOne("count", usage.count, limits.count, schema, code),
+           CheckOne("work_units", usage.work_units, limits.work_units, schema, code),
            CheckOne("depth", usage.depth, limits.depth, schema, code),
            CheckOne("rss_bytes", usage.rss_bytes, limits.rss_bytes, schema, code),
            CheckOne("wall_time_ns", usage.wall_time_ns, limits.wall_time_ns, schema, code),
@@ -73,6 +77,34 @@ Result<void> CheckResourceUsage(
   }
   return {};
 }
+
+namespace internal {
+
+std::uint64_t MonotonicNowNs() {
+  const auto now = std::chrono::steady_clock::now().time_since_epoch();
+  return static_cast<std::uint64_t>(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(now).count());
+}
+
+std::uint64_t CurrentProcessRssBytes() {
+  struct rusage usage {};
+  if (::getrusage(RUSAGE_SELF, &usage) != 0 || usage.ru_maxrss < 0) return 0;
+  constexpr std::uint64_t kLinuxRusageUnit = 1024;
+  const auto rss = static_cast<std::uint64_t>(usage.ru_maxrss);
+  return rss > std::numeric_limits<std::uint64_t>::max() / kLinuxRusageUnit
+             ? std::numeric_limits<std::uint64_t>::max()
+             : rss * kLinuxRusageUnit;
+}
+
+ResourceUsage ObserveResourceUsage(ResourceUsage minimum, std::uint64_t started_ns) {
+  const std::uint64_t now = MonotonicNowNs();
+  minimum.rss_bytes = std::max(minimum.rss_bytes, CurrentProcessRssBytes());
+  minimum.wall_time_ns = std::max(
+      minimum.wall_time_ns, now >= started_ns ? now - started_ns : std::uint64_t{0});
+  return minimum;
+}
+
+}  // namespace internal
 
 Result<std::int64_t> CheckedAdd(std::int64_t left, std::int64_t right, std::string_view schema) {
   std::int64_t output{};

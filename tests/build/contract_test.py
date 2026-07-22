@@ -32,7 +32,13 @@ from tools.build.hermeticity_audit import (
     selected_module_graph,
 )
 from tools.build.prohibited_path_scan import main as prohibited_path_main
-from tools.coverage.package_gate import evaluate, locate_lcov, parse_lcov, validate_manifest
+from tools.coverage.package_gate import (
+    evaluate,
+    locate_lcov,
+    parse_lcov,
+    validate_freshness,
+    validate_manifest,
+)
 from tools.format import find_violations, main as format_main
 
 
@@ -329,6 +335,22 @@ class CoverageGateTest(unittest.TestCase):
     def test_absent_lcov_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory, self.assertRaisesRegex(ValueError, "coverage data is absent"):
             locate_lcov(Path(directory))
+
+    def test_stale_lcov_fails_and_current_snapshot_is_bound(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "tools/build/a.py"
+            source.parent.mkdir(parents=True)
+            source.write_text("value = 1\n", encoding="utf-8")
+            report = root / "coverage.dat"
+            report.write_text("SF:tools/build/a.py\nDA:1,1\nend_of_record\n", encoding="utf-8")
+            source_time = source.stat().st_mtime_ns
+            os.utime(report, ns=(source_time + 1, source_time + 1))
+            snapshot = validate_freshness(report, root, {"tools/build/a.py"})
+            self.assertEqual(len(snapshot), 64)
+            os.utime(report, ns=(source_time - 1, source_time - 1))
+            with self.assertRaisesRegex(ValueError, "coverage data is stale"):
+                validate_freshness(report, root, {"tools/build/a.py"})
 
     def test_manifest_requires_every_owned_source_or_reviewed_exclusion(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

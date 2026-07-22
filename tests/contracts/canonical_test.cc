@@ -108,13 +108,15 @@ TEST(Identity, SubjectNamesCannotBeSubstituted) {
 
 TEST(ResourceGuard, ExactBoundsPassAndFirstOverFailsBeforeUse) {
   const ResourceLimits limits{.input_bytes = 16, .count = 2, .depth = 3, .rss_bytes = 64, .wall_time_ns = 10};
-  EXPECT_TRUE(CheckResourceUsage({16, 2, 3, 64, 10}, limits, "fixture", "LIMIT"));
+  EXPECT_TRUE(CheckResourceUsage(
+      {.input_bytes = 16, .count = 2, .depth = 3, .rss_bytes = 64, .wall_time_ns = 10},
+      limits, "fixture", "LIMIT"));
   for (const ResourceUsage usage : {
-           ResourceUsage{17, 2, 3, 64, 10},
-           ResourceUsage{16, 3, 3, 64, 10},
-           ResourceUsage{16, 2, 4, 64, 10},
-           ResourceUsage{16, 2, 3, 65, 10},
-           ResourceUsage{16, 2, 3, 64, 11},
+           ResourceUsage{.input_bytes = 17, .count = 2, .depth = 3, .rss_bytes = 64, .wall_time_ns = 10},
+           ResourceUsage{.input_bytes = 16, .count = 3, .depth = 3, .rss_bytes = 64, .wall_time_ns = 10},
+           ResourceUsage{.input_bytes = 16, .count = 2, .depth = 4, .rss_bytes = 64, .wall_time_ns = 10},
+           ResourceUsage{.input_bytes = 16, .count = 2, .depth = 3, .rss_bytes = 65, .wall_time_ns = 10},
+           ResourceUsage{.input_bytes = 16, .count = 2, .depth = 3, .rss_bytes = 64, .wall_time_ns = 11},
        }) {
     auto result = CheckResourceUsage(usage, limits, "fixture", "LIMIT");
     ASSERT_FALSE(result);

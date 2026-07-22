@@ -1,4 +1,5 @@
 #include "orus/contracts/contracts.h"
+#include "contracts/resource_monitor.h"
 
 #include <algorithm>
 #include <array>
@@ -107,12 +108,77 @@ bool IsUint32(std::int64_t value) {
   return value >= 0 && static_cast<std::uint64_t>(value) <= std::numeric_limits<std::uint32_t>::max();
 }
 
+bool IsUint8(std::int64_t value) {
+  return value >= 0 && value <= std::numeric_limits<std::uint8_t>::max();
+}
+
+bool IsInt32(std::int64_t value) {
+  return value >= std::numeric_limits<std::int32_t>::min() &&
+         value <= std::numeric_limits<std::int32_t>::max();
+}
+
 bool IsBoundedText(std::string_view value, std::size_t maximum, bool allow_empty = false) {
   return (allow_empty || !value.empty()) && value.size() <= maximum && IsValidNfc(value);
 }
 
 bool IsMetricUnit(std::string_view value) {
   return IsEnum(value, {"ns", "bytes", "count", "descriptors_per_second", "bytes_per_second", "ratio_ppb"});
+}
+
+std::optional<std::string_view> TopLevelStringMember(
+    std::string_view bytes, std::string_view requested_name) {
+  std::size_t depth{};
+  for (std::size_t index = 0; index < bytes.size();) {
+    const char character = bytes[index];
+    if (character == '{' || character == '[') {
+      ++depth;
+      ++index;
+      continue;
+    }
+    if (character == '}' || character == ']') {
+      if (depth > 0) --depth;
+      ++index;
+      continue;
+    }
+    if (character != '"') {
+      ++index;
+      continue;
+    }
+    const std::size_t start = ++index;
+    bool escaped{};
+    while (index < bytes.size()) {
+      if (escaped) {
+        escaped = false;
+      } else if (bytes[index] == '\\') {
+        escaped = true;
+      } else if (bytes[index] == '"') {
+        break;
+      }
+      ++index;
+    }
+    if (index >= bytes.size()) return std::nullopt;
+    const std::string_view token = bytes.substr(start, index - start);
+    ++index;
+    if (depth != 1 || token != requested_name || index >= bytes.size() || bytes[index] != ':') {
+      continue;
+    }
+    ++index;
+    if (index >= bytes.size() || bytes[index] != '"') return std::nullopt;
+    const std::size_t value_start = ++index;
+    escaped = false;
+    while (index < bytes.size()) {
+      if (escaped) {
+        escaped = false;
+      } else if (bytes[index] == '\\') {
+        escaped = true;
+      } else if (bytes[index] == '"') {
+        return bytes.substr(value_start, index - value_start);
+      }
+      ++index;
+    }
+    return std::nullopt;
+  }
+  return std::nullopt;
 }
 
 bool IsSortedUniqueUint32Array(const JsonValue& value, std::size_t maximum) {
@@ -334,15 +400,26 @@ Result<JsonValue> ParseDomain(
     std::string_view noncanonical_code,
     ResourceUsage usage,
     std::string_view resource_code,
+    std::uint64_t started_ns,
     std::uint64_t maximum_rss = 256U * 1024U * 1024U,
     std::uint64_t maximum_time = 120000000000ULL) {
   usage.input_bytes = std::max<std::uint64_t>(usage.input_bytes, bytes.size());
   auto resource = CheckResourceUsage(
-      usage,
+      internal::ObserveResourceUsage(usage, started_ns),
       ResourceLimits{.input_bytes = 16U * 1024U * 1024U, .rss_bytes = maximum_rss, .wall_time_ns = maximum_time},
       fallback_schema, resource_code);
   if (!resource) return std::unexpected(resource.error());
-  return ParseCanonicalJson(bytes, fallback_schema, noncanonical_code, {.maximum_bytes = 16U * 1024U * 1024U, .maximum_depth = 16});
+  auto document = ParseCanonicalJson(
+      bytes, fallback_schema, noncanonical_code,
+      {.maximum_bytes = 16U * 1024U * 1024U, .maximum_depth = 16});
+  if (!document) return document;
+  resource = CheckResourceUsage(
+      internal::ObserveResourceUsage(usage, started_ns),
+      ResourceLimits{.input_bytes = 16U * 1024U * 1024U, .rss_bytes = maximum_rss,
+                     .wall_time_ns = maximum_time},
+      fallback_schema, resource_code);
+  if (!resource) return std::unexpected(resource.error());
+  return document;
 }
 
 Result<std::int64_t> Median(std::vector<std::int64_t> values, std::string_view schema) {
@@ -472,12 +549,14 @@ Result<void> ValidateGovernanceCore(const JsonValue& document, std::string_view 
     auto producer_version = StringMember(row, "producer_version", schema, "GOV_FIELD_TYPE");
     auto digest = ValidateHexMember(row, "evidence_object_sha256", schema, "GOV_DIGEST_INVALID");
     if (!digest) return digest;
-    const bool forbidden_cycle = path &&
-        (path->find("release-evidence") != std::string_view::npos ||
-         path->find("current-scan") != std::string_view::npos ||
-         path->find("final-scan") != std::string_view::npos ||
-         path->find("final-marker") != std::string_view::npos ||
-         path->find("approval-marker") != std::string_view::npos);
+    static const std::set<std::string_view> kForbiddenSchemas{
+        "M0-RELEASE-APPROVAL-v1",
+        "M0-RELEASE-EVIDENCE-v1",
+        "M0-SECRET-SCAN-MANIFEST-v1",
+        "M0-SECRET-SCAN-METADATA-v1",
+        "M0-SECRET-SCAN-REPORT-v1",
+    };
+    const bool forbidden_cycle = row_schema && kForbiddenSchemas.contains(*row_schema);
     if (!type || !kEvidenceTypes.contains(std::string(*type)) || !path || path->empty() || !length || *length < 0 ||
         !row_schema || !IsSchemaId(*row_schema) || !producer || !IsId(*producer) ||
         !producer_version || producer_version->empty() || producer_version->size() > 128 ||
@@ -1022,11 +1101,177 @@ Result<void> ValidateCorpusCore(const JsonValue& document, std::string_view sche
         {"child_exit_before_ready", "thread_lifecycle_failed"}, {"child_worker_failure", "thread_lifecycle_failed"},
         {"exec_failure", "exec_failed"}, {"hang_until_timeout", "timeout"}, {"ipc_close", "ipc_protocol_error"},
         {"malformed_ipc", "ipc_protocol_error"}, {"parent_worker_failure", "thread_lifecycle_failed"}};
+
+    auto topology_object = Member(document, "topology", schema, "CORP_REPORT_FIELD_MISSING");
+    auto sums_object = Member(document, "sums", schema, "CORP_REPORT_FIELD_MISSING");
+    auto cleanup_object = Member(document, "cleanup", schema, "CORP_REPORT_FIELD_MISSING");
+    auto lifecycle_object = Member(document, "lifecycle", schema, "CORP_REPORT_FIELD_MISSING");
+    auto diagnostics_rows = ArrayMember(document, "diagnostics", schema, "CORP_REPORT_FIELD_TYPE");
+    auto ipc_rows = ArrayMember(document, "ipc", schema, "CORP_REPORT_FIELD_TYPE");
+    auto partition_rows = ArrayMember(document, "partitions", schema, "CORP_REPORT_FIELD_TYPE");
+    auto observation_rows = ArrayMember(document, "observations", schema, "CORP_REPORT_FIELD_TYPE");
+    if (!topology_object || !sums_object || !cleanup_object || !lifecycle_object ||
+        !diagnostics_rows || !ipc_rows || !partition_rows || !observation_rows ||
+        !ExactFields(**topology_object,
+                     {"child_worker_count", "parent_worker_count", "process_count", "roles",
+                      "thread_count"}) ||
+        !ExactFields(**sums_object, {"child", "combined", "parent"}) ||
+        !ExactFields(**cleanup_object,
+                     {"all_waits_complete", "fd_baseline_restored", "group_absent",
+                      "ipc_closed", "temporary_resources_removed"}) ||
+        !ExactFields(**lifecycle_object,
+                     {"cancel_sent", "child_join_count", "child_wait_status", "child_waited",
+                      "forced_kill", "parent_join_count", "parent_status"}) ||
+        (*diagnostics_rows)->size() > 32 || (*ipc_rows)->size() > 5 ||
+        (*partition_rows)->size() > 5 || (*observation_rows)->size() > 4) {
+      return std::unexpected(EvidenceError(
+          "CORP_REPORT_FIELD_BOUND", schema, "$", "complete bounded nested corpus fields", "invalid",
+          "corpus nested field set or count is invalid"));
+    }
+    for (const auto name : {"process_count", "thread_count", "parent_worker_count",
+                            "child_worker_count"}) {
+      auto value = IntegerMember(**topology_object, name, schema, "CORP_REPORT_FIELD_TYPE");
+      if (!value || !IsUint8(*value)) {
+        return std::unexpected(EvidenceError(
+            "CORP_REPORT_FIELD_BOUND", schema, std::string("$.topology.") + name, "uint8",
+            value ? std::to_string(*value) : "wrong type", "topology count is invalid"));
+      }
+    }
+    auto roles = ArrayMember(**topology_object, "roles", schema, "CORP_REPORT_FIELD_TYPE");
+    std::set<std::string> role_names;
+    if (!roles || (*roles)->size() != 7) {
+      return std::unexpected(EvidenceError(
+          "CORP_REPORT_FIELD_BOUND", schema, "$.topology.roles", "seven unique roles",
+          roles ? std::to_string((*roles)->size()) : "wrong type", "topology role count is invalid", 7));
+    }
+    for (const auto& row : **roles) {
+      auto role = StringMember(row, "role", schema, "CORP_REPORT_FIELD_TYPE");
+      auto pid = IntegerMember(row, "host_pid", schema, "CORP_REPORT_FIELD_TYPE");
+      auto tid = IntegerMember(row, "host_tid", schema, "CORP_REPORT_FIELD_TYPE");
+      auto state = StringMember(row, "final_state", schema, "CORP_REPORT_FIELD_TYPE");
+      if (!ExactFields(row, {"final_state", "host_pid", "host_tid", "role"}) || !role ||
+          !IsEnum(*role, {"parent_main", "P0", "P1", "P2", "child_main", "C0", "C1"}) ||
+          !role_names.insert(std::string(*role)).second || !pid || *pid < 1 || !IsUint32(*pid) ||
+          !tid || *tid < 1 || !IsUint32(*tid) || !state ||
+          !IsEnum(*state, {"exited", "joined"})) {
+        return std::unexpected(EvidenceError(
+            "CORP_REPORT_FIELD_TYPE", schema, "$.topology.roles[]", "unique typed role row",
+            "invalid", "topology role row is invalid"));
+      }
+    }
+    for (const auto name : {"parent", "child", "combined"}) {
+      auto value = IntegerMember(**sums_object, name, schema, "CORP_REPORT_FIELD_TYPE");
+      if (!value || *value < 0) {
+        return std::unexpected(EvidenceError(
+            "CORP_REPORT_FIELD_BOUND", schema, std::string("$.sums.") + name,
+            "non-negative int64", value ? std::to_string(*value) : "wrong type",
+            "corpus sum is invalid"));
+      }
+    }
+    bool cleanup_complete = true;
+    for (const auto name : {"all_waits_complete", "fd_baseline_restored", "group_absent",
+                            "ipc_closed", "temporary_resources_removed"}) {
+      auto value = BooleanMember(**cleanup_object, name, schema, "CORP_REPORT_FIELD_TYPE");
+      if (!value) return std::unexpected(value.error());
+      cleanup_complete = cleanup_complete && *value;
+    }
     if (*fault != "none") {
       const auto found = kFaultTerminal.find(std::string(*fault));
-      if (found == kFaultTerminal.end() || found->second != *terminal) {
-        return std::unexpected(EvidenceError("CORP_REPORT_RELATIONSHIP_INVALID", schema, "$.fault_mode", "exact fault terminal mapping", *terminal, "fault terminal mapping is invalid"));
+      const std::string expected_terminal = cleanup_complete && found != kFaultTerminal.end()
+                                                ? found->second
+                                                : "cleanup_failed";
+      if (found == kFaultTerminal.end() || *terminal != expected_terminal) {
+        return std::unexpected(EvidenceError(
+            "CORP_REPORT_RELATIONSHIP_INVALID", schema, "$.fault_mode",
+            "exact fault terminal mapping", *terminal, "fault terminal mapping is invalid"));
       }
+    }
+    for (const auto name : {"parent_join_count", "child_join_count"}) {
+      auto value = IntegerMember(**lifecycle_object, name, schema, "CORP_REPORT_FIELD_TYPE");
+      if (!value || !IsUint8(*value)) {
+        return std::unexpected(EvidenceError(
+            "CORP_REPORT_FIELD_BOUND", schema, std::string("$.lifecycle.") + name, "uint8",
+            value ? std::to_string(*value) : "wrong type", "lifecycle count is invalid"));
+      }
+    }
+    for (const auto name : {"child_wait_status", "parent_status"}) {
+      auto value = IntegerMember(**lifecycle_object, name, schema, "CORP_REPORT_FIELD_TYPE");
+      if (!value || !IsInt32(*value)) {
+        return std::unexpected(EvidenceError(
+            "CORP_REPORT_FIELD_BOUND", schema, std::string("$.lifecycle.") + name, "int32",
+            value ? std::to_string(*value) : "wrong type", "lifecycle status is invalid"));
+      }
+    }
+    for (const auto name : {"child_waited", "cancel_sent", "forced_kill"}) {
+      auto value = BooleanMember(**lifecycle_object, name, schema, "CORP_REPORT_FIELD_TYPE");
+      if (!value) return std::unexpected(value.error());
+    }
+    for (const auto& row : **diagnostics_rows) {
+      if (row.AsString() == nullptr || !IsBoundedText(*row.AsString(), 4096, true)) {
+        return std::unexpected(EvidenceError(
+            "CORP_REPORT_FIELD_BOUND", schema, "$.diagnostics[]", "NFC string <=4096 bytes",
+            "invalid", "corpus diagnostic is invalid", 4096));
+      }
+    }
+    for (const auto& row : **ipc_rows) {
+      auto direction = StringMember(row, "direction", schema, "CORP_REPORT_FIELD_TYPE");
+      auto type = StringMember(row, "type", schema, "CORP_REPORT_FIELD_TYPE");
+      auto sequence = IntegerMember(row, "sequence", schema, "CORP_REPORT_FIELD_TYPE");
+      auto wire_bytes = IntegerMember(row, "wire_bytes", schema, "CORP_REPORT_FIELD_TYPE");
+      auto status = StringMember(row, "status", schema, "CORP_REPORT_FIELD_TYPE");
+      if (!ExactFields(row, {"direction", "sequence", "status", "type", "wire_bytes"}) ||
+          !direction || !IsEnum(*direction, {"child_to_parent", "parent_to_child"}) || !type ||
+          !IsEnum(*type, {"READY", "START", "CHILD_RESULT", "ACK", "CANCEL"}) || !sequence ||
+          !IsUint32(*sequence) || !wire_bytes || *wire_bytes < 0 || *wire_bytes > 65535 || !status ||
+          !IsEnum(*status, {"accepted", "rejected"})) {
+        return std::unexpected(EvidenceError(
+            "CORP_REPORT_FIELD_TYPE", schema, "$.ipc[]", "bounded typed IPC row", "invalid",
+            "corpus IPC row is invalid"));
+      }
+    }
+    std::set<std::string> partition_roles;
+    for (const auto& row : **partition_rows) {
+      auto role = StringMember(row, "role", schema, "CORP_REPORT_FIELD_TYPE");
+      auto first = IntegerMember(row, "first", schema, "CORP_REPORT_FIELD_TYPE");
+      auto last = IntegerMember(row, "last", schema, "CORP_REPORT_FIELD_TYPE");
+      auto sum = IntegerMember(row, "sum", schema, "CORP_REPORT_FIELD_TYPE");
+      if (!ExactFields(row, {"first", "last", "role", "sum"}) || !role ||
+          !IsEnum(*role, {"P0", "P1", "P2", "C0", "C1"}) ||
+          !partition_roles.insert(std::string(*role)).second || !first || !IsUint32(*first) ||
+          !last || !IsUint32(*last) || !sum || *sum < 0) {
+        return std::unexpected(EvidenceError(
+            "CORP_REPORT_FIELD_TYPE", schema, "$.partitions[]", "unique bounded partition row",
+            "invalid", "corpus partition row is invalid"));
+      }
+    }
+    std::set<std::pair<std::string, std::string>> observation_keys_all;
+    for (const auto& row : **observation_rows) {
+      auto process = StringMember(row, "process", schema, "CORP_REPORT_FIELD_TYPE");
+      auto operation = StringMember(row, "operation", schema, "CORP_REPORT_FIELD_TYPE");
+      auto calls = IntegerMember(row, "call_count", schema, "CORP_REPORT_FIELD_TYPE");
+      auto success = BooleanMember(row, "success", schema, "CORP_REPORT_FIELD_TYPE");
+      const auto* value = FindMember(row, "value_sha256");
+      if (!ExactFields(row, {"call_count", "operation", "process", "success", "value_sha256"}) ||
+          !process || !IsEnum(*process, {"parent", "child"}) || !operation ||
+          !IsEnum(*operation, {"clock_gettime_realtime", "getrandom_32"}) || !calls ||
+          !IsUint8(*calls) || !success || value == nullptr ||
+          (!value->IsNull() && (value->AsString() == nullptr || !IsHex(*value->AsString()))) ||
+          !observation_keys_all.emplace(std::string(*process), std::string(*operation)).second) {
+        return std::unexpected(EvidenceError(
+            "CORP_REPORT_FIELD_TYPE", schema, "$.observations[]", "unique bounded observation row",
+            "invalid", "corpus observation row is invalid"));
+      }
+    }
+    const bool success_shaped_failure = !*passed && *fault != "none" && cleanup_complete &&
+        (*diagnostics_rows)->empty() && (*ipc_rows)->size() == 4 && (*partition_rows)->size() == 5 &&
+        (*observation_rows)->size() == 4 && *result == 12502500 &&
+        IntegerMember(**sums_object, "combined", schema, "CORP_REPORT_FIELD_TYPE").value_or(-1) == 12502500 &&
+        IntegerMember(**lifecycle_object, "parent_status", schema, "CORP_REPORT_FIELD_TYPE").value_or(-1) == 0 &&
+        IntegerMember(**lifecycle_object, "child_wait_status", schema, "CORP_REPORT_FIELD_TYPE").value_or(-1) == 0;
+    if (success_shaped_failure) {
+      return std::unexpected(EvidenceError(
+          "CORP_REPORT_RELATIONSHIP_INVALID", schema, "$", "fault evidence differs from success",
+          "success-shaped failure", "injected fault report contradicts its nested evidence"));
     }
     if (*passed) {
       auto topology = Member(document, "topology", schema, "CORP_REPORT_FIELD_MISSING");
@@ -1174,8 +1419,10 @@ Result<void> ValidateCorpusCore(const JsonValue& document, std::string_view sche
         (*profile != "unit_fixture" && *profile != "m0_release") || !build_digest || !environment_digest || !revision ||
         !IsHex(*revision, revision->size()) || (revision->size() != 40 && revision->size() != 64) || !aggregate ||
         !ExactFields(**aggregate, {"cleanup_complete", "digests_valid", "indices_unique", "result_exact", "topology_exact", "zero_timeout"}) ||
-        (*reports)->empty() || (*reports)->size() > 100 || *required < 1 || *required > 100 ||
-        *attempted != static_cast<std::int64_t>((*reports)->size()) || *passed_runs < 0 || *passed_runs > *attempted ||
+        (*reports)->empty() || (*reports)->size() > 100 || (*failures)->size() > 9 ||
+        !IsUint8(*required) || *required < 1 || *required > 100 || !IsUint8(*attempted) ||
+        !IsUint8(*passed_runs) || *attempted != static_cast<std::int64_t>((*reports)->size()) ||
+        *passed_runs > *attempted ||
         (*profile == "m0_release" && (*required != 100 || *attempted != 100))) {
       return std::unexpected(EvidenceError("CORP_REPORT_RELATIONSHIP_INVALID", schema, "$", "reconciled reliability counts", "mismatch", "reliability report relationship is invalid"));
     }
@@ -1187,8 +1434,7 @@ Result<void> ValidateCorpusCore(const JsonValue& document, std::string_view sche
       auto length = IntegerMember(row, "byte_length", schema, "CORP_REPORT_FIELD_TYPE");
       auto digest = ValidateHexMember(row, "sha256", schema, "CORP_REPORT_DIGEST_INVALID");
       if (!ExactFields(row, {"byte_length", "path", "run_index", "sha256"}) || !index || *index < 1 || *index > 100 ||
-          *index <= prior_index || !report_indices.insert(*index).second || !path || path->empty() || path->starts_with('/') ||
-          path->find("..") != std::string_view::npos || !length ||
+          *index <= prior_index || !report_indices.insert(*index).second || !path || !IsRelPath(*path) || !length ||
           *length < 0 || !digest) {
         return std::unexpected(EvidenceError("CORP_REPORT_RELATIONSHIP_INVALID", schema, "$.run_reports", "sorted unique bounded report references", "invalid", "run report reference is invalid"));
       }
@@ -1196,15 +1442,23 @@ Result<void> ValidateCorpusCore(const JsonValue& document, std::string_view sche
     }
     std::int64_t failure_total{};
     std::string previous_terminal;
+    static const std::set<std::string> kFailureTerminals{
+        "cancelled", "child_identity_mismatch", "cleanup_failed", "exec_failed",
+        "ipc_protocol_error", "observation_failed", "result_mismatch",
+        "thread_lifecycle_failed", "timeout"};
     for (const auto& row : **failures) {
       auto terminal = StringMember(row, "terminal", schema, "CORP_REPORT_FIELD_TYPE");
       auto count = IntegerMember(row, "count", schema, "CORP_REPORT_FIELD_TYPE");
-      if (!ExactFields(row, {"count", "terminal"}) || !terminal || !count || *count <= 0 ||
+      if (!ExactFields(row, {"count", "terminal"}) || !terminal ||
+          !kFailureTerminals.contains(std::string(*terminal)) || !count || *count <= 0 ||
+          *count > 100 || !IsUint8(*count) ||
           (!previous_terminal.empty() && previous_terminal >= *terminal)) {
         return std::unexpected(EvidenceError("CORP_REPORT_RELATIONSHIP_INVALID", schema, "$.failure_counts", "sorted nonzero unique rows", "invalid", "failure-count row is invalid"));
       }
       previous_terminal = std::string(*terminal);
-      failure_total += *count;
+      auto added = CheckedAdd(failure_total, *count, schema);
+      if (!added) return std::unexpected(added.error());
+      failure_total = *added;
     }
     bool aggregate_pass = true;
     for (const auto name : {"cleanup_complete", "digests_valid", "indices_unique", "result_exact", "topology_exact", "zero_timeout"}) {
@@ -1263,58 +1517,518 @@ Result<std::int64_t> NearestRankPercentile(
 }
 
 Result<JsonValue> ValidateGovernanceDocument(std::string_view bytes, ResourceUsage usage) {
-  auto document = ParseDomain(bytes, "M0-GOVERNANCE-v1", "GOV_NONCANONICAL", usage, "GOV_RESOURCE_LIMIT");
+  const std::uint64_t started_ns = internal::MonotonicNowNs();
+  const auto declared_schema = TopLevelStringMember(bytes, "schema");
+  constexpr std::uint64_t kSbomDescriptorMaximumBytes = 64U * 1024U;
+  if (declared_schema == "M0-SBOM-CONTRACT-v1" && bytes.size() > kSbomDescriptorMaximumBytes) {
+    return std::unexpected(EvidenceError(
+        "GOV_FIELD_BOUND", *declared_schema, "$", "document <=65536 bytes",
+        std::to_string(bytes.size()), "SBOM descriptor byte bound exceeded",
+        static_cast<std::int64_t>(kSbomDescriptorMaximumBytes)));
+  }
+  auto document = ParseDomain(
+      bytes, "M0-GOVERNANCE-v1", "GOV_NONCANONICAL", usage, "GOV_RESOURCE_LIMIT",
+      started_ns);
   if (!document) return document;
   auto schema = StringMember(*document, "schema", "M0-GOVERNANCE-v1", "GOV_SCHEMA_UNKNOWN");
   if (!schema) return std::unexpected(schema.error());
-  const auto resource = CheckResourceUsage(
-      usage,
-      ResourceLimits{.count = *schema == "M0-SBOM-CONTRACT-v1" ? 200000U : 12U,
-                     .depth = *schema == "M0-SBOM-CONTRACT-v1" ? 32U : 16U},
-      *schema, "GOV_RESOURCE_LIMIT");
+  usage.input_bytes = std::max<std::uint64_t>(usage.input_bytes, bytes.size());
+  const ResourceLimits limits{
+      .input_bytes = *schema == "M0-SBOM-CONTRACT-v1" ? 64U * 1024U : 16U * 1024U * 1024U,
+      .count = *schema == "M0-SBOM-CONTRACT-v1" ? 200000U : 12U,
+      .depth = *schema == "M0-SBOM-CONTRACT-v1" ? 32U : 16U,
+      .rss_bytes = 256U * 1024U * 1024U,
+      .wall_time_ns = 120000000000ULL,
+  };
+  auto resource = CheckResourceUsage(
+      internal::ObserveResourceUsage(usage, started_ns), limits, *schema, "GOV_RESOURCE_LIMIT");
   if (!resource) return std::unexpected(resource.error());
   auto status = ValidateGovernanceCore(*document, *schema);
   if (!status) return std::unexpected(status.error());
+  resource = CheckResourceUsage(
+      internal::ObserveResourceUsage(usage, started_ns), limits, *schema, "GOV_RESOURCE_LIMIT");
+  if (!resource) return std::unexpected(resource.error());
   return document;
 }
 
 Result<JsonValue> ValidatePerformanceDocument(std::string_view bytes, ResourceUsage usage) {
-  auto document = ParseDomain(bytes, "M0-PERFORMANCE-v1", "PERF_NONCANONICAL", usage, "PERF_RESOURCE_LIMIT");
+  const std::uint64_t started_ns = internal::MonotonicNowNs();
+  auto document = ParseDomain(
+      bytes, "M0-PERFORMANCE-v1", "PERF_NONCANONICAL", usage, "PERF_RESOURCE_LIMIT",
+      started_ns);
   if (!document) return document;
   auto schema = StringMember(*document, "schema", "M0-PERFORMANCE-v1", "PERF_SCHEMA_UNKNOWN");
   if (!schema) return std::unexpected(schema.error());
-  const auto resource = CheckResourceUsage(
-      usage,
-      ResourceLimits{.count = *schema == "M0-PERF-COMPARISON-v1" ? 10000U : 100000U, .depth = 16U},
-      *schema, "PERF_RESOURCE_LIMIT");
+  usage.input_bytes = std::max<std::uint64_t>(usage.input_bytes, bytes.size());
+  const ResourceLimits limits{
+      .input_bytes = 16U * 1024U * 1024U,
+      .count = 100000U,
+      .work_units = *schema == "M0-PERF-COMPARISON-v1"
+                        ? std::optional<std::uint64_t>(10000U)
+                        : std::nullopt,
+      .depth = 16U,
+      .rss_bytes = 256U * 1024U * 1024U,
+      .wall_time_ns = 120000000000ULL,
+  };
+  auto resource = CheckResourceUsage(
+      internal::ObserveResourceUsage(usage, started_ns), limits, *schema, "PERF_RESOURCE_LIMIT");
   if (!resource) return std::unexpected(resource.error());
   auto status = ValidatePerformanceCore(*document, *schema);
   if (!status) return std::unexpected(status.error());
+  resource = CheckResourceUsage(
+      internal::ObserveResourceUsage(usage, started_ns), limits, *schema, "PERF_RESOURCE_LIMIT");
+  if (!resource) return std::unexpected(resource.error());
   return document;
 }
 
+Result<JsonValue> ValidatePerformanceResultBundle(
+    std::string_view workload_bytes,
+    std::string_view raw_samples_bytes,
+    std::string_view result_bytes,
+    ResourceUsage usage) {
+  const std::uint64_t started_ns = internal::MonotonicNowNs();
+  auto workload = ValidatePerformanceDocument(workload_bytes, usage);
+  if (!workload) return std::unexpected(workload.error());
+  auto result = ValidatePerformanceDocument(result_bytes, usage);
+  if (!result) return std::unexpected(result.error());
+  auto raw_samples = ParseCanonicalJson(
+      raw_samples_bytes, "M0-PERF-RAW-SAMPLE-ARRAY-v1", "PERF_NONCANONICAL",
+      {.maximum_bytes = 16U * 1024U * 1024U, .maximum_depth = 16});
+  if (!raw_samples) return std::unexpected(raw_samples.error());
+  const auto* rows = raw_samples->AsArray();
+  if (rows == nullptr || rows->empty() || rows->size() > 100000) {
+    return std::unexpected(EvidenceError(
+        "PERF_FIELD_BOUND", "M0-PERF-RESULT-v1", "$.raw_samples", "1-100000 rows",
+        rows == nullptr ? "non-array" : std::to_string(rows->size()),
+        "raw sample array bound is invalid", 100000));
+  }
+
+  usage.input_bytes = std::max<std::uint64_t>(
+      usage.input_bytes,
+      std::max({workload_bytes.size(), raw_samples_bytes.size(), result_bytes.size()}));
+  usage.count = std::max<std::uint64_t>(usage.count, rows->size());
+  const ResourceLimits limits{
+      .input_bytes = 16U * 1024U * 1024U,
+      .count = 100000U,
+      .depth = 16U,
+      .rss_bytes = 256U * 1024U * 1024U,
+      .wall_time_ns = 120000000000ULL,
+  };
+  const auto check_resources = [&]() {
+    return CheckResourceUsage(
+        internal::ObserveResourceUsage(usage, started_ns), limits, "M0-PERF-RESULT-v1",
+        "PERF_RESOURCE_LIMIT");
+  };
+  auto resource = check_resources();
+  if (!resource) return std::unexpected(resource.error());
+
+  auto workload_id = StringMember(*workload, "workload_id", "M0-PERF-WORKLOAD-v1", "PERF_FIELD_TYPE");
+  auto workload_version = IntegerMember(*workload, "workload_version", "M0-PERF-WORKLOAD-v1", "PERF_FIELD_TYPE");
+  auto workload_dataset = StringMember(*workload, "dataset", "M0-PERF-WORKLOAD-v1", "PERF_FIELD_TYPE");
+  auto workload_concurrency = IntegerMember(*workload, "concurrency", "M0-PERF-WORKLOAD-v1", "PERF_FIELD_TYPE");
+  auto workload_timeout = IntegerMember(*workload, "timeout_ms", "M0-PERF-WORKLOAD-v1", "PERF_FIELD_TYPE");
+  auto workload_storage = BooleanMember(*workload, "storage_applicable", "M0-PERF-WORKLOAD-v1", "PERF_FIELD_TYPE");
+  auto allocation_phase = StringMember(*workload, "allocation_phase", "M0-PERF-WORKLOAD-v1", "PERF_FIELD_TYPE");
+  auto workload_metric = Member(*workload, "metric", "M0-PERF-WORKLOAD-v1", "PERF_FIELD_MISSING");
+  auto workload_sampling = Member(*workload, "sampling", "M0-PERF-WORKLOAD-v1", "PERF_FIELD_MISSING");
+  auto result_id = StringMember(*result, "workload_id", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto result_version = IntegerMember(*result, "workload_version", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto result_dataset = StringMember(*result, "dataset", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto result_concurrency = IntegerMember(*result, "concurrency", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto result_run = StringMember(*result, "run_id", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto result_role = StringMember(*result, "role", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto result_metric = Member(*result, "metric", "M0-PERF-RESULT-v1", "PERF_FIELD_MISSING");
+  auto result_sampling = Member(*result, "sampling", "M0-PERF-RESULT-v1", "PERF_FIELD_MISSING");
+  auto raw_descriptor = Member(*result, "raw_samples", "M0-PERF-RESULT-v1", "PERF_FIELD_MISSING");
+  const auto* result_storage = FindMember(*result, "storage");
+  if (!workload_id || !workload_version || !workload_dataset || !workload_concurrency ||
+      !workload_timeout || !workload_storage || !allocation_phase || !workload_metric ||
+      !workload_sampling || !result_id || !result_version || !result_dataset ||
+      !result_concurrency || !result_run || !result_role || !result_metric || !result_sampling ||
+      !raw_descriptor || result_storage == nullptr || *workload_id != *result_id ||
+      *workload_version != *result_version || *workload_dataset != *result_dataset ||
+      *workload_concurrency != *result_concurrency ||
+      (*workload_storage != !result_storage->IsNull()) ||
+      !SameJson(**workload_metric, **result_metric, "M0-PERF-RESULT-v1")) {
+    return std::unexpected(EvidenceError(
+        "PERF_RELATIONSHIP_INVALID", "M0-PERF-RESULT-v1", "$", "result fields equal workload",
+        "mismatch", "workload and result are not reconciled"));
+  }
+
+  auto raw_length = IntegerMember(**raw_descriptor, "byte_length", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto raw_count = IntegerMember(**raw_descriptor, "count", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto raw_digest = StringMember(**raw_descriptor, "sha256", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto computed_digest = Sha256(raw_samples_bytes);
+  if (!raw_length || !raw_count || !raw_digest || !computed_digest ||
+      *raw_length != static_cast<std::int64_t>(raw_samples_bytes.size()) ||
+      *raw_count != static_cast<std::int64_t>(rows->size()) ||
+      *raw_digest != computed_digest->Hex()) {
+    return std::unexpected(EvidenceError(
+        "PERF_DIGEST_INVALID", "M0-PERF-RESULT-v1", "$.raw_samples",
+        "exact byte length/count/SHA-256", "mismatch",
+        "raw sample bytes do not match the result descriptor"));
+  }
+
+  auto workload_mode = StringMember(**workload_sampling, "mode", "M0-PERF-WORKLOAD-v1", "PERF_FIELD_TYPE");
+  auto workload_warmups = IntegerMember(**workload_sampling, "warmup_pairs", "M0-PERF-WORKLOAD-v1", "PERF_FIELD_TYPE");
+  auto workload_minimum = IntegerMember(**workload_sampling, "minimum_measured_pairs", "M0-PERF-WORKLOAD-v1", "PERF_FIELD_TYPE");
+  auto workload_resamples = IntegerMember(**workload_sampling, "resamples", "M0-PERF-WORKLOAD-v1", "PERF_FIELD_TYPE");
+  auto result_mode = StringMember(**result_sampling, "mode", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto result_warmups = IntegerMember(**result_sampling, "warmup_pairs_required", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto result_completed = IntegerMember(**result_sampling, "warmup_pairs_completed", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto result_minimum = IntegerMember(**result_sampling, "minimum_measured_pairs", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto result_attempted = IntegerMember(**result_sampling, "measured_pairs_attempted", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto result_resamples = IntegerMember(**result_sampling, "resamples", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  auto result_timeout = IntegerMember(**result_sampling, "timeout_ms", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  if (!workload_mode || !workload_warmups || !workload_minimum || !workload_resamples ||
+      !result_mode || !result_warmups || !result_completed || !result_minimum ||
+      !result_attempted || !result_resamples || !result_timeout ||
+      *workload_mode != *result_mode || *workload_warmups != *result_warmups ||
+      *workload_minimum != *result_minimum || *workload_resamples != *result_resamples ||
+      *workload_timeout != *result_timeout) {
+    return std::unexpected(EvidenceError(
+        "PERF_RELATIONSHIP_INVALID", "M0-PERF-RESULT-v1", "$.sampling",
+        "sampling copied from workload", "mismatch",
+        "result sampling does not match its workload"));
+  }
+
+  const auto* workload_metric_name = FindMember(**workload_metric, "name");
+  const auto* workload_metric_unit = FindMember(**workload_metric, "unit");
+  std::vector<std::int64_t> measured_values;
+  std::size_t warmup_index{};
+  std::size_t measured_index{};
+  std::size_t valid_measured_count{};
+  std::size_t invalid_measured_count{};
+  bool saw_measured{};
+  bool noise_failed{};
+  for (const auto& row : *rows) {
+    auto row_status = ValidatePerformanceCore(row, "M0-PERF-RAW-SAMPLE-v1");
+    if (!row_status) return std::unexpected(row_status.error());
+    auto row_run = StringMember(row, "run_id", "M0-PERF-RAW-SAMPLE-v1", "PERF_FIELD_TYPE");
+    auto row_workload = StringMember(row, "workload_id", "M0-PERF-RAW-SAMPLE-v1", "PERF_FIELD_TYPE");
+    auto row_version = IntegerMember(row, "workload_version", "M0-PERF-RAW-SAMPLE-v1", "PERF_FIELD_TYPE");
+    auto phase = StringMember(row, "phase", "M0-PERF-RAW-SAMPLE-v1", "PERF_FIELD_TYPE");
+    auto pair_index = IntegerMember(row, "pair_index", "M0-PERF-RAW-SAMPLE-v1", "PERF_FIELD_TYPE");
+    auto order = StringMember(row, "order", "M0-PERF-RAW-SAMPLE-v1", "PERF_FIELD_TYPE");
+    auto valid = BooleanMember(row, "valid", "M0-PERF-RAW-SAMPLE-v1", "PERF_FIELD_TYPE");
+    auto migrations = IntegerMember(row, "migration_count", "M0-PERF-RAW-SAMPLE-v1", "PERF_FIELD_TYPE");
+    auto throttled = BooleanMember(row, "throttled", "M0-PERF-RAW-SAMPLE-v1", "PERF_FIELD_TYPE");
+    auto background = IntegerMember(row, "background_utilization_ppm", "M0-PERF-RAW-SAMPLE-v1", "PERF_FIELD_TYPE");
+    auto metric = Member(row, "metric", "M0-PERF-RAW-SAMPLE-v1", "PERF_FIELD_MISSING");
+    const auto* allocation = FindMember(row, "allocation");
+    const auto* storage = FindMember(row, "storage");
+    const auto* metric_name = metric ? FindMember(**metric, "name") : nullptr;
+    const auto* metric_unit = metric ? FindMember(**metric, "unit") : nullptr;
+    if (!row_run || !row_workload || !row_version || !phase || !pair_index || !order || !valid ||
+        !migrations || !throttled || !background || !metric || allocation == nullptr ||
+        storage == nullptr || *row_run != *result_run || *row_workload != *workload_id ||
+        *row_version != *workload_version || workload_metric_name == nullptr ||
+        workload_metric_unit == nullptr || metric_name == nullptr || metric_unit == nullptr ||
+        !SameJson(*workload_metric_name, *metric_name, "M0-PERF-RAW-SAMPLE-v1") ||
+        !SameJson(*workload_metric_unit, *metric_unit, "M0-PERF-RAW-SAMPLE-v1") ||
+        ((*allocation_phase == "none") != allocation->IsNull()) ||
+        (*workload_storage != !storage->IsNull()) ||
+        (*workload_mode == "single" && *order != "standalone") ||
+        (*workload_mode == "paired" && *order == "standalone")) {
+      return std::unexpected(EvidenceError(
+          "PERF_RELATIONSHIP_INVALID", "M0-PERF-RESULT-v1", "$.raw_samples[]",
+          "workload-bound sample", "mismatch",
+          "raw sample is not bound to the workload/result context"));
+    }
+    if (*phase == "warmup") {
+      if (saw_measured || *pair_index != static_cast<std::int64_t>(warmup_index++)) {
+        return std::unexpected(EvidenceError(
+            "PERF_RELATIONSHIP_INVALID", "M0-PERF-RESULT-v1", "$.raw_samples",
+            "ordered contiguous warmup indices", "mismatch", "raw sample order is invalid"));
+      }
+    } else {
+      saw_measured = true;
+      if (*pair_index != static_cast<std::int64_t>(measured_index++)) {
+        return std::unexpected(EvidenceError(
+            "PERF_RELATIONSHIP_INVALID", "M0-PERF-RESULT-v1", "$.raw_samples",
+            "ordered contiguous measured indices", "mismatch", "raw sample order is invalid"));
+      }
+      if (*valid) {
+        measured_values.push_back(*FindMember(**metric, "value")->AsInteger());
+        ++valid_measured_count;
+      } else {
+        ++invalid_measured_count;
+      }
+    }
+    noise_failed = noise_failed || !*valid || *migrations != 0 || *throttled || *background >= 10000;
+    resource = check_resources();
+    if (!resource) return std::unexpected(resource.error());
+  }
+  if (warmup_index != static_cast<std::size_t>(*result_completed) ||
+      measured_index != static_cast<std::size_t>(*result_attempted) ||
+      IntegerMember(**result_sampling, "valid_pairs", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE")
+              .value_or(-1) != static_cast<std::int64_t>(valid_measured_count) ||
+      IntegerMember(**result_sampling, "invalid_pairs", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE")
+              .value_or(-1) != static_cast<std::int64_t>(invalid_measured_count)) {
+    return std::unexpected(EvidenceError(
+        "PERF_RELATIONSHIP_INVALID", "M0-PERF-RESULT-v1", "$.raw_samples",
+        "counts equal ordered raw rows", "mismatch", "raw sample counts are inconsistent"));
+  }
+
+  auto computed_statistics = ComputeIntegerStatistics(measured_values, "M0-PERF-RESULT-v1");
+  auto statistics = Member(*result, "statistics", "M0-PERF-RESULT-v1", "PERF_FIELD_MISSING");
+  if (!computed_statistics || !statistics ||
+      IntegerMember(**statistics, "minimum", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE").value_or(0) != computed_statistics->minimum ||
+      IntegerMember(**statistics, "maximum", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE").value_or(0) != computed_statistics->maximum ||
+      IntegerMember(**statistics, "median", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE").value_or(0) != computed_statistics->median ||
+      IntegerMember(**statistics, "median_absolute_deviation", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE").value_or(-1) != computed_statistics->median_absolute_deviation) {
+    return std::unexpected(EvidenceError(
+        "PERF_RELATIONSHIP_INVALID", "M0-PERF-RESULT-v1", "$.statistics",
+        "statistics derived from valid measured raw values", "mismatch",
+        "result statistics do not match raw samples"));
+  }
+  auto percentiles = ArrayMember(**statistics, "percentiles", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  if (!percentiles) return std::unexpected(percentiles.error());
+  for (const auto& percentile : **percentiles) {
+    auto rank = IntegerMember(percentile, "rank_ppm", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+    auto value = IntegerMember(percentile, "value", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+    auto expected = rank ? NearestRankPercentile(
+                               measured_values, static_cast<std::uint32_t>(*rank),
+                               "M0-PERF-RESULT-v1")
+                         : Result<std::int64_t>(std::unexpected(EvidenceError(
+                               "PERF_FIELD_TYPE", "M0-PERF-RESULT-v1",
+                               "$.statistics.percentiles", "rank", "missing",
+                               "percentile rank is missing")));
+    if (!rank || !value || !expected || *value != *expected) {
+      return std::unexpected(EvidenceError(
+          "PERF_RELATIONSHIP_INVALID", "M0-PERF-RESULT-v1", "$.statistics.percentiles",
+          "nearest-rank value from raw samples", "mismatch",
+          "result percentile does not match raw samples"));
+    }
+  }
+  auto noise = StringMember(*result, "noise_state", "M0-PERF-RESULT-v1", "PERF_FIELD_TYPE");
+  if (!noise || *noise != (noise_failed ? "failed" : "pass")) {
+    return std::unexpected(EvidenceError(
+        "PERF_RELATIONSHIP_INVALID", "M0-PERF-RESULT-v1", "$.noise_state",
+        noise_failed ? "failed" : "pass", noise ? *noise : "missing",
+        "result noise state does not match raw samples"));
+  }
+  resource = check_resources();
+  if (!resource) return std::unexpected(resource.error());
+  return result;
+}
+
 Result<JsonValue> ValidateCorpusDocument(std::string_view bytes, ResourceUsage usage) {
-  auto document = ParseDomain(bytes, "M0-CORPUS-v1", "CORP_REPORT_NONCANONICAL", usage, "CORP_REPORT_FIELD_BOUND");
+  const std::uint64_t started_ns = internal::MonotonicNowNs();
+  const auto declared_schema = TopLevelStringMember(bytes, "schema");
+  constexpr std::uint64_t kCorpusRunMaximumBytes = 1U * 1024U * 1024U;
+  if (declared_schema == "M0-CORPUS-RUN-v1" && bytes.size() > kCorpusRunMaximumBytes) {
+    return std::unexpected(EvidenceError(
+        "CORP_REPORT_FIELD_BOUND", *declared_schema, "$", "document <=1048576 bytes",
+        std::to_string(bytes.size()), "corpus run byte bound exceeded",
+        static_cast<std::int64_t>(kCorpusRunMaximumBytes)));
+  }
+  auto document = ParseDomain(
+      bytes, "M0-CORPUS-v1", "CORP_REPORT_NONCANONICAL", usage,
+      "CORP_REPORT_FIELD_BOUND", started_ns);
   if (!document) return document;
   auto schema = StringMember(*document, "schema", "M0-CORPUS-v1", "CORP_REPORT_SCHEMA_UNKNOWN");
   if (!schema) return std::unexpected(schema.error());
-  const auto resource = CheckResourceUsage(
-      usage, ResourceLimits{.count = 100U, .depth = 16U}, *schema, "CORP_REPORT_FIELD_BOUND");
+  usage.input_bytes = std::max<std::uint64_t>(usage.input_bytes, bytes.size());
+  const ResourceLimits limits{
+      .input_bytes = *schema == "M0-CORPUS-RUN-v1" ? 1U * 1024U * 1024U
+                                                    : 16U * 1024U * 1024U,
+      .count = 100U,
+      .depth = 16U,
+      .rss_bytes = 256U * 1024U * 1024U,
+      .wall_time_ns = 120000000000ULL,
+  };
+  auto resource = CheckResourceUsage(
+      internal::ObserveResourceUsage(usage, started_ns), limits, *schema,
+      "CORP_REPORT_FIELD_BOUND");
   if (!resource) return std::unexpected(resource.error());
   auto status = ValidateCorpusCore(*document, *schema);
   if (!status) return std::unexpected(status.error());
+  resource = CheckResourceUsage(
+      internal::ObserveResourceUsage(usage, started_ns), limits, *schema,
+      "CORP_REPORT_FIELD_BOUND");
+  if (!resource) return std::unexpected(resource.error());
   return document;
+}
+
+Result<JsonValue> ValidateCorpusReliabilityBundle(
+    std::string_view reliability_bytes,
+    std::span<const ReferencedDocument> run_documents,
+    ResourceUsage usage) {
+  const std::uint64_t started_ns = internal::MonotonicNowNs();
+  auto reliability = ValidateCorpusDocument(reliability_bytes, usage);
+  if (!reliability) return std::unexpected(reliability.error());
+  auto schema = StringMember(
+      *reliability, "schema", "M0-CORPUS-RELIABILITY-v1", "CORP_REPORT_SCHEMA_UNKNOWN");
+  if (!schema || *schema != "M0-CORPUS-RELIABILITY-v1") {
+    return std::unexpected(EvidenceError(
+        "CORP_REPORT_SCHEMA_UNKNOWN", "M0-CORPUS-RELIABILITY-v1", "$.schema",
+        "M0-CORPUS-RELIABILITY-v1", schema ? *schema : "missing",
+        "reliability bundle requires an aggregate document"));
+  }
+  auto reports = ArrayMember(
+      *reliability, "run_reports", *schema, "CORP_REPORT_FIELD_TYPE");
+  auto failures = ArrayMember(
+      *reliability, "failure_counts", *schema, "CORP_REPORT_FIELD_TYPE");
+  auto source_revision = StringMember(
+      *reliability, "source_revision", *schema, "CORP_REPORT_FIELD_TYPE");
+  auto environment_id = StringMember(
+      *reliability, "environment_id", *schema, "CORP_REPORT_FIELD_TYPE");
+  auto declared_passed = IntegerMember(
+      *reliability, "passed_runs", *schema, "CORP_REPORT_FIELD_TYPE");
+  auto aggregate = Member(*reliability, "aggregate", *schema, "CORP_REPORT_FIELD_MISSING");
+  if (!reports || !failures || !source_revision || !environment_id || !declared_passed ||
+      !aggregate || run_documents.size() != (*reports)->size()) {
+    return std::unexpected(EvidenceError(
+        "CORP_REPORT_RELATIONSHIP_INVALID", *schema, "$.run_reports",
+        "one supplied document per report reference", std::to_string(run_documents.size()),
+        "reliability run-document population is incomplete or excessive"));
+  }
+  std::map<std::string, std::string_view> documents_by_path;
+  for (const auto& document : run_documents) {
+    if (!IsRelPath(document.path) ||
+        !documents_by_path.emplace(document.path, document.bytes).second) {
+      return std::unexpected(EvidenceError(
+          "CORP_REPORT_RELATIONSHIP_INVALID", *schema, "$.run_reports",
+          "unique relative supplied paths", document.path,
+          "supplied run-document path is invalid or duplicated"));
+    }
+  }
+
+  usage.input_bytes = std::max<std::uint64_t>(usage.input_bytes, reliability_bytes.size());
+  usage.count = std::max<std::uint64_t>(usage.count, run_documents.size());
+  const ResourceLimits limits{
+      .input_bytes = 16U * 1024U * 1024U,
+      .count = 100U,
+      .depth = 16U,
+      .rss_bytes = 256U * 1024U * 1024U,
+      .wall_time_ns = 120000000000ULL,
+  };
+  const auto check_resources = [&]() {
+    return CheckResourceUsage(
+        internal::ObserveResourceUsage(usage, started_ns), limits, *schema,
+        "CORP_REPORT_FIELD_BOUND");
+  };
+  auto resource = check_resources();
+  if (!resource) return std::unexpected(resource.error());
+
+  std::int64_t computed_passed{};
+  std::map<std::string, std::int64_t> terminal_counts;
+  bool topology_exact = true;
+  bool result_exact = true;
+  bool zero_timeout = true;
+  bool cleanup_complete = true;
+  for (const auto& reference : **reports) {
+    auto path = StringMember(reference, "path", *schema, "CORP_REPORT_FIELD_TYPE");
+    auto index = IntegerMember(reference, "run_index", *schema, "CORP_REPORT_FIELD_TYPE");
+    auto byte_length = IntegerMember(reference, "byte_length", *schema, "CORP_REPORT_FIELD_TYPE");
+    auto digest = StringMember(reference, "sha256", *schema, "CORP_REPORT_FIELD_TYPE");
+    if (!path || !index || !byte_length || !digest) {
+      return std::unexpected(EvidenceError(
+          "CORP_REPORT_FIELD_TYPE", *schema, "$.run_reports[]", "complete reference row",
+          "invalid", "run reference cannot be resolved"));
+    }
+    const auto found = documents_by_path.find(std::string(*path));
+    if (found == documents_by_path.end()) {
+      return std::unexpected(EvidenceError(
+          "CORP_REPORT_RELATIONSHIP_INVALID", *schema, "$.run_reports[].path",
+          "resolved document", *path, "referenced run document is missing"));
+    }
+    const std::string_view bytes = found->second;
+    usage.input_bytes = std::max<std::uint64_t>(usage.input_bytes, bytes.size());
+    auto actual_digest = Sha256(bytes);
+    if (*byte_length != static_cast<std::int64_t>(bytes.size()) || !actual_digest ||
+        *digest != actual_digest->Hex()) {
+      return std::unexpected(EvidenceError(
+          "CORP_REPORT_DIGEST_INVALID", *schema, "$.run_reports[]",
+          "exact referenced length and SHA-256", *path,
+          "referenced run bytes do not match the aggregate row"));
+    }
+    auto run = ValidateCorpusDocument(bytes, usage);
+    if (!run) return std::unexpected(run.error());
+    auto run_schema = StringMember(*run, "schema", "M0-CORPUS-RUN-v1", "CORP_REPORT_SCHEMA_UNKNOWN");
+    auto run_index = IntegerMember(*run, "run_index", "M0-CORPUS-RUN-v1", "CORP_REPORT_FIELD_TYPE");
+    auto run_revision = StringMember(*run, "source_revision", "M0-CORPUS-RUN-v1", "CORP_REPORT_FIELD_TYPE");
+    auto run_environment = StringMember(*run, "environment_id", "M0-CORPUS-RUN-v1", "CORP_REPORT_FIELD_TYPE");
+    auto run_passed = BooleanMember(*run, "passed", "M0-CORPUS-RUN-v1", "CORP_REPORT_FIELD_TYPE");
+    auto terminal = StringMember(*run, "terminal", "M0-CORPUS-RUN-v1", "CORP_REPORT_FIELD_TYPE");
+    if (!run_schema || *run_schema != "M0-CORPUS-RUN-v1" || !run_index || *run_index != *index ||
+        !run_revision || *run_revision != *source_revision || !run_environment ||
+        *run_environment != *environment_id || !run_passed || !terminal) {
+      return std::unexpected(EvidenceError(
+          "CORP_REPORT_RELATIONSHIP_INVALID", *schema, "$.run_reports[]",
+          "matching run index/source/environment context", *path,
+          "referenced run context does not match the aggregate"));
+    }
+    if (*run_passed && *terminal == "success") {
+      auto added = CheckedAdd(computed_passed, 1, *schema);
+      if (!added) return std::unexpected(added.error());
+      computed_passed = *added;
+    } else {
+      auto added = CheckedAdd(terminal_counts[std::string(*terminal)], 1, *schema);
+      if (!added) return std::unexpected(added.error());
+      terminal_counts[std::string(*terminal)] = *added;
+    }
+    topology_exact = topology_exact && *terminal != "thread_lifecycle_failed" &&
+                     *terminal != "child_identity_mismatch" && *terminal != "exec_failed";
+    result_exact = result_exact && *terminal != "result_mismatch";
+    zero_timeout = zero_timeout && *terminal != "timeout";
+    auto cleanup = Member(*run, "cleanup", "M0-CORPUS-RUN-v1", "CORP_REPORT_FIELD_MISSING");
+    if (!cleanup) return std::unexpected(cleanup.error());
+    for (const auto name : {"all_waits_complete", "fd_baseline_restored", "group_absent",
+                            "ipc_closed", "temporary_resources_removed"}) {
+      auto flag = BooleanMember(**cleanup, name, "M0-CORPUS-RUN-v1", "CORP_REPORT_FIELD_TYPE");
+      if (!flag) return std::unexpected(flag.error());
+      cleanup_complete = cleanup_complete && *flag;
+    }
+    resource = check_resources();
+    if (!resource) return std::unexpected(resource.error());
+  }
+  std::map<std::string, std::int64_t> declared_failures;
+  for (const auto& row : **failures) {
+    auto terminal = StringMember(row, "terminal", *schema, "CORP_REPORT_FIELD_TYPE");
+    auto count = IntegerMember(row, "count", *schema, "CORP_REPORT_FIELD_TYPE");
+    if (!terminal || !count) return std::unexpected(EvidenceError(
+        "CORP_REPORT_FIELD_TYPE", *schema, "$.failure_counts[]", "terminal/count", "invalid",
+        "failure count cannot be reconciled"));
+    declared_failures.emplace(std::string(*terminal), *count);
+  }
+  if (computed_passed != *declared_passed || terminal_counts != declared_failures) {
+    return std::unexpected(EvidenceError(
+        "CORP_REPORT_FORGED_SUCCESS", *schema, "$", "counts derived from referenced run documents",
+        "mismatch", "aggregate pass/failure counts do not match referenced runs"));
+  }
+  const std::map<std::string_view, bool> expected_aggregate{
+      {"cleanup_complete", cleanup_complete},
+      {"digests_valid", true},
+      {"indices_unique", true},
+      {"result_exact", result_exact},
+      {"topology_exact", topology_exact},
+      {"zero_timeout", zero_timeout},
+  };
+  for (const auto& [name, expected] : expected_aggregate) {
+    auto actual = BooleanMember(**aggregate, name, *schema, "CORP_REPORT_FIELD_TYPE");
+    if (!actual || *actual != expected) {
+      return std::unexpected(EvidenceError(
+          "CORP_REPORT_FORGED_SUCCESS", *schema, std::string("$.aggregate.") + std::string(name),
+          expected ? "true" : "false", actual && *actual ? "true" : "false",
+          "aggregate relationship does not match referenced runs"));
+    }
+  }
+  resource = check_resources();
+  if (!resource) return std::unexpected(resource.error());
+  return reliability;
 }
 
 const std::vector<ResourceContractRow>& M0SharedResourceContracts() {
   static const std::vector<ResourceContractRow> rows{
-      {"SEC-LIM-10-02", "reference_environment", {.input_bytes = 96U * 1024U, .count = 128, .depth = 8, .rss_bytes = 64U * 1024U * 1024U, .wall_time_ns = 10000000000ULL}, "BUILD_REFENV_RESOURCE_LIMIT", "BUILD-FR-010"},
-      {"SEC-LIM-10-03", "package_tree_identity", {.input_bytes = 16ULL * 1024ULL * 1024ULL * 1024ULL, .count = 100000, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 1200000000000ULL}, "BUILD_PACKAGE_IDENTITY_INVALID", "BUILD-FR-011"},
-      {"SEC-LIM-11-03", "spdx_descriptor", {.input_bytes = 16U * 1024U * 1024U, .count = 200000, .depth = 32, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 120000000000ULL}, "GOV_RESOURCE_LIMIT", "GOV-FR-006"},
-      {"SEC-LIM-11-04", "release_evidence", {.input_bytes = 16U * 1024U * 1024U, .count = 12, .depth = 16, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 120000000000ULL}, "GOV_RESOURCE_LIMIT", "GOV-FR-008"},
-      {"SEC-LIM-14-01", "performance_document", {.input_bytes = 16U * 1024U * 1024U, .count = 100000, .depth = 16}, "PERF_RESOURCE_LIMIT", "PERF-FR-012"},
-      {"SEC-LIM-14-02", "performance_comparator", {.count = 10000, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 120000000000ULL}, "PERF_RESOURCE_LIMIT", "PERF-FR-012"},
-      {"SEC-LIM-15-03", "corpus_reports", {.input_bytes = 16U * 1024U * 1024U, .count = 100, .depth = 16}, "CORP_REPORT_FIELD_BOUND", "CORP-FR-013"},
+      {.limit_id = "SEC-LIM-10-02", .operation = "reference_environment", .limits = {.input_bytes = 96U * 1024U, .count = 128, .depth = 8, .rss_bytes = 64U * 1024U * 1024U, .wall_time_ns = 10000000000ULL}, .error = "BUILD_REFENV_RESOURCE_LIMIT", .owner_requirement = "BUILD-FR-010"},
+      {.limit_id = "SEC-LIM-10-03", .operation = "package_tree_identity", .limits = {.input_bytes = 16ULL * 1024ULL * 1024ULL * 1024ULL, .count = 100000, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 1200000000000ULL}, .error = "BUILD_PACKAGE_IDENTITY_INVALID", .owner_requirement = "BUILD-FR-011"},
+      {.limit_id = "SEC-LIM-11-03", .operation = "spdx_descriptor", .limits = {.input_bytes = 64U * 1024U, .count = 200000, .depth = 32, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 120000000000ULL}, .error = "GOV_RESOURCE_LIMIT", .owner_requirement = "GOV-FR-006"},
+      {.limit_id = "SEC-LIM-11-04", .operation = "release_evidence", .limits = {.input_bytes = 16U * 1024U * 1024U, .count = 12, .depth = 16, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 120000000000ULL}, .error = "GOV_RESOURCE_LIMIT", .owner_requirement = "GOV-FR-008"},
+      {.limit_id = "SEC-LIM-14-01", .operation = "performance_document", .limits = {.input_bytes = 16U * 1024U * 1024U, .count = 100000, .depth = 16}, .error = "PERF_RESOURCE_LIMIT", .owner_requirement = "PERF-FR-012"},
+      {.limit_id = "SEC-LIM-14-02", .operation = "performance_comparator", .limits = {.count = 100000, .work_units = 10000, .rss_bytes = 256U * 1024U * 1024U, .wall_time_ns = 120000000000ULL}, .error = "PERF_RESOURCE_LIMIT", .owner_requirement = "PERF-FR-012"},
+      {.limit_id = "SEC-LIM-15-03", .operation = "corpus_run_report", .limits = {.input_bytes = 1U * 1024U * 1024U, .count = 100, .depth = 16}, .alternate_limits = ResourceLimits{.input_bytes = 16U * 1024U * 1024U, .count = 100, .depth = 16}, .error = "CORP_REPORT_FIELD_BOUND", .owner_requirement = "CORP-FR-013"},
   };
   return rows;
 }

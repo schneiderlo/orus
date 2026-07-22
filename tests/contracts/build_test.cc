@@ -78,6 +78,23 @@ TEST(BuildFacts, ValidatesDevReleaseAndDirtyTruthfulness) {
   EXPECT_EQ(MakeBuildFacts(release, false).error().code, "BUILD_METADATA_INVALID");
 }
 
+TEST(BuildFacts, EmbeddedFactsComeFromDeclaredBazelInputs) {
+  auto embedded = EmbeddedBuildFacts();
+  if (!embedded) {
+    EXPECT_EQ(embedded.error().code, "BUILD_METADATA_INVALID");
+    EXPECT_EQ(embedded.error().field_path, "$.source_revision");
+    EXPECT_TRUE(embedded.error().observed.ends_with("-dirty"));
+    return;
+  }
+  EXPECT_EQ(*FindMember(*embedded, "schema")->AsString(), "M0-BUILD-FACTS-v1");
+  EXPECT_EQ(*FindMember(*embedded, "product_version")->AsString(), "0.0.0-m0");
+  const auto revision = *FindMember(*embedded, "source_revision")->AsString();
+  EXPECT_TRUE(revision.size() == 40 || revision.size() == 64 || revision.ends_with("-dirty"));
+  EXPECT_FALSE(FindMember(*embedded, "configuration")->AsString()->empty());
+  EXPECT_FALSE(FindMember(*embedded, "compiler")->AsString()->empty());
+  EXPECT_EQ(*FindMember(*embedded, "target_platform")->AsString(), "linux-x86_64");
+}
+
 TEST(ReferenceEnvironment, FixedAndProductionDocumentsValidateExactly) {
   const auto contract_bytes = test::Read("tests/contracts/fixtures/reference-fixed.json");
   const auto observed_bytes = test::Read("tests/contracts/fixtures/reference-observed-fixed.json");
@@ -313,6 +330,17 @@ TEST(PackageIdentity, FixedManifestAndMetadataMatrixAreExact) {
   auto bytes_over = IdentifyPackageTree(root, {}, ResourceUsage{.input_bytes = 16ULL * 1024ULL * 1024ULL * 1024ULL + 1});
   ASSERT_FALSE(bytes_over);
   EXPECT_EQ(bytes_over.error().code, "BUILD_PACKAGE_IDENTITY_INVALID");
+
+  PackageLimits observed_limits;
+  observed_limits.maximum_rss_bytes = 1;
+  auto observed_rss = IdentifyPackageTree(root, observed_limits);
+  ASSERT_FALSE(observed_rss);
+  EXPECT_EQ(observed_rss.error().code, "BUILD_PACKAGE_IDENTITY_INVALID");
+  observed_limits.maximum_rss_bytes = 256ULL * 1024ULL * 1024ULL;
+  observed_limits.maximum_wall_time_ns = 0;
+  auto observed_deadline = IdentifyPackageTree(root, observed_limits);
+  ASSERT_FALSE(observed_deadline);
+  EXPECT_EQ(observed_deadline.error().code, "BUILD_PACKAGE_IDENTITY_INVALID");
 }
 
 TEST(PackageIdentity, RejectsHardLinksAndSpecialFilesBeforeIdentity) {

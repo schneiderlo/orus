@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "11_rework",
+  "current_step": "10_verifier",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -170,8 +170,8 @@
       "last_result_path": ".factory/results/09_implementer/r2/result.json"
     },
     "10_verifier": {
-      "status": "done",
-      "attempts": 1,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "fail",
         "summary": "M0-002 is BLOCKED: run-20260722T155248Z is green and c-07 passes, but c-06 fails because production resource guards rely on injected counters, build facts are not bound to Bazel inputs, performance raw/result and corpus aggregate/reference relationships are not reconciled, literal limits drift, and required negative fuzz/freshness simulations are absent.",
@@ -182,35 +182,48 @@
       "last_result_path": ".factory/results/10_verifier/r1/result.json"
     },
     "11_rework": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 3,
       "last_result": {
         "verdict": "reworked",
-        "summary": "Reworked only M0-001 and closed verifier finding F-01. BCR acquisition is now one admitted-manifest-driven fixed-output transaction that preflights the complete 39-coordinate Nix/Bzlmod population, keeps all 26 fetched BCR inputs quarantined under one 4-GiB-per-blob/16-GiB-total/1,200-second budget, verifies raw digests, and promotes one read-only store output only after the full profile succeeds. c-09 now exercises unadmitted, mutable, hash-mismatch, exact, and first-over coordinate/blob/aggregate/time cases through the same promotion state machine and retains non-promotion evidence. Full Factory run run-20260722T134530Z passed c-01 through c-11; M0-001 is IMPLEMENTED for independent re-verification.",
-        "task_ref": "M0-001",
+        "summary": "Reworked only M0-002 against the authoritative verifier report: production validators now observe RSS/deadlines, build facts come from declared Bazel status/settings, performance and corpus cross-document relationships reconcile exact bytes and derived values, schema/DAG limits are literal and pre-parse where schema-specific, fuzz runs with ASan+UBSan plus fail-closed simulations, and coverage rejects stale reports. The full registered suite is green in run-20260722T171208Z, the blocker-to-fix audit is retained in handoff-r1.md, and M0-002 is IMPLEMENTED for independent re-verification.",
+        "task_ref": "M0-002",
         "artifacts": [
+          ".agents/M0-002/handoff-r1.md",
+          ".agents/M0-002/verification.md",
           ".bazelrc",
-          ".agents/M0-001/handoff-r2.md",
-          ".factory/checks/M0-001/runs/run-20260722T134530Z.json",
-          ".factory/logs/checks/M0-001/run-20260722T134530Z/",
-          ".factory/results/11_rework/r1/result.json",
+          ".factory/checks/M0-002/c-01.json",
+          ".factory/checks/M0-002/runs/run-20260722T162639Z.json",
+          ".factory/checks/M0-002/runs/run-20260722T163837Z.json",
+          ".factory/checks/M0-002/runs/run-20260722T171208Z.json",
+          ".factory/logs/checks/M0-002/run-20260722T171208Z/",
+          ".factory/results/11_rework/r1/result.json (deleted)",
+          ".factory/results/11_rework/r3/result.json",
           ".factory/run.json",
-          ".factory/tasks/M0-001.json",
+          ".factory/tasks/M0-002.json",
           "IMPLEMENTATION_PLAN.md",
-          "config/bcr-distdir.json",
-          "config/dependency-inventory.json",
-          "config/input-acquisition.json",
-          "flake.nix",
-          "tests/build/BUILD.bazel",
+          "contracts/BUILD.bazel",
+          "contracts/build_contracts.cc",
+          "contracts/canonical_json.cc",
+          "contracts/crypto_resource.cc",
+          "contracts/evidence_contracts.cc",
+          "contracts/include/orus/contracts/contracts.h",
+          "contracts/resource_monitor.h",
           "tests/build/contract_test.py",
-          "tools/build/BUILD.bazel",
-          "tools/build/acquisition_profile.py",
-          "tools/build/hermeticity_audit.py",
-          "tools/coverage/packages.json"
+          "tests/contracts/BUILD.bazel",
+          "tests/contracts/boundary_test.py",
+          "tests/contracts/build_test.cc",
+          "tests/contracts/canonical_test.cc",
+          "tests/contracts/evidence_test.cc",
+          "tests/fuzz/BUILD.bazel",
+          "tests/fuzz/fuzz_smoke_verifier.py",
+          "tools/build/build_facts.bzl",
+          "tools/build/workspace_status.sh",
+          "tools/coverage/package_gate.py"
         ],
         "open_questions": []
       },
-      "last_result_path": ".factory/results/11_rework/r1/result.json"
+      "last_result_path": ".factory/results/11_rework/r3/result.json"
     }
   },
   "history": [
@@ -1155,6 +1168,54 @@
       "step": "10_verifier",
       "event": "commit_scheduled",
       "detail": "20260722T160653Z_10_verifier_r1"
+    },
+    {
+      "ts": "2026-07-22T16:06:53Z",
+      "step": "11_rework",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T16:49:00Z",
+      "step": "11_rework",
+      "event": "attempt_failed",
+      "detail": "executor 'codex' exited 1 on 11_rework (see /home/lschneid/workspace/schneiderlo/orus/.factory/logs/11_rework-r1.stderr.log)"
+    },
+    {
+      "ts": "2026-07-22T16:51:25Z",
+      "step": "11_rework",
+      "event": "attempt_started",
+      "detail": "r2 via codex"
+    },
+    {
+      "ts": "2026-07-22T16:55:07Z",
+      "step": "11_rework",
+      "event": "attempt_failed",
+      "detail": "executor 'codex' exited 1 on 11_rework (see /home/lschneid/workspace/schneiderlo/orus/.factory/logs/11_rework-r2.stderr.log)"
+    },
+    {
+      "ts": "2026-07-22T16:55:29Z",
+      "step": "11_rework",
+      "event": "attempt_started",
+      "detail": "r3 via codex"
+    },
+    {
+      "ts": "2026-07-22T17:24:10Z",
+      "step": "11_rework",
+      "event": "attempt_finished",
+      "detail": "r3 in 28m41s (278912 tokens)"
+    },
+    {
+      "ts": "2026-07-22T17:24:10Z",
+      "step": "11_rework",
+      "event": "transition",
+      "detail": "-> 10_verifier"
+    },
+    {
+      "ts": "2026-07-22T17:24:10Z",
+      "step": "11_rework",
+      "event": "commit_scheduled",
+      "detail": "20260722T172410Z_11_rework_r3"
     }
   ],
   "metrics": [
@@ -1413,15 +1474,14 @@
       "ts": "2026-07-22T16:06:53Z",
       "duration_s": 617.9,
       "tokens": 288058
+    },
+    {
+      "step": "11_rework",
+      "attempt": 3,
+      "executor": "codex",
+      "ts": "2026-07-22T17:24:09Z",
+      "duration_s": 1720.8,
+      "tokens": 278912
     }
-  ],
-  "step_context": {
-    "11_rework": {
-      "source_step": "10_verifier",
-      "created_at": "2026-07-22T16:06:53Z",
-      "task_ref": "M0-002",
-      "report_path": ".agents/M0-002/verification-report.md",
-      "instruction": "The verifier failed task `M0-002`. Rework ONLY `M0-002`. Use `.agents/M0-002/verification-report.md` as the authoritative verification report. Fix only the verifier-reported blockers for this routed task; do not select a different blocked task from table order while this context is present."
-    }
-  }
+  ]
 }
