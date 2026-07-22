@@ -1,0 +1,19 @@
+{
+  "id": "c-07",
+  "task": "M0-002",
+  "kind": "manual",
+  "cmd": "",
+  "desc": "Audit the full handoff revision range per verification V7, reporting task-owned implementation separately from factory/audit metadata and exempting append-only historical evidence from product-source scope guards.",
+  "timeout": 1800,
+  "required": true,
+  "created_at": "2026-07-22T14:15:12Z",
+  "updated_at": "2026-07-22T14:15:12Z",
+  "history": [
+    {
+      "ts": "2026-07-22T14:15:12Z",
+      "event": "added",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

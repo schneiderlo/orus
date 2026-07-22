@@ -1,0 +1,19 @@
+{
+  "id": "c-06",
+  "task": "M0-002",
+  "kind": "manual",
+  "cmd": "",
+  "desc": "Review the frozen Orus-owned canonical/API/error/limit/identity surface, C++ authority and Python parity, exact spec literals, downstream ownership boundaries, and handoff inventory per verification V6.",
+  "timeout": 1800,
+  "required": true,
+  "created_at": "2026-07-22T14:15:11Z",
+  "updated_at": "2026-07-22T14:15:11Z",
+  "history": [
+    {
+      "ts": "2026-07-22T14:15:11Z",
+      "event": "added",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

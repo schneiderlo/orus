@@ -1,7 +1,7 @@
 {
   "id": "M0-002",
   "unit": "Canonical Evidence, Identity, and Reference-Environment Core",
-  "status": "PENDING",
+  "status": "PLANNED",
   "depends_on": [
     "M0-001"
   ],
@@ -12,11 +12,23 @@
   "verify": "nix develop --command bazel test --config=dev //tests/contracts/... && nix develop --command bazel test --config=asan //tests/contracts/... && nix develop --command bazel test --config=ubsan //tests/contracts/... && nix develop --command bazel test --config=fuzz //tests/fuzz:canonical_json_parser_fuzz_smoke && nix develop --command bazel run //tools/coverage:package_gate -- --threshold=70",
   "healing_tasks": [],
   "created_at": "2026-07-22T02:13:05Z",
-  "updated_at": "2026-07-22T02:13:05Z",
+  "updated_at": "2026-07-22T14:16:07Z",
   "history": [
     {
       "ts": "2026-07-22T02:13:05Z",
       "status": "PENDING",
+      "by": "agent",
+      "note": ""
+    },
+    {
+      "ts": "2026-07-22T14:04:56Z",
+      "status": "PLANNING",
+      "by": "agent",
+      "note": ""
+    },
+    {
+      "ts": "2026-07-22T14:16:07Z",
+      "status": "PLANNED",
       "by": "agent",
       "note": ""
     }

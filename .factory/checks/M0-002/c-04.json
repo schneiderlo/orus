@@ -1,0 +1,19 @@
+{
+  "id": "c-04",
+  "task": "M0-002",
+  "kind": "test",
+  "cmd": "nix develop --command bazel test --config=fuzz //tests/fuzz:canonical_json_parser_fuzz_smoke",
+  "desc": "",
+  "timeout": 1800,
+  "required": true,
+  "created_at": "2026-07-22T14:15:10Z",
+  "updated_at": "2026-07-22T14:15:10Z",
+  "history": [
+    {
+      "ts": "2026-07-22T14:15:10Z",
+      "event": "added",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

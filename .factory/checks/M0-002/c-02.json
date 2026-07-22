@@ -1,0 +1,19 @@
+{
+  "id": "c-02",
+  "task": "M0-002",
+  "kind": "test",
+  "cmd": "nix develop --command bazel test --config=asan //tests/contracts/...",
+  "desc": "",
+  "timeout": 1800,
+  "required": true,
+  "created_at": "2026-07-22T14:15:09Z",
+  "updated_at": "2026-07-22T14:15:09Z",
+  "history": [
+    {
+      "ts": "2026-07-22T14:15:09Z",
+      "event": "added",
+      "by": "agent",
+      "note": ""
+    }
+  ]
+}

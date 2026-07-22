@@ -2,7 +2,7 @@
   "workflow": "pdca",
   "policy": "expert",
   "status": "idle",
-  "current_step": "08_bundle_author",
+  "current_step": "09_implementer",
   "steps": {
     "01_discovery": {
       "status": "done",
@@ -84,23 +84,23 @@
       "last_result_path": ".factory/results/07_plan_generator/r2/result.json"
     },
     "08_bundle_author": {
-      "status": "pending",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "last_result": {
         "verdict": "bundle_ready",
-        "summary": "Selected the first ready task, M0-001, produced its auditable A3 and verification bundle, registered all 11 runnable and 2 manual checks in execution order, and advanced the task through PLANNING to PLANNED.",
-        "task_ref": "M0-001",
+        "summary": "Planned M0-002 with an auditable A3, complete acceptance-to-check traceability, five ordered machine checks, two manual audits, exact negative/resource/fuzz expectations, and the accepted 70% package-scoped coverage ratchet.",
+        "task_ref": "M0-002",
         "artifacts": [
-          ".agents/M0-001/a3.md",
-          ".agents/M0-001/verification.md"
+          ".agents/M0-002/a3.md",
+          ".agents/M0-002/verification.md"
         ],
         "open_questions": []
       },
       "last_result_path": ".factory/results/08_bundle_author/r1/result.json"
     },
     "09_implementer": {
-      "status": "done",
-      "attempts": 2,
+      "status": "pending",
+      "attempts": 0,
       "last_result": {
         "verdict": "implemented",
         "summary": "Implemented M0-001's pinned Nix/Bazel build substrate, exact dependency and reference-environment contracts, fail-closed Clang/LLD and GCC configurations, network-denied action boundary, build/benchmark/format/coverage skeletons, and automated positive/negative contract tests. Final Factory check run run-20260722T111448Z is green for all eleven runnable checks; the task is IMPLEMENTED and handed off for independent c-12/c-13 review and acceptance.",
@@ -1067,6 +1067,30 @@
       "step": "10_verifier",
       "event": "commit_scheduled",
       "detail": "20260722T140420Z_10_verifier_r1"
+    },
+    {
+      "ts": "2026-07-22T14:04:20Z",
+      "step": "08_bundle_author",
+      "event": "attempt_started",
+      "detail": "r1 via codex"
+    },
+    {
+      "ts": "2026-07-22T14:16:23Z",
+      "step": "08_bundle_author",
+      "event": "attempt_finished",
+      "detail": "r1 in 12m02s (285625 tokens)"
+    },
+    {
+      "ts": "2026-07-22T14:16:23Z",
+      "step": "08_bundle_author",
+      "event": "transition",
+      "detail": "-> 09_implementer"
+    },
+    {
+      "ts": "2026-07-22T14:16:23Z",
+      "step": "08_bundle_author",
+      "event": "commit_scheduled",
+      "detail": "20260722T141623Z_08_bundle_author_r1"
     }
   ],
   "metrics": [
@@ -1301,6 +1325,14 @@
       "ts": "2026-07-22T14:04:20Z",
       "duration_s": 644.2,
       "tokens": 199295
+    },
+    {
+      "step": "08_bundle_author",
+      "attempt": 1,
+      "executor": "codex",
+      "ts": "2026-07-22T14:16:22Z",
+      "duration_s": 721.9,
+      "tokens": 285625
     }
   ]
 }
